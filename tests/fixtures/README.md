@@ -38,7 +38,12 @@ Each `expected.json` is the spec for the analyzer. It holds the `Model` from `sr
 
 ## Derived data
 
-`expected-graph.json` holds only the fields its case is about: `kinds` for every module, `areas` sorted by path, and `cycles` among source modules.
+`expected-graph.json` holds only the fields its case is about: `kinds` for every module, `areas` sorted by path, and `cycles`.
+
+- Each folder is an area. A folder of a single module joins its parent while the parent holds modules of its own, never above the package's directory. A package's directory is an area, `"."` for the root.
+- An area's layer is 0 when it imports no other area of its package, and otherwise one above the highest area it imports. Only imports between source and config modules count, type-only ones included and re-exports not. Areas in one import cycle share a layer.
+- An area of only tests and stories sits one above the highest area it imports. A test or story in a mixed area does not change that area's layer.
+- `cycles` are the import cycles of more than one source or config module, each sorted and the list sorted by first member. Type-only imports and re-exports do not count.
 
 ## Checking and updating
 

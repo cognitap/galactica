@@ -54,3 +54,8 @@ export function kindOf(path: RepoPath): ModuleKind {
   )
   return rule?.kind ?? 'source'
 }
+
+/** Source and config modules are the code that runs. Tests and stories only use it, so they never shape dependency order. */
+export function isSourceOrConfig(kind: ModuleKind): boolean {
+  return kind === 'source' || kind === 'config'
+}
