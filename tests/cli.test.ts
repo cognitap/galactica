@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import { spawnSync } from 'node:child_process'
-import { existsSync, readFileSync } from 'node:fs'
+import { existsSync, readdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { test } from 'node:test'
 import { commands } from '../src/contract.ts'
@@ -21,7 +21,7 @@ test('prints usage with --help, listing every command', () => {
   const { status, stdout } = galactica(plain, '--help')
   assert.equal(status, 0)
   assert.match(stdout, /^Usage: galactica/)
-  for (const command of [...commands, 'html']) {
+  for (const command of [...commands, 'html', 'init']) {
     assert.match(stdout, new RegExp(`^  ${command}\\b`, 'm'))
   }
 })
@@ -100,7 +100,8 @@ test('bad flags and missing arguments are usage failures', () => {
     ['where', 'x', '--depth', '2'],
     ['outline', 'a', 'b'],
     ['overview', '--bogus'],
-    ['overview', '--root', 'nowhere']
+    ['overview', '--root', 'nowhere'],
+    ['overview', '--force']
   ]) {
     const { status, stdout } = galactica(plain, ...args, '--json')
     assert.equal(status, 1, args.join(' '))
@@ -143,11 +144,93 @@ test('html takes no argument and no flag of another command, and other commands 
     ['html', '--json'],
     ['html', '--depth', '2'],
     ['html', '--root', 'nowhere'],
-    ['overview', '--out', 'map.html']
+    ['overview', '--out', 'map.html'],
+    ['html', '--force']
   ]) {
     const { status, stdout, stderr } = galactica(plain, ...args)
     assert.equal(status, 1, args.join(' '))
     assert.equal(stdout, '', args.join(' '))
     assert.match(stderr, /^galactica: /, args.join(' '))
   }
+})
+
+const skillPaths = ['.agents/skills/galactica/SKILL.md', '.claude/skills/galactica/SKILL.md']
+
+test('init installs the skill with the given command, and a second run changes nothing', t => {
+  const root = repository(t, { 'package.json': {} })
+  const first = galactica(root, 'init', '--command', 'node /opt/galactica/dist/cli.js')
+  assert.equal(first.status, 0)
+  assert.equal(first.stdout, skillPaths.map(path => `created ${path}\n`).join(''))
+  const files = skillPaths.map(path => readFileSync(join(root, path), 'utf8'))
+  assert.equal(files[0], files[1])
+  assert.match(files[0]!, /^name: galactica$/m)
+  assert.match(files[0]!, /^ {2}galactica-version: "0\.0\.0"$/m)
+  assert.match(files[0]!, /`node \/opt\/galactica\/dist\/cli\.js uses <file>`/)
+  assert.deepEqual(readdirSync(root, { recursive: true }).toSorted(), [
+    '.agents',
+    '.agents/skills',
+    '.agents/skills/galactica',
+    '.agents/skills/galactica/SKILL.md',
+    '.claude',
+    '.claude/skills',
+    '.claude/skills/galactica',
+    '.claude/skills/galactica/SKILL.md',
+    'package.json'
+  ])
+
+  const second = galactica(root, 'init', '--command', 'node /opt/galactica/dist/cli.js')
+  assert.equal(second.stdout, skillPaths.map(path => `unchanged ${path}\n`).join(''))
+  assert.deepEqual(
+    skillPaths.map(path => readFileSync(join(root, path), 'utf8')),
+    files
+  )
+  assert.equal(galactica(root, 'init').stdout, skillPaths.map(path => `updated ${path}\n`).join(''))
+  assert.match(
+    readFileSync(join(root, skillPaths[0]!), 'utf8'),
+    /`npx @cognitap\/galactica overview`/
+  )
+})
+
+test('init keeps an edited skill, exits 1 when it keeps every one, and --force overwrites', t => {
+  const root = repository(t, {})
+  galactica(root, 'init')
+  const [agents, claude] = skillPaths as [string, string]
+  writeFileSync(join(root, claude), 'Our own notes.\n')
+  const one = galactica(root, 'init', '--command', 'galactica')
+  assert.equal(one.status, 0)
+  assert.equal(
+    one.stdout,
+    `updated ${agents}\nkept ${claude}: edited since galactica wrote it, --force overwrites it\n`
+  )
+  assert.equal(readFileSync(join(root, claude), 'utf8'), 'Our own notes.\n')
+
+  writeFileSync(join(root, agents), 'Our own notes.\n')
+  assert.equal(galactica(root, 'init').status, 1)
+  const forced = galactica(root, 'init', '--force')
+  assert.equal(forced.status, 0)
+  assert.equal(forced.stdout, skillPaths.map(path => `updated ${path}\n`).join(''))
+})
+
+test('init --root installs into that directory and prints paths from the current one', t => {
+  const root = repository(t, { 'packages/app/package.json': {} })
+  const { status, stdout } = galactica(join(root, 'packages/app'), 'init', '--root', '../..')
+  assert.equal(status, 0)
+  assert.equal(stdout, skillPaths.map(path => `created ../../${path}\n`).join(''))
+  assert.ok(existsSync(join(root, skillPaths[0]!)))
+})
+
+test('init takes no argument, no flag of another command and no empty --command', () => {
+  for (const args of [
+    ['init', 'src'],
+    ['init', '--json'],
+    ['init', '--out', 'x'],
+    ['init', '--command', ' '],
+    ['init', '--root', 'nowhere']
+  ]) {
+    const { status, stdout, stderr } = galactica(plain, ...args)
+    assert.equal(status, 1, args.join(' '))
+    assert.equal(stdout, '', args.join(' '))
+    assert.match(stderr, /^galactica: /, args.join(' '))
+  }
+  assert.ok(!existsSync(join(plain, '.agents')))
 })
