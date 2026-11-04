@@ -5,17 +5,24 @@
  */
 
 import ts from 'typescript'
-import type { Edge } from './model.ts'
+import { parseRepoPath, type Edge } from './model.ts'
+import { parseScript, type ScriptLanguage } from './syntax.ts'
 
-/** An edge before its target is known. */
+/** How an import is written, which TypeScript reads its resolution mode from. */
+export type ImportSyntax = 'declaration' | 'import-equals' | 'require' | 'import-call'
+
+/** An edge before its target is known. Plain data, read from the module's syntax tree alone. */
 export interface Import extends Omit<Edge, 'to' | 'via'> {
-  /** The specifier as written, which TypeScript also reads the resolution mode from. */
-  readonly specifier: ts.StringLiteralLike
+  readonly specifier: string
+  readonly syntax: ImportSyntax
+  /** The `resolution-mode` attribute of a type-only import or export, which overrides the syntax. */
+  readonly resolutionMode?: 'import' | 'require'
 }
 
 /** What an import takes, before its line is known. */
 interface Taken {
   readonly specifier: ts.Expression | undefined
+  readonly syntax: ImportSyntax
   readonly form: Edge['form']
   readonly names: readonly string[]
   readonly renames?: Edge['renames']
@@ -44,6 +51,7 @@ function fromImportDeclaration(node: ts.ImportDeclaration): Taken {
   const named = bindings && ts.isNamedImports(bindings) ? bindings.elements : []
   return {
     specifier: node.moduleSpecifier,
+    syntax: 'declaration',
     form: 'import',
     names: [
       ...(clause?.name ? ['default'] : []),
@@ -77,6 +85,7 @@ function fromExportDeclaration(node: ts.ExportDeclaration): Taken | undefined {
   const named = clause && ts.isNamedExports(clause) ? clause.elements : []
   return {
     specifier: node.moduleSpecifier,
+    syntax: 'declaration',
     form: 'reexport',
     names: clause && ts.isNamedExports(clause) ? named.map(nameOf) : ['*'],
     renames:
@@ -96,6 +105,7 @@ function fromImportEquals(node: ts.ImportEqualsDeclaration): Taken | undefined {
   const exported = ts.getModifiers(node)?.some(({ kind }) => kind === ts.SyntaxKind.ExportKeyword)
   return {
     specifier: reference.expression,
+    syntax: 'import-equals',
     form: exported ? 'reexport' : 'import',
     names: ['*'],
     renames: exported ? { [node.name.text]: '*' } : undefined,
@@ -150,6 +160,7 @@ function namesUsed(call: ts.CallExpression): readonly string[] {
 function fromCall(call: ts.CallExpression, dynamic: boolean): Taken {
   return {
     specifier: call.arguments[0],
+    syntax: dynamic ? 'import-call' : 'require',
     form: 'import',
     names: namesUsed(call),
     typeOnly: false,
@@ -176,6 +187,22 @@ function takenBy(node: ts.Node): Taken | undefined {
 const sortedNames = (names: readonly string[]) =>
   [...new Set(names)].sort((a, b) => (a < b ? -1 : a > b ? 1 : 0))
 
+/** Options under which module resolution ignores import syntax, so TypeScript gives a mode only for an override. */
+const syntaxBlind: ts.CompilerOptions = {
+  moduleResolution: ts.ModuleResolutionKind.Bundler,
+  resolvePackageJsonExports: false,
+  resolvePackageJsonImports: false
+}
+
+function overrideOf(
+  source: ts.SourceFile,
+  specifier: ts.StringLiteralLike
+): Import['resolutionMode'] {
+  const mode = ts.getModeForUsageLocation(source, specifier, syntaxBlind)
+  if (mode === undefined) return undefined
+  return mode === ts.ModuleKind.CommonJS ? 'require' : 'import'
+}
+
 /** The module's imports in source order. Specifiers that are no string literal are skipped. */
 export function importsOf(source: ts.SourceFile): readonly Import[] {
   const imports: Import[] = []
@@ -183,8 +210,11 @@ export function importsOf(source: ts.SourceFile): readonly Import[] {
     const taken = takenBy(node)
     const specifier = taken?.specifier
     if (taken && specifier && ts.isStringLiteralLike(specifier)) {
+      const resolutionMode = overrideOf(source, specifier)
       imports.push({
-        specifier,
+        specifier: specifier.text,
+        syntax: taken.syntax,
+        ...(resolutionMode === undefined ? {} : { resolutionMode }),
         line: source.getLineAndCharacterOfPosition(specifier.getStart(source)).line + 1,
         form: taken.form,
         names: sortedNames(taken.names),
@@ -197,4 +227,53 @@ export function importsOf(source: ts.SourceFile): readonly Import[] {
   }
   visit(source)
   return imports
+}
+
+const standInText = [
+  "import 'declaration'",
+  "import x = require('import-equals')",
+  "require('require')",
+  "import('import-call')"
+].join('\n')
+
+interface StandIn {
+  readonly source: ts.SourceFile
+  readonly specifiers: ReadonlyMap<string, ts.StringLiteralLike>
+}
+
+const standIns = new Map<string, StandIn>()
+
+/** A file with one import of each syntax, each specifier naming its syntax, in the language and format given. */
+function standInOf(language: ScriptLanguage, format: ts.ResolutionMode): StandIn {
+  const key = `${language}:${format}`
+  const cached = standIns.get(key)
+  if (cached) return cached
+  const source = parseScript(parseRepoPath(`stand-in.${language}`), language, standInText, format)
+  const specifiers = new Map<string, ts.StringLiteralLike>()
+  const visit = (node: ts.Node): void => {
+    if (ts.isStringLiteralLike(node)) specifiers.set(node.text, node)
+    ts.forEachChild(node, visit)
+  }
+  visit(source)
+  const standIn = { source, specifiers }
+  standIns.set(key, standIn)
+  return standIn
+}
+
+/**
+ * The mode TypeScript resolves an import in. It reads the mode from the
+ * specifier's place in the tree and the file's name and format, so the same
+ * syntax in a stand-in file of the module's language and format gives the
+ * same mode without the module's own tree.
+ */
+export function resolutionModeOf(
+  imported: Pick<Import, 'syntax' | 'resolutionMode'>,
+  language: ScriptLanguage,
+  format: ts.ResolutionMode,
+  options: ts.CompilerOptions
+): ts.ResolutionMode {
+  if (imported.resolutionMode === 'require') return ts.ModuleKind.CommonJS
+  if (imported.resolutionMode === 'import') return ts.ModuleKind.ESNext
+  const { source, specifiers } = standInOf(language, format)
+  return ts.getModeForUsageLocation(source, specifiers.get(imported.syntax)!, options)
 }

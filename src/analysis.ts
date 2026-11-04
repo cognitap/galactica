@@ -1,22 +1,22 @@
 /**
  * Analysing a repository into its `Model`: discovery, then for each module one
  * read and one parse, from which come its content hash, its symbols and its
- * resolved edges, and last the pass that follows imports through barrels.
- * There is no program and no type checker.
+ * imports, then the resolution of those imports across the repository, and
+ * last the pass that follows imports through barrels. There is no program and
+ * no type checker.
  */
 
-import { createHash } from 'node:crypto'
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { performance } from 'node:perf_hooks'
-import ts from 'typescript'
+import type ts from 'typescript'
 import { resolveBarrels } from './barrels.ts'
 import { compilerOptionsOf, discover, type DiscoveredModule, type Warning } from './discovery.ts'
+import { extract, type Extraction } from './extraction.ts'
 import { importResolver, type ImportResolver } from './import-resolution.ts'
-import { importsOf } from './imports.ts'
+import { resolutionModeOf } from './imports.ts'
 import { compareEdges, MODEL_FORMAT, type Edge, type Model, type ModuleFacts } from './model.ts'
-import { symbolsOf } from './symbols.ts'
-import { isScriptLanguage, parseScript } from './syntax.ts'
+import { isScriptLanguage } from './syntax.ts'
 
 /** What a caller reports about a run. It stays out of the `Model`, which is the cache. */
 export interface Summary {
@@ -61,34 +61,23 @@ interface Analyzed {
   readonly skipped: readonly string[]
 }
 
-function analyzeModule(
-  root: string,
+function resolveModule(
   module: DiscoveredModule,
+  { hash, symbols, imports }: Extraction,
   options: ts.CompilerOptions,
-  resolver: ImportResolver,
-  clock: Clock
+  resolver: ImportResolver
 ): Analyzed {
   const { path, language } = module
-  const bytes = readFileSync(join(root, path))
-  const hash = createHash('sha256').update(bytes).digest('hex')
-  if (!isScriptLanguage(language)) {
-    return { facts: { path, hash, symbols: [], edges: [] }, skipped: [] }
-  }
-  const format = timed(clock, 'resolution', () => resolver.formatOf(module))
-  const { source, symbols, imports } = timed(clock, 'parse', () => {
-    const source = parseScript(path, language, bytes.toString('utf8'), format)
-    return { source, symbols: symbolsOf(source), imports: importsOf(source) }
-  })
+  if (!isScriptLanguage(language)) return { facts: { path, hash, symbols, edges: [] }, skipped: [] }
+  const format = resolver.formatOf(module)
   const edges: Edge[] = []
   const skipped: string[] = []
-  timed(clock, 'resolution', () => {
-    for (const { specifier, ...taken } of imports) {
-      const mode = ts.getModeForUsageLocation(source, specifier, options)
-      const to = resolver.resolve(module, specifier.text, mode)
-      if (to.kind === 'file') skipped.push(extensionOf(to.path))
-      else edges.push({ to, ...taken, via: [] })
-    }
-  })
+  for (const { specifier, syntax, resolutionMode, ...taken } of imports) {
+    const mode = resolutionModeOf({ syntax, resolutionMode }, language, format, options)
+    const to = resolver.resolve(module, specifier, mode)
+    if (to.kind === 'file') skipped.push(extensionOf(to.path))
+    else edges.push({ to, ...taken, via: [] })
+  }
   edges.sort(compareEdges)
   return { facts: { path, hash, symbols, edges }, skipped }
 }
@@ -97,9 +86,15 @@ function analyzeModule(
 export function analyzeRepository(rootDir: string): Analysis {
   const clock: Clock = { discovery: 0, parse: 0, resolution: 0, barrels: 0 }
   const discovery = timed(clock, 'discovery', () => discover(rootDir))
+  const extractions = discovery.modules.map(({ path, language }) => {
+    const bytes = readFileSync(join(discovery.root, path))
+    return timed(clock, 'parse', () => extract(path, language, bytes))
+  })
   const resolver = importResolver(discovery)
-  const analyzed = discovery.modules.map(module =>
-    analyzeModule(discovery.root, module, compilerOptionsOf(discovery, module), resolver, clock)
+  const analyzed = timed(clock, 'resolution', () =>
+    discovery.modules.map((module, index) =>
+      resolveModule(module, extractions[index]!, compilerOptionsOf(discovery, module), resolver)
+    )
   )
 
   const skipped: Record<string, number> = {}
