@@ -1,35 +1,52 @@
 #!/usr/bin/env node
-import { readFileSync, statSync } from 'node:fs'
+import { spawn } from 'node:child_process'
+import { readFileSync, statSync, writeFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { parseArgs, type ParseArgsOptionsConfig } from 'node:util'
 import { analyzeRepository } from './analysis.ts'
 import { commandOptions, commandTable, type CommandOption, type Input } from './commands.ts'
 import { SCHEMA_VERSION, type Command, type Failure } from './contract.ts'
 import { graphOf } from './graph.ts'
+import { htmlOf } from './html.ts'
 import { toRepoPath, type RepoPath } from './model.ts'
 import { render } from './render.ts'
+
+const htmlOptions = {
+  out: { type: 'string', value: '<file>', summary: 'File html writes (default: galactica.html)' },
+  open: { type: 'boolean', value: '', summary: 'Open the written file in the default browser' }
+} as const
+
+type HtmlOption = keyof typeof htmlOptions
 
 const options = {
   root: { type: 'string' },
   json: { type: 'boolean' },
   help: { type: 'boolean', short: 'h' },
   version: { type: 'boolean', short: 'v' },
-  ...commandOptions
+  ...commandOptions,
+  ...htmlOptions
 } satisfies ParseArgsOptionsConfig
 
 const pad = (text: string, width: number) => text.padEnd(width)
 
-const optionValue = (option: CommandOption) =>
-  commandOptions[option].value === '' ? '' : ` ${commandOptions[option].value}`
+const flagOptions = { ...commandOptions, ...htmlOptions }
+type Flag = keyof typeof flagOptions
+const flags = Object.keys(flagOptions) as Flag[]
+
+const optionValue = (option: Flag) =>
+  flagOptions[option].value === '' ? '' : ` ${flagOptions[option].value}`
+
+const flagList = (names: readonly Flag[]) =>
+  names.map(option => ` [--${option}${optionValue(option)}]`).join('')
 
 function usage(): string {
   const commands = Object.entries(commandTable).map(([name, spec]) => {
     const argument = spec.argument === undefined ? '' : ` <${spec.argument}>`
-    const flags = spec.options.map(option => ` [--${option}${optionValue(option)}]`).join('')
-    return `  ${pad(`${name}${argument}${flags}`, 29)} ${spec.summary}`
+    return `  ${pad(`${name}${argument}${flagList(spec.options)}`, 29)} ${spec.summary}`
   })
-  const commandFlags = (Object.keys(commandOptions) as CommandOption[]).map(
-    option => `  ${pad(`--${option}${optionValue(option)}`, 15)}${commandOptions[option].summary}`
+  const html = `  ${pad(`html${flagList(Object.keys(htmlOptions) as HtmlOption[])}`, 29)} Write the map for people as one self-contained HTML file`
+  const flagLines = flags.map(
+    option => `  ${pad(`--${option}${optionValue(option)}`, 15)}${flagOptions[option].summary}`
   )
   return `Usage: galactica <command> [options]
 
@@ -37,13 +54,14 @@ Map a JavaScript or TypeScript repository.
 
 Commands:
 ${commands.join('\n')}
+${html}
 
 A subject is a module path, a package name, a package directory or an area path.
 
 Options:
   --root <dir>   Repository to map (default: current directory)
   --json         Print the JSON object documented in docs/json-output.md
-${commandFlags.join('\n')}
+${flagLines.join('\n')}
   -h, --help     Show this help
   -v, --version  Show the version`
 }
@@ -76,6 +94,11 @@ function insideRoot(root: string, cwd: string): RepoPath | undefined {
   }
 }
 
+function rootOf(cwd: string, given: string | undefined): string | undefined {
+  const root = resolve(cwd, given ?? '.')
+  return statSync(root, { throwIfNoEntry: false })?.isDirectory() ? root : undefined
+}
+
 /** The command's input, or a usage failure for a flag or argument it does not take. */
 function inputOf(command: Command, argv: readonly string[], cwd: string) {
   const spec = commandTable[command]
@@ -86,8 +109,8 @@ function inputOf(command: Command, argv: readonly string[], cwd: string) {
     return usageFailure(command, (error as Error).message)
   }
   const { values, positionals } = parsed
-  const foreign = (Object.keys(commandOptions) as CommandOption[]).find(
-    option => values[option] !== undefined && !spec.options.includes(option)
+  const foreign = flags.find(
+    option => values[option] !== undefined && !(spec.options as readonly string[]).includes(option)
   )
   if (foreign !== undefined) return usageFailure(command, `${command} takes no --${foreign}`)
   const operands = positionals.slice(1)
@@ -100,10 +123,8 @@ function inputOf(command: Command, argv: readonly string[], cwd: string) {
   if (!/^[1-9]\d*$/.test(depth)) {
     return usageFailure(command, `--depth must be a whole number of at least 1, got ${depth}`)
   }
-  const root = resolve(cwd, values.root ?? '.')
-  if (!statSync(root, { throwIfNoEntry: false })?.isDirectory()) {
-    return usageFailure(command, `no directory at --root ${values.root}`)
-  }
+  const root = rootOf(cwd, values.root)
+  if (root === undefined) return usageFailure(command, `no directory at --root ${values.root}`)
   const input: Input = {
     argument: operands[0] ?? '',
     depth: Number(depth),
@@ -111,6 +132,50 @@ function inputOf(command: Command, argv: readonly string[], cwd: string) {
     cwd: insideRoot(root, cwd)
   }
   return { root, json: values.json ?? false, input }
+}
+
+const htmlFailure = (message: string): Result => ({
+  code: 1,
+  stdout: '',
+  stderr: `galactica: ${message}`
+})
+
+function openInBrowser(path: string): void {
+  const command =
+    process.platform === 'darwin' ? 'open' : process.platform === 'win32' ? 'explorer' : 'xdg-open'
+  const child = spawn(command, [path], { detached: true, stdio: 'ignore' })
+  child.on('error', error => console.error(`galactica: could not open ${path}: ${error.message}`))
+  child.unref()
+}
+
+/** Writes the HTML page. It has no `--json` form, since its output is the file. */
+function html(argv: readonly string[], cwd: string): Result {
+  let parsed
+  try {
+    parsed = parseArgs({ args: [...argv], options, allowPositionals: true, strict: true })
+  } catch (error) {
+    return htmlFailure((error as Error).message)
+  }
+  const { values, positionals } = parsed
+  const foreign = [...(Object.keys(commandOptions) as CommandOption[]), 'json' as const].find(
+    option => values[option] !== undefined
+  )
+  if (foreign !== undefined) return htmlFailure(`html takes no --${foreign}`)
+  if (positionals.length > 1) {
+    return htmlFailure(`html takes no argument, got ${positionals.length - 1}`)
+  }
+  const root = rootOf(cwd, values.root)
+  if (root === undefined) return htmlFailure(`no directory at --root ${values.root}`)
+  const out = resolve(cwd, values.out ?? 'galactica.html')
+  const page = htmlOf(graphOf(analyzeRepository(root).model))
+  try {
+    writeFileSync(out, page)
+  } catch (error) {
+    return htmlFailure(`could not write ${out}: ${(error as Error).message}`)
+  }
+  if (values.open) openInBrowser(out)
+  const size = Math.round(Buffer.byteLength(page) / 1024)
+  return { code: 0, stdout: `wrote ${out} (${size.toLocaleString('en')} KB)`, stderr: '' }
 }
 
 export function run(argv: readonly string[], cwd: string): Result {
@@ -123,6 +188,7 @@ export function run(argv: readonly string[], cwd: string): Result {
   if (values.help) return { code: 0, stdout: usage(), stderr: '' }
   if (values.version) return { code: 0, stdout: readVersion(), stderr: '' }
   const [name] = positionals
+  if (name === 'html') return html(argv, cwd)
   if (!isCommand(name)) {
     const problem = name === undefined ? 'no command given' : `unknown command ${name}`
     return { code: 1, stdout: '', stderr: `galactica: ${problem}\n\n${usage()}` }

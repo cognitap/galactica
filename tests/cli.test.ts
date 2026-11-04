@@ -1,9 +1,11 @@
 import assert from 'node:assert/strict'
 import { spawnSync } from 'node:child_process'
+import { existsSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { test } from 'node:test'
 import { commands } from '../src/contract.ts'
 import { fixtureRepo } from './fixtures.ts'
+import { repository } from './temp-repository.ts'
 
 const cli = new URL('../dist/cli.js', import.meta.url).pathname
 
@@ -19,7 +21,9 @@ test('prints usage with --help, listing every command', () => {
   const { status, stdout } = galactica(plain, '--help')
   assert.equal(status, 0)
   assert.match(stdout, /^Usage: galactica/)
-  for (const command of commands) assert.match(stdout, new RegExp(`^  ${command}\\b`, 'm'))
+  for (const command of [...commands, 'html']) {
+    assert.match(stdout, new RegExp(`^  ${command}\\b`, 'm'))
+  }
 })
 
 test('prints the package version with --version', () => {
@@ -109,5 +113,41 @@ test('no command or an unknown one prints usage and exits with code 1', () => {
     const { status, stderr } = galactica(plain, ...args)
     assert.equal(status, 1)
     assert.match(stderr, /Usage: galactica/)
+  }
+})
+
+test('html --out writes the page and prints its path and size', t => {
+  const out = join(repository(t, {}), 'map.html')
+  const first = galactica(plain, 'html', '--out', out)
+  assert.equal(first.status, 0)
+  assert.equal(first.stderr, '')
+  assert.match(first.stdout, new RegExp(`^wrote ${out.replaceAll('.', '\\.')} \\(\\d+ KB\\)\\n$`))
+  const page = readFileSync(out, 'utf8')
+  assert.match(page, /^<!doctype html>/)
+  assert.match(page, /"repository":"plain-relative"/)
+
+  assert.equal(galactica(plain, 'html', '--out', out).status, 0)
+  assert.equal(readFileSync(out, 'utf8'), page)
+})
+
+test('html writes galactica.html in the current directory by default', t => {
+  const cwd = repository(t, {})
+  const { status } = galactica(cwd, 'html', '--root', plain)
+  assert.equal(status, 0)
+  assert.ok(existsSync(join(cwd, 'galactica.html')))
+})
+
+test('html takes no argument and no flag of another command, and other commands take no html flag', () => {
+  for (const args of [
+    ['html', 'src'],
+    ['html', '--json'],
+    ['html', '--depth', '2'],
+    ['html', '--root', 'nowhere'],
+    ['overview', '--out', 'map.html']
+  ]) {
+    const { status, stdout, stderr } = galactica(plain, ...args)
+    assert.equal(status, 1, args.join(' '))
+    assert.equal(stdout, '', args.join(' '))
+    assert.match(stderr, /^galactica: /, args.join(' '))
   }
 })
