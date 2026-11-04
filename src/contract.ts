@@ -4,7 +4,7 @@
  * is breaking and bumps SCHEMA_VERSION. Adding an optional field is not.
  *
  * Every shape here is plain strings and numbers. This file imports nothing from
- * model.ts, so no brand or private type can leak into the output.
+ * anywhere, so no brand or private type can leak into the output.
  */
 
 export const SCHEMA_VERSION = 1
