@@ -1,0 +1,3 @@
+nodeVersion: 26.11.1
+engineStrict: true
+strictDepBuilds: true

@@ -1,0 +1,50 @@
+{
+  "name": "@cognitap/galactica",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Maps a JavaScript or TypeScript repository for agents and humans",
+  "bugs": {
+    "url": "https://github.com/cognitap/galactica/issues"
+  },
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/cognitap/galactica.git"
+  },
+  "bin": {
+    "galactica": "./dist/cli.js"
+  },
+  "files": [
+    "LICENSE",
+    "CHANGELOG.md",
+    "dist"
+  ],
+  "type": "module",
+  "scripts": {
+    "prepare": "husky",
+    "build": "rimraf dist && tsc -p tsconfig.build.json",
+    "typecheck": "tsc --noEmit",
+    "test": "pnpm build && node --test tests/*.test.ts",
+    "lint": "oxlint --deny-warnings",
+    "format": "oxfmt",
+    "format:check": "oxfmt --check",
+    "check": "pnpm format:check && pnpm lint && pnpm typecheck && pnpm test"
+  },
+  "devDependencies": {
+    "@types/node": "26.6.5",
+    "husky": "9.1.7",
+    "lint-staged": "17.6.0",
+    "oxfmt": "0.72.0",
+    "oxlint": "1.87.0",
+    "rimraf": "6.1.3",
+    "typescript": "6.0.3"
+  },
+  "devEngines": {
+    "runtime": {
+      "name": "node",
+      "version": "26.11.1",
+      "onFail": "download"
+    }
+  },
+  "packageManager": "pnpm@12.11.2"
+}
