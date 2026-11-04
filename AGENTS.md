@@ -17,12 +17,12 @@ Galactica analyzes a JavaScript or TypeScript repository into one internal model
 - `src/commands.ts`: the command table. Each entry gives a command's argument, the options it takes, and the pure function from the `Graph` to its `--json` object. Adding a command is one entry here and one renderer in `src/render.ts`.
 - `src/render.ts`: the text form of each command, built only from its `--json` object, so text and JSON never disagree.
 - `src/subjects.ts`: what a command argument names. `resolveSubject` reads a module path, package name, package directory or area path, from the current directory and from the root, and `resolveModule` reads a module path only.
-- `src/queries.ts`: the answers of `where`, `outline`, `uses` and `deps`, built from the `Graph`. `uses` and `deps` share one breadth-first walk.
+- `src/queries.ts`: the answers of `where`, `outline`, `uses` and `deps`, built from the `Graph`. `uses` and `deps` share one breadth-first walk, and `usesOf` and `depsOf` answer for a subject already resolved.
 - `src/overview.ts`: the answer of `overview`, with each area's modules ranked by their importers.
 - `src/html.ts`: the HTML page. `htmlOf` fills `src/page/page.html` with the stylesheet, the page script and the page data, inlined so the page makes no network requests.
-- `src/page-data.ts`: what the page draws. `pageData` turns the `Graph` into the compact object the page embeds, with areas and modules referred to by index. Its shape is private to the page.
+- `src/page-data.ts`: what the page draws. `pageData` turns the `Graph` into the compact object the page embeds, with areas and modules referred to by index. Each module and area carries what `uses` and `deps` answer for it at depth 1, so the page never walks the imports itself. Its shape is private to the page.
 - `src/row-order.ts`: the order of the boxes within each row of the page. `orderRows` reduces crossings between rows with a barycenter sweep, in path order where nothing pulls.
-- `src/page/`: the page template, `page.css` and `page.js`, plain files that the build copies to `dist/page`. The script is type-checked against `src/page-data.ts` through JSDoc, and builds the page with no framework.
+- `src/page/`: the page template, `page.css`, `page.js` and `search.js`, plain files that the build copies to `dist/page`. The scripts are type-checked against `src/page-data.ts` through JSDoc, and build the page with no framework. `search.js` lists what the search field finds and ranks the matches, with no DOM, so `tests/search.test.ts` imports it.
 - `src/contract.ts`: the public `--json` output types and `SCHEMA_VERSION`. It imports nothing, which `tests/contract.test.ts` enforces.
 - `src/model.ts`: the cached `Model` of per-module facts, and the in-memory `Graph` derived from it.
 - `src/discovery.ts`: `discover` lists a repository's packages, and its modules with their language, kind, tsconfig and package, and collects config warnings. `compilerOptionsOf` gives the options for one module.

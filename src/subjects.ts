@@ -50,15 +50,24 @@ export function readingsOf(text: string, cwd: RepoPath | undefined): readonly Re
 
 type Rule = (graph: Graph, text: string, readings: readonly RepoPath[]) => readonly Resolved[]
 
+export function moduleSubject(graph: Graph, path: RepoPath): Resolved {
+  const { package: name } = graph.modules.get(path)!
+  return { subject: { kind: 'module', path, package: name }, members: new Set([path]) }
+}
+
 const moduleRule: Rule = (graph, _text, readings) =>
-  readings.flatMap(path => {
-    const node = graph.modules.get(path)
-    if (node === undefined) return []
-    return [{ subject: { kind: 'module', path, package: node.package }, members: new Set([path]) }]
-  })
+  readings.filter(path => graph.modules.has(path)).map(path => moduleSubject(graph, path))
 
 const sourceOrConfig = (graph: Graph, paths: Iterable<RepoPath>): ReadonlySet<RepoPath> =>
   new Set([...paths].filter(path => isSourceOrConfig(graph.modules.get(path)!.kind)))
+
+export function areaSubject(graph: Graph, path: AreaPath): Resolved {
+  const area = graph.areas.get(path)!
+  return {
+    subject: { kind: 'area', path: area.path, package: area.package },
+    members: sourceOrConfig(graph, area.modules)
+  }
+}
 
 function packageSubject(graph: Graph, name: PackageName): Resolved {
   const { dir } = graph.packages.get(name)!
@@ -75,16 +84,10 @@ const packageDirRule: Rule = (graph, _text, readings) =>
     .map(([name]) => packageSubject(graph, name))
 
 const areaRule: Rule = (graph, _text, readings) =>
-  readings.flatMap(path => {
-    const area = graph.areas.get(path as string as AreaPath)
-    if (area === undefined) return []
-    return [
-      {
-        subject: { kind: 'area', path: area.path, package: area.package },
-        members: sourceOrConfig(graph, area.modules)
-      }
-    ]
-  })
+  readings
+    .map(path => path as string as AreaPath)
+    .filter(path => graph.areas.has(path))
+    .map(path => areaSubject(graph, path))
 
 /** In order. The first rule that matches anything decides. */
 const subjectRules: readonly Rule[] = [moduleRule, packageNameRule, packageDirRule, areaRule]

@@ -9,6 +9,8 @@
   --soft: #f1f1ee;
   --accent: #2d5bd2;
   --warn: #a64b06;
+  --uses: #0f766e;
+  --used-by: #7c3aed;
   --folder-0: #3366d6;
   --folder-1: #c2410c;
   --folder-2: #0f8569;
@@ -33,6 +35,8 @@
     --soft: #232327;
     --accent: #93acff;
     --warn: #f2a65e;
+    --uses: #2dd4bf;
+    --used-by: #b794f6;
     --folder-0: #7ea2f8;
     --folder-1: #f39a61;
     --folder-2: #4fcaa1;
@@ -160,6 +164,97 @@ h1 {
   border-color: var(--accent);
 }
 
+.search {
+  width: min(100%, 34rem);
+  display: grid;
+  gap: 0.3rem;
+  font-size: 0.9rem;
+}
+
+.search label {
+  color: var(--muted);
+}
+
+kbd {
+  font-family: var(--mono);
+  font-size: 0.78rem;
+  padding: 0 0.35rem;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  background: var(--surface);
+}
+
+.search-field {
+  position: relative;
+}
+
+#search {
+  width: 100%;
+  font: inherit;
+  font-size: 1rem;
+  color: var(--text);
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 0.45rem 0.7rem;
+}
+
+#search-results {
+  position: absolute;
+  z-index: 3;
+  top: calc(100% + 0.3rem);
+  left: 0;
+  right: 0;
+  max-height: min(26rem, 70vh);
+  overflow-y: auto;
+  list-style: none;
+  margin: 0;
+  padding: 0.3rem;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  box-shadow: 0 8px 24px rgb(0 0 0 / 0.14);
+}
+
+.result {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 0 0.75rem;
+  padding: 0.35rem 0.5rem;
+  border-radius: 5px;
+  cursor: pointer;
+}
+
+.result[aria-selected='true'] {
+  background: var(--soft);
+  box-shadow: inset 2px 0 0 var(--accent);
+}
+
+.result-name {
+  font-family: var(--mono);
+  font-size: 0.84rem;
+}
+
+.result-kind {
+  color: var(--faint);
+  font-size: 0.72rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.result-where {
+  grid-column: 1 / -1;
+  color: var(--muted);
+  font-family: var(--mono);
+  font-size: 0.75rem;
+}
+
+.no-results {
+  padding: 0.35rem 0.5rem;
+  color: var(--muted);
+}
+
 .legend {
   max-width: 46rem;
   color: var(--muted);
@@ -268,6 +363,213 @@ main {
   padding-bottom: 5rem;
   display: grid;
   gap: 4rem;
+}
+
+.area,
+.module,
+.symbol {
+  scroll-margin: 4rem 0 1rem;
+}
+
+.selection-bar {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  max-width: 96rem;
+  margin: 0 auto 1.5rem;
+  padding: 0.55rem clamp(1rem, 4vw, 3rem);
+  display: flex;
+  align-items: center;
+  gap: 0.5rem 1rem;
+  background: color-mix(in srgb, var(--bg) 92%, transparent);
+  backdrop-filter: blur(6px);
+  border-bottom: 1px solid var(--line);
+}
+
+#selection-summary {
+  margin: 0;
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.15rem 0.75rem;
+  font-size: 0.88rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.selection-kind {
+  color: var(--faint);
+  font-size: 0.72rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.selection-path {
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+.count-uses,
+.count-used-by {
+  font-weight: 600;
+}
+
+.count-uses {
+  color: var(--uses);
+}
+
+.count-used-by {
+  color: var(--used-by);
+}
+
+.count-hidden {
+  color: var(--muted);
+}
+
+#clear-selection {
+  font: inherit;
+  font-size: 0.85rem;
+  color: var(--text);
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  padding: 0.2rem 0.8rem;
+  cursor: pointer;
+}
+
+.area-select {
+  font: inherit;
+  color: inherit;
+  text-align: left;
+  background: none;
+  border: 0;
+  padding: 0;
+  cursor: pointer;
+}
+
+.area-select:hover {
+  text-decoration: underline;
+  text-decoration-color: var(--faint);
+  text-underline-offset: 3px;
+}
+
+.module {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: start;
+  gap: 0 0.25rem;
+  margin: 0 -0.25rem;
+  padding: 0 0.25rem;
+}
+
+.module-select {
+  width: 1.6rem;
+  height: 1.6rem;
+  display: grid;
+  place-items: center;
+  background: none;
+  border: 0;
+  border-radius: 4px;
+  padding: 0;
+  cursor: pointer;
+}
+
+.module-select::before {
+  content: '';
+  width: 0.55rem;
+  height: 0.55rem;
+  border-radius: 50%;
+  border: 1.5px solid var(--faint);
+}
+
+.module-select:hover {
+  background: var(--soft);
+}
+
+.module-select:hover::before,
+.module-select[aria-pressed='true']::before {
+  border-color: var(--text);
+  background: var(--text);
+}
+
+.relation-tag {
+  flex: none;
+  font-size: 0.68rem;
+  font-weight: 650;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.area-head .relation-tag {
+  justify-self: start;
+}
+
+.area.is-uses > .area-head > .relation-tag,
+.module.is-uses .relation-tag {
+  color: var(--uses);
+}
+
+.area.is-used-by > .area-head > .relation-tag,
+.module.is-used-by .relation-tag {
+  color: var(--used-by);
+}
+
+.area.is-uses {
+  box-shadow: 0 0 0 2px var(--uses);
+}
+
+.area.is-used-by {
+  box-shadow: 0 0 0 2px var(--used-by);
+}
+
+.area.is-uses.is-used-by {
+  box-shadow:
+    0 0 0 2px var(--uses),
+    0 0 0 4px var(--used-by);
+}
+
+.area.is-selected,
+.area.has-selected {
+  box-shadow: 0 0 0 3px var(--text);
+}
+
+.module.is-uses {
+  box-shadow: inset 3px 0 0 var(--uses);
+  background: color-mix(in srgb, var(--uses) 9%, transparent);
+}
+
+.module.is-used-by {
+  box-shadow: inset 3px 0 0 var(--used-by);
+  background: color-mix(in srgb, var(--used-by) 9%, transparent);
+}
+
+.module.is-selected {
+  outline: 2px solid var(--text);
+  border-radius: 4px;
+}
+
+.module.is-uses,
+.module.is-used-by {
+  border-radius: 0 4px 4px 0;
+}
+
+.has-selection .area:not(.is-selected, .has-selected, .is-uses, .is-used-by) {
+  opacity: 0.35;
+}
+
+.has-selection[data-selection='module']
+  :is(.has-selected, .is-uses, .is-used-by)
+  .module:not(.is-selected, .is-uses, .is-used-by) {
+  opacity: 0.55;
+}
+
+.has-selection .area:hover,
+.has-selection .area:focus-within,
+.has-selection .module:hover,
+.has-selection .module:focus-within {
+  opacity: 1;
 }
 
 .package {

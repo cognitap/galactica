@@ -24,6 +24,27 @@
         id="counts"
         aria-live="polite"
       ></p>
+      <div class="search">
+        <label for="search">Search areas, modules and symbols <kbd>/</kbd></label>
+        <div class="search-field">
+          <input
+            id="search"
+            type="search"
+            role="combobox"
+            aria-expanded="false"
+            aria-controls="search-results"
+            aria-autocomplete="list"
+            autocomplete="off"
+            spellcheck="false"
+          />
+          <ul
+            id="search-results"
+            role="listbox"
+            aria-label="Search results"
+            hidden
+          ></ul>
+        </div>
+      </div>
       <nav
         id="packages"
         aria-label="Packages"
@@ -46,7 +67,11 @@
           layers, the highest on top: an area imports only from rows below it, unless it is marked
           <span class="cycle-mark">cycle</span>, which means it and other areas in its row import
           each other. A wider box exports more symbols. <span class="arrows">←&#8239;3</span> counts the code that
-          imports a module, <span class="arrows">→&#8239;5</span> the modules it imports.
+          imports a module, <span class="arrows">→&#8239;5</span> the modules it imports. Select a box
+          title, or the circle at the end of a module's row, to mark its
+          <span class="count-uses">dependencies</span> and its
+          <span class="count-used-by">dependents</span>. The address keeps the selection, so a link
+          opens the same view.
         </p>
         <ul
           class="folders"
@@ -55,6 +80,22 @@
         ></ul>
       </section>
     </header>
+    <div
+      class="selection-bar"
+      id="selection"
+      hidden
+    >
+      <p
+        id="selection-summary"
+        aria-live="polite"
+      ></p>
+      <button
+        type="button"
+        id="clear-selection"
+      >
+        Clear
+      </button>
+    </div>
     <main id="map"></main>
     <noscript><p class="empty">This map needs JavaScript to draw.</p></noscript>
     <script

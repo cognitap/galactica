@@ -1,7 +1,13 @@
+import { entriesOf, search } from './search.js'
+
 /** @typedef {import('../page-data.ts').PageData} PageData */
 /** @typedef {import('../page-data.ts').PageArea} PageArea */
 /** @typedef {import('../page-data.ts').PageModule} PageModule */
 /** @typedef {import('../page-data.ts').PagePackage} PagePackage */
+/** @typedef {import('./search.js').SearchEntry} SearchEntry */
+/** @typedef {import('./search.js').Target} Target */
+/** @typedef {{ readonly kind: 'area' | 'module', readonly index: number }} Selection */
+/** @typedef {'uses' | 'used-by'} Relation */
 
 /** Folder colours the stylesheet defines. Further folders share one neutral colour. */
 const PALETTE = 8
@@ -78,29 +84,51 @@ function arrows(importers, imports) {
 }
 
 /**
+ * A toggle button that selects what `label` names.
+ * @param {string} className
+ * @param {string} label
+ */
+function selectButton(className, label) {
+  const button = element('button', className)
+  button.setAttribute('type', 'button')
+  button.setAttribute('aria-pressed', 'false')
+  button.setAttribute('aria-label', label)
+  button.title = label
+  return button
+}
+
+const relationTag = () => {
+  const tag = element('span', 'relation-tag')
+  tag.hidden = true
+  return tag
+}
+
+/**
  * @param {PageModule} module
  * @param {string} usualKind the kind most modules of its area have, which needs no tag
  */
 function moduleItem(module, usualKind) {
   const item = element('li', 'module')
+  const select = selectButton('module-select', `Select ${module.path}`)
+  const tag = relationTag()
   const name = element('span', 'module-name')
   name.append(...breakable(module.label))
-  const head = [name]
+  const head = [name, tag]
   if (module.kind !== usualKind) head.push(element('span', 'kind-tag', module.kind))
   head.push(arrows(module.importers, module.imports))
   if (module.symbols.length === 0) {
     const row = element('div', 'module-row')
     row.title = `${module.path}, no exported symbols`
     row.append(...head)
-    item.append(row)
-    return item
+    item.append(row, select)
+    return { item, select, tag, details: undefined, symbols: [] }
   }
-  const details = element('details')
+  const details = /** @type {HTMLDetailsElement} */ (element('details'))
   const summary = element('summary')
   summary.title = `${module.path}, ${plural(module.symbols.length, 'exported symbol')}`
   summary.append(...head)
   const symbols = element('ul', 'symbols')
-  for (const symbol of module.symbols) {
+  const entries = module.symbols.map(symbol => {
     const entry = element('li', 'symbol')
     const kind = symbol.default ? `default ${symbol.kind}` : symbol.kind
     const symbolHead = element('div', 'symbol-head')
@@ -108,11 +136,14 @@ function moduleItem(module, usualKind) {
     entry.append(symbolHead, element('code', 'signature', symbol.signature))
     if (symbol.doc !== undefined) entry.append(element('p', 'doc', symbol.doc))
     symbols.append(entry)
-  }
+    return entry
+  })
   details.append(summary, symbols)
-  item.append(details)
-  return item
+  item.append(details, select)
+  return { item, select, tag, details, symbols: entries }
 }
+
+/** @typedef {ReturnType<typeof areaBox>} AreaView */
 
 /** @param {PageArea['kinds']} kinds */
 const usualKindOf = kinds =>
@@ -122,24 +153,27 @@ const usualKindOf = kinds =>
 
 /**
  * An area box, and what the toggle and its "Show more" button update.
- * @param {PageArea} area
+ * @param {number} index
  */
-function areaBox(area) {
+function areaBox(index) {
+  const area = data.areas[index]
   const box = element('article', 'area')
   box.dataset.folder = folderKey(area.folder)
   const head = element('header', 'area-head')
   const title = element('h3')
-  title.title = area.path
-  title.append(...areaTitle(area.label))
+  const select = selectButton('area-select', `Select ${area.path}`)
+  select.append(...areaTitle(area.label))
+  title.append(select)
+  const tag = relationTag()
   const meta = element('p', 'area-meta')
-  head.append(title, meta)
+  head.append(title, tag, meta)
   const list = element('ul', 'modules')
   const usualKind = usualKindOf(area.kinds)
   const items = area.modules.map(index => {
     const module = data.modules[index]
-    const item = moduleItem(module, usualKind)
-    list.append(item)
-    return { module, item }
+    const view = moduleItem(module, usualKind)
+    list.append(view.item)
+    return { index, module, ...view }
   })
   const more = element('button', 'more')
   more.setAttribute('type', 'button')
@@ -178,7 +212,13 @@ function areaBox(area) {
     showTests = withTests
     return update()
   }
-  return { box, filter }
+  /** @param {HTMLElement} item a module of this box, listed past the first few when it has to be */
+  const reveal = item => {
+    if (!item.hidden) return
+    more.setAttribute('aria-expanded', 'true')
+    update()
+  }
+  return { index, box, select, tag, filter, reveal, items }
 }
 
 /**
@@ -238,7 +278,7 @@ function packageSection(pkg, index) {
   const lines = pkg.rows.map(row => {
     const line = element('div', 'row')
     const areas = element('div', 'row-areas')
-    const boxes = row.map(area => areaBox(data.areas[area]))
+    const boxes = row.map(areaBox)
     areas.append(...boxes.map(({ box }) => box))
     line.append(element('p', 'row-label', `Layer ${data.areas[row[0]].layer}`), areas)
     rows.append(line)
@@ -278,6 +318,275 @@ function packageNav() {
   nav.hidden = false
 }
 
+/**
+ * The search field, a combobox whose listbox offers the best matches.
+ * @param {readonly SearchEntry[]} entries
+ * @param {() => boolean} showingTests
+ * @param {(target: Target) => void} go
+ */
+function searchField(entries, showingTests, go) {
+  const input = /** @type {HTMLInputElement} */ (byId('search'))
+  const list = byId('search-results')
+  /** @type {readonly SearchEntry[]} */
+  let results = []
+  let active = -1
+
+  /** @param {number} index */
+  const activate = index => {
+    active = index
+    ;[...list.children].forEach((option, position) =>
+      option.setAttribute('aria-selected', String(position === index))
+    )
+    if (index < 0) return input.removeAttribute('aria-activedescendant')
+    input.setAttribute('aria-activedescendant', `search-option-${index}`)
+    list.children[index].scrollIntoView({ block: 'nearest' })
+  }
+  const close = () => {
+    list.hidden = true
+    input.setAttribute('aria-expanded', 'false')
+    activate(-1)
+  }
+  /** @param {number} index */
+  const choose = index => {
+    const { text, target } = results[index]
+    input.value = text
+    close()
+    go(target)
+  }
+  /**
+   * @param {SearchEntry} entry
+   * @param {number} index
+   */
+  const option = (entry, index) => {
+    const node = element('li', 'result')
+    node.id = `search-option-${index}`
+    node.setAttribute('role', 'option')
+    const name = element('span', 'result-name')
+    name.append(...breakable(entry.text))
+    node.append(name, element('span', 'result-kind', entry.kind))
+    node.append(element('span', 'result-where', entry.where))
+    node.addEventListener('mousedown', event => event.preventDefault())
+    node.addEventListener('click', () => choose(index))
+    return node
+  }
+  const refresh = () => {
+    if (input.value.trim() === '') return close()
+    results = search(entries, input.value, showingTests())
+    list.replaceChildren(...results.map(option))
+    if (results.length === 0) {
+      const none = element('li', 'no-results', 'No matches')
+      none.setAttribute('role', 'option')
+      none.setAttribute('aria-disabled', 'true')
+      list.append(none)
+    }
+    list.hidden = false
+    input.setAttribute('aria-expanded', 'true')
+    activate(results.length > 0 ? 0 : -1)
+  }
+
+  input.addEventListener('input', refresh)
+  input.addEventListener('blur', close)
+  input.addEventListener('keydown', event => {
+    const open = !list.hidden
+    if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
+      event.preventDefault()
+      if (!open) return refresh()
+      const step = event.key === 'ArrowDown' ? 1 : -1
+      activate(Math.min(Math.max(active + step, 0), results.length - 1))
+    } else if (event.key === 'Enter' && open && active >= 0) {
+      event.preventDefault()
+      choose(active)
+    } else if (event.key === 'Escape') {
+      event.preventDefault()
+      if (open) close()
+      else input.value = ''
+    }
+  })
+  document.addEventListener('keydown', event => {
+    if (event.key !== '/' || event.ctrlKey || event.metaKey || event.altKey) return
+    const target = /** @type {HTMLElement} */ (event.target)
+    if (target.isContentEditable || target.matches('input, textarea, select')) return
+    event.preventDefault()
+    input.focus()
+    input.select()
+  })
+  return { refresh: () => !list.hidden && refresh() }
+}
+
+const RELATIONS = /** @type {const} */ ({
+  uses: { one: 'dependency', many: 'dependencies' },
+  'used-by': { one: 'dependent', many: 'dependents' }
+})
+
+/** @param {Selection} selection */
+const subjectOf = ({ kind, index }) => (kind === 'area' ? data.areas[index] : data.modules[index])
+
+/**
+ * What the selection bar says: the counts `uses` and `deps` give, and what the toggle hides.
+ * @param {Selection} selection
+ * @param {boolean} showTests
+ */
+function summaryOf(selection, showTests) {
+  const subject = subjectOf(selection)
+  const parts = [
+    element('span', 'selection-kind', selection.kind),
+    element('code', 'selection-path', subject.path),
+    element('span', 'count-uses', `uses ${subject.uses.length.toLocaleString('en')}`),
+    element('span', 'count-used-by', `used by ${subject.usedBy.length.toLocaleString('en')}`)
+  ]
+  if (showTests) {
+    parts.push(element('span', 'count-used-by', plural(subject.usedByTests.length, 'test')))
+    return parts
+  }
+  const hidden = new Set(subject.usedByTests)
+  for (const index of [...subject.uses, ...subject.usedBy]) {
+    if (!isCode(data.modules[index])) hidden.add(index)
+  }
+  if (hidden.size > 0) {
+    parts.push(
+      element(
+        'span',
+        'count-hidden',
+        `${hidden.size.toLocaleString('en')} hidden with tests and stories`
+      )
+    )
+  }
+  return parts
+}
+
+/**
+ * Marks the selection, what it uses and what uses it, by toggling classes on
+ * the boxes and rows already drawn, so a selection redraws nothing.
+ * @param {readonly AreaView[]} areaViews
+ * @param {AreaView['items']} moduleViews
+ */
+function highlighter(areaViews, moduleViews) {
+  /** @type {(() => void)[]} */
+  let undo = []
+  /**
+   * @param {HTMLElement} node
+   * @param {readonly string[]} classes
+   */
+  const add = (node, classes) => {
+    node.classList.add(...classes)
+    undo.push(() => node.classList.remove(...classes))
+  }
+  /**
+   * @param {HTMLElement} tag
+   * @param {string} text
+   */
+  const label = (tag, text) => {
+    tag.textContent = text
+    tag.hidden = false
+    undo.push(() => {
+      tag.hidden = true
+    })
+  }
+  /** @param {HTMLElement} select */
+  const press = select => {
+    select.setAttribute('aria-pressed', 'true')
+    undo.push(() => select.setAttribute('aria-pressed', 'false'))
+  }
+
+  /**
+   * @param {Selection | undefined} selection
+   * @param {boolean} showTests whether tests and stories that relate to it are marked
+   */
+  return (selection, showTests) => {
+    for (const step of undo) step()
+    undo = []
+    document.body.classList.toggle('has-selection', selection !== undefined)
+    if (selection === undefined) return
+    document.body.dataset.selection = selection.kind
+    const subject = subjectOf(selection)
+    /** @type {Map<number, Set<Relation>>} */
+    const modules = new Map()
+    /**
+     * @param {readonly number[]} indexes
+     * @param {Relation} relation
+     */
+    const relate = (indexes, relation) => {
+      for (const index of indexes) {
+        if (showTests || isCode(data.modules[index])) {
+          modules.set(index, (modules.get(index) ?? new Set()).add(relation))
+        }
+      }
+    }
+    relate(subject.uses, 'uses')
+    relate(subject.usedBy, 'used-by')
+    relate(subject.usedByTests, 'used-by')
+
+    /** @type {Map<number, Record<Relation, number>>} */
+    const areas = new Map()
+    for (const [index, relations] of modules) {
+      const { item, tag } = moduleViews[index]
+      add(
+        item,
+        [...relations].map(relation => `is-${relation}`)
+      )
+      label(tag, [...relations].map(relation => RELATIONS[relation].one).join(' · '))
+      const area = data.modules[index].area
+      const counts = areas.get(area) ?? { uses: 0, 'used-by': 0 }
+      for (const relation of relations) counts[relation] += 1
+      areas.set(area, counts)
+    }
+    for (const [index, counts] of areas) {
+      const { box, tag } = areaViews[index]
+      const relations = /** @type {Relation[]} */ (Object.keys(counts)).filter(
+        key => counts[key] > 0
+      )
+      add(
+        box,
+        relations.map(relation => `is-${relation}`)
+      )
+      label(
+        tag,
+        relations
+          .map(relation =>
+            plural(counts[relation], RELATIONS[relation].one, RELATIONS[relation].many)
+          )
+          .join(' · ')
+      )
+    }
+    if (selection.kind === 'area') {
+      const { box, select } = areaViews[selection.index]
+      add(box, ['is-selected'])
+      press(select)
+    } else {
+      const { item, select } = moduleViews[selection.index]
+      add(item, ['is-selected'])
+      add(areaViews[data.modules[selection.index].area].box, ['has-selected'])
+      press(select)
+    }
+  }
+}
+
+/** @param {Selection | undefined} selection */
+function fragmentOf(selection) {
+  return selection === undefined
+    ? ''
+    : `#${selection.kind}=${encodeURIComponent(subjectOf(selection).path)}`
+}
+
+/**
+ * The selection a fragment names, undefined for any other fragment.
+ * @param {string} fragment
+ * @returns {Selection | undefined}
+ */
+function selectionOf(fragment) {
+  const match = /^#(area|module)=(.*)$/.exec(fragment)
+  if (match === null) return undefined
+  let path = ''
+  try {
+    path = decodeURIComponent(match[2])
+  } catch {
+    return undefined
+  }
+  const kind = /** @type {Selection['kind']} */ (match[1])
+  const index = (kind === 'area' ? data.areas : data.modules).findIndex(item => item.path === path)
+  return index < 0 ? undefined : { kind, index }
+}
+
 function draw() {
   byId('repository').textContent = data.repository
   legend()
@@ -285,6 +594,68 @@ function draw() {
   const sections = data.packages.map(packageSection)
   const boxes = sections.flatMap(({ lines }) => lines.flatMap(({ boxes }) => boxes))
   byId('map').append(...sections.map(({ section }) => section))
+  /** @type {AreaView[]} */
+  const areaViews = []
+  /** @type {AreaView['items']} */
+  const moduleViews = []
+  for (const view of boxes) {
+    areaViews[view.index] = view
+    for (const item of view.items) moduleViews[item.index] = item
+  }
+
+  const light = highlighter(areaViews, moduleViews)
+  const bar = byId('selection')
+  /** @type {Selection | undefined} */
+  let selection
+  const describe = () => {
+    light(selection, showingTests())
+    bar.hidden = selection === undefined
+    if (selection !== undefined)
+      byId('selection-summary').replaceChildren(...summaryOf(selection, showingTests()))
+  }
+  /** @param {Selection | undefined} next */
+  const select = next => {
+    selection = next
+    describe()
+    history.replaceState(null, '', location.href.split('#')[0] + fragmentOf(selection))
+  }
+  /** @param {Selection} next */
+  const toggleSelection = next =>
+    select(selection?.kind === next.kind && selection.index === next.index ? undefined : next)
+  for (const view of areaViews) {
+    view.select.addEventListener('click', () =>
+      toggleSelection({ kind: 'area', index: view.index })
+    )
+  }
+  for (const view of moduleViews) {
+    view.select.addEventListener('click', () =>
+      toggleSelection({ kind: 'module', index: view.index })
+    )
+  }
+  byId('clear-selection').addEventListener('click', () => select(undefined))
+  document.addEventListener('keydown', event => {
+    if (event.key === 'Escape' && selection !== undefined && event.target !== byId('search')) {
+      select(undefined)
+    }
+  })
+
+  /** @param {Target} target */
+  const go = target => {
+    if (target.kind === 'area') {
+      select({ kind: 'area', index: target.area })
+      const { box, select: button } = areaViews[target.area]
+      box.scrollIntoView({ block: 'nearest' })
+      button.focus({ preventScroll: true })
+      return
+    }
+    select({ kind: 'module', index: target.module })
+    const view = moduleViews[target.module]
+    areaViews[data.modules[target.module].area].reveal(view.item)
+    if (target.kind === 'symbol' && view.details !== undefined) view.details.open = true
+    const shown = target.kind === 'symbol' ? view.symbols[target.symbol] : view.item
+    shown.scrollIntoView({ block: 'center' })
+    view.select.focus({ preventScroll: true })
+  }
 
   const toggle = byId('toggle-tests')
   /** @param {boolean} showTests */
@@ -310,8 +681,32 @@ function draw() {
       plural(symbols, 'exported symbol')
     ].join(' · ')
   }
-  toggle.addEventListener('click', () => show(toggle.getAttribute('aria-pressed') !== 'true'))
+  const showingTests = () => toggle.getAttribute('aria-pressed') === 'true'
+  const field = searchField(entriesOf(data), showingTests, go)
+  toggle.addEventListener('click', () => {
+    show(!showingTests())
+    field.refresh()
+    describe()
+  })
   show(false)
+
+  /** Applies a fragment that names a selection, showing tests and stories when it is one. */
+  const follow = () => {
+    const named = selectionOf(location.hash)
+    if (named === undefined) return
+    const hidden =
+      named.kind === 'area'
+        ? data.areas[named.index].kinds.source + data.areas[named.index].kinds.config === 0
+        : !isCode(data.modules[named.index])
+    if (hidden && !showingTests()) show(true)
+    go(
+      named.kind === 'area'
+        ? { kind: 'area', area: named.index }
+        : { kind: 'module', module: named.index }
+    )
+  }
+  follow()
+  window.addEventListener('hashchange', follow)
 }
 
 draw()
