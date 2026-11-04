@@ -1,8 +1,18 @@
 import assert from 'node:assert/strict'
 import { existsSync, readdirSync, readFileSync, writeFileSync } from 'node:fs'
+import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import type { Discovery } from '../src/discovery.ts'
-import type { Area, Graph, Model, ModuleFacts, ModuleNode, RepoPath } from '../src/model.ts'
+import type { DiscoveredModule, Discovery } from '../src/discovery.ts'
+import type {
+  Area,
+  Graph,
+  Model,
+  ModuleFacts,
+  ModuleNode,
+  RepoPath,
+  SymbolFacts
+} from '../src/model.ts'
+import { isScriptLanguage, symbolsOf } from '../src/symbols.ts'
 
 /** A `Model` without the content hashes, which a hand-written file cannot know. */
 export type ExpectedModel = Omit<Model, 'modules'> & {
@@ -130,6 +140,14 @@ export interface Aspect {
 
 const always = () => true
 
+function symbolsOfModule(
+  discovery: Discovery,
+  { path, language }: DiscoveredModule
+): readonly SymbolFacts[] {
+  if (!isScriptLanguage(language)) throw new Error(`${path}: ${language} symbols wait for DEV-690`)
+  return symbolsOf(path, language, readFileSync(join(discovery.root, path), 'utf8'))
+}
+
 /** Each part of the expected files, with the issue that makes the analyzer produce it. */
 export const aspects: readonly Aspect[] = [
   {
@@ -175,7 +193,29 @@ export const aspects: readonly Aspect[] = [
     name: 'symbols',
     owner: 'DEV-669',
     pendingIn: { astro: 'DEV-690', svelte: 'DEV-690', vue: 'DEV-690' },
-    stated: always
+    stated: always,
+    check: check(
+      ({ model }) =>
+        Object.fromEntries(
+          Object.values(model.modules).map(({ path, symbols }) => [path, symbols])
+        ),
+      discovery =>
+        Object.fromEntries(
+          discovery.modules.map(module => [module.path, symbolsOfModule(discovery, module)])
+        ),
+      (files, symbols) => ({
+        ...files,
+        model: {
+          ...files.model,
+          modules: Object.fromEntries(
+            Object.entries(files.model.modules).map(([path, facts]) => [
+              path,
+              { ...facts, symbols: symbols[path] ?? [] }
+            ])
+          )
+        }
+      })
+    )
   },
   {
     name: 'edges',

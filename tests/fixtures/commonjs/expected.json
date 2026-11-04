@@ -13,7 +13,7 @@
           "kind": "const",
           "line": 1,
           "default": false,
-          "signature": "const port"
+          "signature": "const port = 3000"
         }
       ],
       "edges": []

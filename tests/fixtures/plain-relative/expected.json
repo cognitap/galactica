@@ -71,7 +71,7 @@
           "kind": "const",
           "line": 6,
           "default": false,
-          "signature": "const PI"
+          "signature": "const PI = 3.14159"
         },
         {
           "name": "Rounding",
@@ -103,7 +103,7 @@
           "kind": "type",
           "line": 5,
           "default": false,
-          "signature": "type ShapeKind"
+          "signature": "type ShapeKind = 'circle' | 'square'"
         },
         {
           "name": "Circle",
