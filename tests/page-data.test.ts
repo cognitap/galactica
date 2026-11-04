@@ -1,7 +1,10 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
+import type { Deps, Failure, Uses } from '../src/contract.ts'
 import { graphOf } from '../src/graph.ts'
-import { pageData, type PageData } from '../src/page-data.ts'
+import type { RepoPath } from '../src/model.ts'
+import { pageData, type PageData, type PageRelations } from '../src/page-data.ts'
+import { deps, uses } from '../src/queries.ts'
 import { defines, edge, modelOf } from './models.ts'
 
 const areaPaths = (page: PageData, indexes: readonly number[]) =>
@@ -174,4 +177,79 @@ test('areas in a row are ordered so the imports between rows cross less', () => 
       ['src/x', 'src/y']
     ]
   )
+})
+
+const app = graphOf(
+  modelOf({
+    'src/cn.ts': { symbols: [defines('cn', 2)] },
+    'src/index.ts': {
+      edges: [
+        edge('src/cn.ts', { form: 'reexport', names: ['cn'] }),
+        edge('src/lone.ts', { line: 2, form: 'reexport', names: ['lone'] })
+      ]
+    },
+    'src/lone.ts': { symbols: [defines('lone')] },
+    'src/app/main.ts': {
+      edges: [edge('src/cn.ts', { names: ['cn'], via: ['src/index.ts' as RepoPath] })]
+    },
+    'src/ui/Button.tsx': { edges: [edge('src/cn.ts', { names: ['cn'] })] },
+    'src/ui/Card.tsx': { edges: [edge('src/ui/Button.tsx')] },
+    'src/ui/Button.stories.tsx': { edges: [edge('src/ui/Button.tsx')] },
+    'src/ui/Card.test.tsx': { edges: [edge('src/ui/Card.tsx')] },
+    'tests/cn.test.ts': { edges: [edge('src/cn.ts', { names: ['cn'] })] },
+    'vite.config.ts': { edges: [edge('src/app/main.ts')] }
+  })
+)
+const appPage = pageData(app)
+
+function answered<T extends Uses | Deps>(answer: T | Failure): T {
+  assert.ok(!('error' in answer), 'the subject resolves')
+  return answer
+}
+
+/** What the CLI answers for `text` at depth 1, as the page stores it. */
+function cliRelations(text: string): PageRelations {
+  const indexOf = new Map(appPage.modules.map(({ path }, index) => [path, index]))
+  const indexes = (modules: readonly { readonly path: string }[]) =>
+    modules.map(({ path }) => indexOf.get(path)!).sort((a, b) => a - b)
+  const { modules, tests } = answered(uses(app, text, undefined, 1))
+  return {
+    usedBy: indexes(modules),
+    usedByTests: indexes(tests),
+    uses: indexes(answered(deps(app, text, undefined, 1)).modules)
+  }
+}
+
+const relations = ({ usedBy, usedByTests, uses }: PageRelations): PageRelations => ({
+  usedBy,
+  usedByTests,
+  uses
+})
+
+test('each module and area carries what uses and deps answer for it at depth 1', () => {
+  for (const module of appPage.modules) {
+    assert.deepEqual(relations(module), cliRelations(module.path), module.path)
+  }
+  for (const area of appPage.areas.filter(({ path }) => path !== '.')) {
+    assert.deepEqual(relations(area), cliRelations(area.path), area.path)
+  }
+  const cn = appPage.modules.find(({ path }) => path === 'src/cn.ts')!
+  assert.deepEqual(modulePaths(appPage, cn.usedBy), [
+    'src/app/main.ts',
+    'src/index.ts',
+    'src/ui/Button.tsx'
+  ])
+  assert.deepEqual(modulePaths(appPage, cn.usedByTests), [
+    'src/ui/Card.test.tsx',
+    'tests/cn.test.ts'
+  ])
+  const main = appPage.modules.find(({ path }) => path === 'src/app/main.ts')!
+  assert.deepEqual(modulePaths(appPage, main.uses), ['src/cn.ts', 'src/index.ts'])
+})
+
+test('an area at a package directory answers for the area, not for the package', () => {
+  const root = appPage.areas.find(({ path }) => path === '.')!
+  assert.deepEqual(modulePaths(appPage, root.uses), ['src/app/main.ts'])
+  assert.deepEqual(root.usedBy, [])
+  assert.notDeepEqual(relations(root), cliRelations('.'))
 })

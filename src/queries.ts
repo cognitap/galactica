@@ -17,7 +17,7 @@ import {
   type Where
 } from './contract.ts'
 import { compare, type Graph, type RepoPath, type SymbolFacts } from './model.ts'
-import { resolveModule, resolveSubject, type Miss } from './subjects.ts'
+import { resolveModule, resolveSubject, type Miss, type Resolved } from './subjects.ts'
 
 export function failure(command: Command, { error }: Miss): Failure {
   return { schemaVersion: SCHEMA_VERSION, command, error }
@@ -140,7 +140,11 @@ export function uses(
   depth: number
 ): Uses | Failure {
   const resolved = resolveSubject(graph, text, cwd)
-  if ('error' in resolved) return failure('uses', resolved)
+  return 'error' in resolved ? failure('uses', resolved) : usesOf(graph, resolved, depth)
+}
+
+/** `uses` of a subject already resolved. */
+export function usesOf(graph: Graph, resolved: Resolved, depth: number): Uses {
   // An import that only passes through a barrel depends on the barrel when the
   // barrel is the subject. Past the subject it depends on the defining module,
   // which the walk reaches directly, so following it would add every importer
@@ -169,7 +173,11 @@ export function deps(
   depth: number
 ): Deps | Failure {
   const resolved = resolveSubject(graph, text, cwd)
-  if ('error' in resolved) return failure('deps', resolved)
+  return 'error' in resolved ? failure('deps', resolved) : depsOf(graph, resolved, depth)
+}
+
+/** `deps` of a subject already resolved. */
+export function depsOf(graph: Graph, resolved: Resolved, depth: number): Deps {
   const edgesOf = (path: RepoPath) => graph.modules.get(path)!.facts.edges
   // An import through a barrel loads the barrel too, and `uses` of the barrel
   // lists the importer. Walking on from the barrel would reach everything it

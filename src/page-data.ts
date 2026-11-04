@@ -4,12 +4,24 @@
  * embedded JSON small. The shape is private to the page and is no contract.
  */
 
-import type { ModuleKind } from './contract.ts'
+import type { ModuleKind, Reached } from './contract.ts'
 import { compare, type AreaPath, type Graph, type RepoPath, type SymbolFacts } from './model.ts'
+import { depsOf, usesOf } from './queries.ts'
 import { orderRows } from './row-order.ts'
 import { isSourceOrConfig } from './source-file.ts'
+import { areaSubject, moduleSubject, type Resolved } from './subjects.ts'
 
-export interface PageModule {
+/** What `uses` and `deps` answer at depth 1, as module indexes in ascending order. */
+export interface PageRelations {
+  /** The `modules` of `uses`: what imports the subject, stories and config included. */
+  readonly usedBy: readonly number[]
+  /** The `tests` of `uses`, at any distance. */
+  readonly usedByTests: readonly number[]
+  /** The `modules` of `deps`: what the subject imports in the workspace, barrels included. */
+  readonly uses: readonly number[]
+}
+
+export interface PageModule extends PageRelations {
   readonly path: string
   /** The path relative to its area's directory. */
   readonly label: string
@@ -22,7 +34,7 @@ export interface PageModule {
   readonly importers: number
 }
 
-export interface PageArea {
+export interface PageArea extends PageRelations {
   readonly path: string
   /** The path relative to its package's directory, "." for the directory itself. */
   readonly label: string
@@ -101,6 +113,21 @@ function foldersOf(labels: readonly string[]): readonly string[] {
     .map(([folder]) => folder)
 }
 
+function relationsOf(
+  graph: Graph,
+  resolved: Resolved,
+  moduleIndex: ReadonlyMap<string, number>
+): PageRelations {
+  const indexes = (modules: readonly Reached[]) =>
+    modules.map(({ path }) => moduleIndex.get(path)!).sort((a, b) => a - b)
+  const { modules: usedBy, tests } = usesOf(graph, resolved, 1)
+  return {
+    usedBy: indexes(usedBy),
+    usedByTests: indexes(tests),
+    uses: indexes(depsOf(graph, resolved, 1).modules)
+  }
+}
+
 export function pageData(graph: Graph): PageData {
   const packageNames = [...graph.packages]
     .sort(([a, { layer: layerA }], [b, { layer: layerB }]) => layerB - layerA || compare(a, b))
@@ -130,7 +157,8 @@ export function pageData(graph: Graph): PageData {
       folder: folderIndex.get(topFolder(labels[index]!))!,
       kinds,
       modules: area.modules.map(module => moduleIndex.get(module)!),
-      cycle: inCycle.has(path)
+      cycle: inCycle.has(path),
+      ...relationsOf(graph, areaSubject(graph, path), moduleIndex)
     }
   })
 
@@ -142,7 +170,8 @@ export function pageData(graph: Graph): PageData {
       area: areaIndex.get(node.area)!,
       kind: node.kind,
       symbols: node.facts.symbols,
-      ...importCounts(graph, path)
+      ...importCounts(graph, path),
+      ...relationsOf(graph, moduleSubject(graph, path), moduleIndex)
     }
   })
 
