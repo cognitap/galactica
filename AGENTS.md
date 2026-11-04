@@ -9,7 +9,7 @@ Galactica analyzes a JavaScript or TypeScript repository into one internal model
 - **Area:** a group of modules within one package, usually a folder. The HTML page draws each area as a box. Galactica groups areas automatically, and `galactica.config.json` can override the grouping.
 - **Symbol:** an exported function, class, component, type, interface, enum or constant.
 - **Edge:** an import from one module to another, resolved through tsconfig paths, workspace packages and barrel re-exports to the module that defines the symbol.
-- **Layer:** an area's position in the dependency order. An area only depends on areas in lower layers. Areas in an import cycle share one layer. Tests and stories never affect layers.
+- **Layer:** an area's position in the dependency order within its package. An area only depends on areas in lower layers. Areas in an import cycle share one layer. Tests and stories never affect layers, and an area of only tests and stories sits one above the highest area it imports.
 
 ## Structure
 
@@ -24,6 +24,11 @@ Galactica analyzes a JavaScript or TypeScript repository into one internal model
 - `src/imports.ts`: what a module imports. `importsOf` reads each import-like statement and `require()` or `import()` call with a literal specifier, with its names, from the syntax tree.
 - `src/import-resolution.ts`: where an import specifier leads. Workspace packages first, then TypeScript's module resolution with the module's options and mode, mapped to a module, an external package, an unresolved specifier, or a repository file that is no module and gets no edge.
 - `src/barrels.ts`: which module defines each name an import takes. `resolveBarrels` follows imports along named, renamed and `export *` re-exports, from the symbols and edges in the model, and points each at the defining module with the barrels in `via`.
+- `src/graph.ts`: the `Graph` a `Model` gives. `graphOf` places each module in its package and area, with its kind and language, and adds the layers, cycles, reverse edges and symbol index. It is pure and reads no files.
+- `src/areas.ts`: which area a module is in. `areasOf` makes each folder an area, and merges a folder of a single module into its parent while the parent holds modules of its own, never above the package's directory.
+- `src/layers.ts`: dependency order above the module. `layerAreas` layers the areas of each package from the imports between source and config modules, re-exports aside, and reports the area cycles with the edges that close them. `orderPackages` orders packages by the edges between them.
+- `src/cycles.ts`: `moduleCycles` finds import cycles among source and config modules, leaving out type-only imports and re-exports.
+- `src/strongly-connected.ts`: the one strongly connected components routine, and the layers over its components, that areas, packages and module cycles share.
 - `src/repository-files.ts`: which files a repository has. Uses `git ls-files` so `.gitignore` applies, and a directory walk outside a git work tree, which ignores `.gitignore`.
 - `src/workspace.ts`: which packages a workspace names, from `pnpm-workspace.yaml` or the root `package.json` `workspaces`. `packageOf` gives the package of a path.
 - `src/package-resolution.ts`: which source module a bare specifier reaches when it names a workspace package, through `exports` or the entry fields, and back from build output to source.
