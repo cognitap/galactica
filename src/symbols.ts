@@ -1,29 +1,11 @@
 /**
- * The symbols a module exports, read from its source text alone. There is no
+ * The symbols a module exports, read from its syntax tree alone. There is no
  * program and no type checker, so one module is read without its imports.
  */
 
 import ts from 'typescript'
-import type { Language, SymbolKind } from './contract.ts'
-import type { RepoPath, SymbolFacts } from './model.ts'
-
-/** The languages TypeScript parses directly. Framework files need their own compiler. */
-export type ScriptLanguage = Exclude<Language, 'vue' | 'svelte' | 'astro'>
-
-const scriptKinds: Readonly<Record<ScriptLanguage, ts.ScriptKind>> = {
-  ts: ts.ScriptKind.TS,
-  mts: ts.ScriptKind.TS,
-  cts: ts.ScriptKind.TS,
-  tsx: ts.ScriptKind.TSX,
-  js: ts.ScriptKind.JS,
-  mjs: ts.ScriptKind.JS,
-  cjs: ts.ScriptKind.JS,
-  jsx: ts.ScriptKind.JSX
-}
-
-export function isScriptLanguage(language: Language): language is ScriptLanguage {
-  return Object.hasOwn(scriptKinds, language)
-}
+import type { SymbolKind } from './contract.ts'
+import type { SymbolFacts } from './model.ts'
 
 const maxLength = 160
 
@@ -672,18 +654,7 @@ function compare(a: string, b: string): number {
 }
 
 /** The module's exported declarations, one per name, sorted by line, then name. */
-export function symbolsOf(
-  path: RepoPath,
-  language: ScriptLanguage,
-  text: string
-): readonly SymbolFacts[] {
-  const source = ts.createSourceFile(
-    path,
-    text,
-    ts.ScriptTarget.Latest,
-    true,
-    scriptKinds[language]
-  )
+export function symbolsOf(source: ts.SourceFile): readonly SymbolFacts[] {
   const scope = scopeOf(source)
   const exported = source.statements
     .flatMap(statement => firstOf(statementRules, statement, scope) ?? [])

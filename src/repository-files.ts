@@ -32,11 +32,40 @@ function inSkippedDirectory(path: string): boolean {
     .some(segment => skippedDirectories.has(segment))
 }
 
+/**
+ * Variables that point git at a repository. A git hook or `rebase --exec`
+ * exports them, and git obeys them over `cwd`, so without this a run inside
+ * one repository's hook would list, or with `git init` rewrite, another's.
+ */
+const repositoryLocation = [
+  'GIT_DIR',
+  'GIT_WORK_TREE',
+  'GIT_INDEX_FILE',
+  'GIT_COMMON_DIR',
+  'GIT_OBJECT_DIRECTORY',
+  'GIT_ALTERNATE_OBJECT_DIRECTORIES',
+  'GIT_NAMESPACE',
+  'GIT_PREFIX'
+]
+
+/** The environment for a git command that must act on the repository at its `cwd`. */
+export function gitEnvironment(): NodeJS.ProcessEnv {
+  return Object.fromEntries(
+    Object.entries(process.env).filter(([name]) => !repositoryLocation.includes(name))
+  )
+}
+
 function gitFiles(root: string): readonly string[] | undefined {
   const result = spawnSync(
     'git',
     ['ls-files', '-z', '--cached', '--others', '--exclude-standard'],
-    { cwd: root, encoding: 'utf8', maxBuffer: 1 << 30, stdio: ['ignore', 'pipe', 'ignore'] }
+    {
+      cwd: root,
+      env: gitEnvironment(),
+      encoding: 'utf8',
+      maxBuffer: 1 << 30,
+      stdio: ['ignore', 'pipe', 'ignore']
+    }
   )
   if (result.status !== 0) return undefined
   // --cached lists files deleted from the work tree until the deletion is staged.

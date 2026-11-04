@@ -1,18 +1,8 @@
 import assert from 'node:assert/strict'
 import { existsSync, readdirSync, readFileSync, writeFileSync } from 'node:fs'
-import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import type { DiscoveredModule, Discovery } from '../src/discovery.ts'
-import type {
-  Area,
-  Graph,
-  Model,
-  ModuleFacts,
-  ModuleNode,
-  RepoPath,
-  SymbolFacts
-} from '../src/model.ts'
-import { isScriptLanguage, symbolsOf } from '../src/symbols.ts'
+import type { Area, Graph, Model, ModuleFacts, ModuleNode, RepoPath } from '../src/model.ts'
+import { kindOf } from '../src/source-file.ts'
 
 /** A `Model` without the content hashes, which a hand-written file cannot know. */
 export type ExpectedModel = Omit<Model, 'modules'> & {
@@ -107,23 +97,48 @@ export function writeExpected(name: string, files: ExpectedFiles): string[] {
   })
 }
 
-/** How an implemented aspect reads its slice of the expected files and of the analyzer's output. */
+/** How an implemented aspect reads its slice of the expected files and of the analyzer's model. */
 export interface Check {
-  /** Asserts that the analyzer's output matches the expected files. */
-  readonly compare: (files: ExpectedFiles, discovery: Discovery) => void
-  /** The expected files with this aspect replaced by the analyzer's output. */
-  readonly update: (files: ExpectedFiles, discovery: Discovery) => ExpectedFiles
+  /** Asserts that the analyzer's model matches the expected files. */
+  readonly compare: (files: ExpectedFiles, model: Model) => void
+  /** The expected files with this aspect replaced by the analyzer's model. */
+  readonly update: (files: ExpectedFiles, model: Model) => ExpectedFiles
 }
 
 function check<T>(
   expected: (files: ExpectedFiles) => T,
-  actual: (discovery: Discovery) => T,
+  actual: (model: Model) => T,
   replace: (files: ExpectedFiles, value: T) => ExpectedFiles
 ): Check {
   return {
-    compare: (files, discovery) => assert.deepStrictEqual(actual(discovery), expected(files)),
-    update: (files, discovery) => replace(files, actual(discovery))
+    compare: (files, model) => assert.deepStrictEqual(actual(model), expected(files)),
+    update: (files, model) => replace(files, actual(model))
   }
+}
+
+type ModuleField = 'symbols' | 'edges'
+
+const fieldByPath = (modules: ExpectedModel['modules'], key: ModuleField) =>
+  Object.fromEntries(Object.values(modules).map(facts => [facts.path, facts[key]]))
+
+/** One field of every module. */
+function moduleField(key: ModuleField): Check {
+  return check(
+    ({ model }) => fieldByPath(model.modules, key),
+    model => fieldByPath(model.modules, key),
+    (files, values) => ({
+      ...files,
+      model: {
+        ...files.model,
+        modules: Object.fromEntries(
+          Object.entries(files.model.modules).map(([path, facts]) => [
+            path,
+            { ...facts, [key]: values[path] ?? [] }
+          ])
+        )
+      }
+    })
+  )
 }
 
 export interface Aspect {
@@ -140,13 +155,7 @@ export interface Aspect {
 
 const always = () => true
 
-function symbolsOfModule(
-  discovery: Discovery,
-  { path, language }: DiscoveredModule
-): readonly SymbolFacts[] {
-  if (!isScriptLanguage(language)) throw new Error(`${path}: ${language} symbols wait for DEV-690`)
-  return symbolsOf(path, language, readFileSync(join(discovery.root, path), 'utf8'))
-}
+const pathsOf = (model: ExpectedModel) => Object.keys(model.modules) as RepoPath[]
 
 /** Each part of the expected files, with the issue that makes the analyzer produce it. */
 export const aspects: readonly Aspect[] = [
@@ -155,8 +164,8 @@ export const aspects: readonly Aspect[] = [
     owner: 'DEV-668',
     stated: always,
     check: check(
-      ({ model }) => Object.keys(model.modules) as RepoPath[],
-      discovery => discovery.modules.map(module => module.path),
+      ({ model }) => pathsOf(model),
+      pathsOf,
       (files, paths) => ({
         ...files,
         model: {
@@ -184,7 +193,7 @@ export const aspects: readonly Aspect[] = [
     stated: ({ graph }) => graph?.kinds !== undefined,
     check: check(
       ({ graph }) => graph?.kinds,
-      discovery => Object.fromEntries(discovery.modules.map(module => [module.path, module.kind])),
+      model => Object.fromEntries(pathsOf(model).map(path => [path, kindOf(path)])),
       (files, kinds) => ({ ...files, graph: { ...files.graph, kinds } })
     )
   },
@@ -193,28 +202,7 @@ export const aspects: readonly Aspect[] = [
     owner: 'DEV-669',
     pendingIn: { astro: 'DEV-690', svelte: 'DEV-690', vue: 'DEV-690' },
     stated: always,
-    check: check(
-      ({ model }) =>
-        Object.fromEntries(
-          Object.values(model.modules).map(({ path, symbols }) => [path, symbols])
-        ),
-      discovery =>
-        Object.fromEntries(
-          discovery.modules.map(module => [module.path, symbolsOfModule(discovery, module)])
-        ),
-      (files, symbols) => ({
-        ...files,
-        model: {
-          ...files.model,
-          modules: Object.fromEntries(
-            Object.entries(files.model.modules).map(([path, facts]) => [
-              path,
-              { ...facts, symbols: symbols[path] ?? [] }
-            ])
-          )
-        }
-      })
-    )
+    check: moduleField('symbols')
   },
   {
     name: 'edges',
@@ -225,7 +213,8 @@ export const aspects: readonly Aspect[] = [
       svelte: 'DEV-690',
       vue: 'DEV-690'
     },
-    stated: always
+    stated: always,
+    check: moduleField('edges')
   },
   { name: 'areas', owner: 'DEV-673', stated: ({ graph }) => graph?.areas !== undefined },
   { name: 'cycles', owner: 'DEV-673', stated: ({ graph }) => graph?.cycles !== undefined }
