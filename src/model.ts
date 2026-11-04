@@ -99,6 +99,12 @@ export interface Edge {
   readonly form: 'import' | 'reexport'
   /** Names as the defining module exports them. "*" for a namespace import or `export *`, empty for a side-effect import. */
   readonly names: readonly string[]
+  /**
+   * For a `reexport` that renames: exported name to the name it re-exports,
+   * keys sorted. A name the statement also passes on unrenamed maps to itself.
+   * Absent when nothing is renamed.
+   */
+  readonly renames?: Readonly<Record<string, string>>
   readonly typeOnly: boolean
   readonly dynamic: boolean
   /**

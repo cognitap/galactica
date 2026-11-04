@@ -55,6 +55,7 @@
           "line": 1,
           "form": "reexport",
           "names": ["default"],
+          "renames": { "Button": "default" },
           "typeOnly": false,
           "dynamic": false,
           "via": []

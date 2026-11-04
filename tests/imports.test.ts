@@ -91,6 +91,35 @@ test('names are as the defining module exports them, sorted and unique', () => {
   )
 })
 
+test('re-exports that rename map each exported name to the name they take', () => {
+  const renames = (lines: readonly string[]) =>
+    Object.fromEntries(imports(lines).map(entry => [entry.specifier, entry.renames]))
+  assert.deepEqual(
+    renames([
+      "export { default as Button } from 'button'",
+      "export { a, b as c } from 'some'",
+      "export { a as b, a } from 'both'",
+      "export { a, type B } from 'none'",
+      "export * as ns from 'namespace'",
+      "export * from 'star'",
+      "export import x = require('equals')",
+      "import y = require('imported')",
+      "import { a as z } from 'renamed-import'"
+    ]),
+    {
+      button: { Button: 'default' },
+      some: { c: 'b' },
+      both: { a: 'a', b: 'a' },
+      none: undefined,
+      namespace: { ns: '*' },
+      star: undefined,
+      equals: { x: '*' },
+      imported: undefined,
+      'renamed-import': undefined
+    }
+  )
+})
+
 test('require and import calls take names from a destructuring, all when kept, none when dropped', () => {
   assert.deepEqual(
     names([

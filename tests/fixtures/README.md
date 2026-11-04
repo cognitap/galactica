@@ -29,6 +29,7 @@ Each `expected.json` is the spec for the analyzer. It holds the `Model` from `sr
 - `line` is the line of the module specifier, so a multi-line import points at its `from` line.
 - One statement yields one edge per target. `typeOnly` is true when every name it imports is type-only, through `import type` or inline `type` on each specifier.
 - `names` are sorted, as the defining module exports them. A default import is `"default"`, a namespace import is `"*"` and a side-effect import is empty.
+- A re-export that renames has `renames`, from each name it exports to the name it takes, with keys sorted. `export { default as Button } from` gives `{ "Button": "default" }` and `export * as ns from` gives `{ "ns": "*" }`. A name passed on both renamed and unrenamed also maps to itself. Edges that rename nothing, and `import` edges, have no `renames`.
 - `require()` and `import()` take their names from an object destructuring of the result. They are empty when the result is discarded, and `"*"` when it is used any other way. A `require()` is not `dynamic`.
 - An import through a barrel points at the defining module, with the barrels in `via`. A barrel's own `export ... from` edges point at the module they name, even when that is another barrel.
 - A bare specifier that names no workspace package or self-reference is `external`, with the package name and no subpath. A Node.js built-in is `external` as `node:<name>`, with or without the prefix in the specifier. A relative or `paths` specifier that resolves to no file is `unresolved`.
