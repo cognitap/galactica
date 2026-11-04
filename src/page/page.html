@@ -1,0 +1,70 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1"
+    />
+    <meta
+      name="color-scheme"
+      content="light dark"
+    />
+    <title>{{title}}</title>
+    <style>
+      {{style}}
+    </style>
+  </head>
+  <body>
+    <header class="masthead">
+      <p class="eyebrow">Galactica map</p>
+      <h1 id="repository"></h1>
+      <p
+        class="counts"
+        id="counts"
+        aria-live="polite"
+      ></p>
+      <nav
+        id="packages"
+        aria-label="Packages"
+        hidden
+      ></nav>
+      <button
+        type="button"
+        id="toggle-tests"
+        class="toggle"
+        aria-pressed="false"
+      >
+        Show tests and stories
+      </button>
+      <section
+        class="legend"
+        aria-label="Legend"
+      >
+        <p class="legend-note">
+          Each package is a section, and each box in it is an area, a folder of modules. Rows are
+          layers, the highest on top: an area imports only from rows below it, unless it is marked
+          <span class="cycle-mark">cycle</span>, which means it and other areas in its row import
+          each other. A wider box exports more symbols. <span class="arrows">←&#8239;3</span> counts the code that
+          imports a module, <span class="arrows">→&#8239;5</span> the modules it imports.
+        </p>
+        <ul
+          class="folders"
+          id="folders"
+          aria-label="Colours by top-level folder"
+        ></ul>
+      </section>
+    </header>
+    <main id="map"></main>
+    <noscript><p class="empty">This map needs JavaScript to draw.</p></noscript>
+    <script
+      type="application/json"
+      id="galactica-data"
+    >
+      {{data}}
+    </script>
+    <script type="module">
+      {{script}}
+    </script>
+  </body>
+</html>

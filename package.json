@@ -22,7 +22,7 @@
   "type": "module",
   "scripts": {
     "prepare": "husky",
-    "build": "rimraf dist && tsc -p tsconfig.build.json",
+    "build": "rimraf dist && tsc -p tsconfig.build.json && node --input-type=module -e \"import { cpSync } from 'node:fs'; cpSync('src/page', 'dist/page', { recursive: true })\"",
     "typecheck": "tsc --noEmit",
     "test": "pnpm build && node --test tests/*.test.ts",
     "fixtures:update": "node tests/update-fixtures.ts",
