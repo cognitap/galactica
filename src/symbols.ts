@@ -100,23 +100,55 @@ interface Exported {
   readonly described: Described
 }
 
-/**
- * The node's source text with comments removed and any run of whitespace or
- * comments between two tokens turned into one space.
- */
-function flat(node: ts.Node, source: ts.SourceFile): string {
-  const tokens = leavesOf(node, source).filter(leaf => leaf.end > leaf.getStart(source))
-  return tokens
-    .map((token, index) => {
-      const gap = index > 0 && token.getStart(source) > tokens[index - 1]!.end
-      return `${gap ? ' ' : ''}${token.getText(source)}`
-    })
+interface Piece {
+  readonly text: string
+  readonly start: number
+  readonly end: number
+}
+
+const separators: ReadonlySet<ts.SyntaxKind> = new Set([
+  ts.SyntaxKind.SemicolonToken,
+  ts.SyntaxKind.CommaToken
+])
+
+/** `{ a: A; b?: B }`: members joined by `; ` whatever separator the source used. */
+function typeLiteralText(node: ts.TypeLiteralNode, source: ts.SourceFile): string {
+  if (node.members.length === 0) return '{}'
+  const members = node.members.map(member => {
+    const pieces = piecesOf(member, source)
+    const last = member.getLastToken(source)
+    const separated = last !== undefined && separators.has(last.kind)
+    return joined(separated ? pieces.slice(0, -1) : pieces)
+  })
+  return `{ ${members.join('; ')} }`
+}
+
+function joined(pieces: readonly Piece[]): string {
+  return pieces
+    .map(
+      (piece, index) =>
+        `${index > 0 && piece.start > pieces[index - 1]!.end ? ' ' : ''}${piece.text}`
+    )
     .join('')
 }
 
-function leavesOf(node: ts.Node, source: ts.SourceFile): readonly ts.Node[] {
+function piecesOf(node: ts.Node, source: ts.SourceFile): readonly Piece[] {
+  if (ts.isTypeLiteralNode(node)) {
+    return [{ text: typeLiteralText(node, source), start: node.getStart(source), end: node.end }]
+  }
   const children = node.getChildren(source).filter(child => !ts.isJSDoc(child))
-  return children.length === 0 ? [node] : children.flatMap(child => leavesOf(child, source))
+  if (children.length > 0) return children.flatMap(child => piecesOf(child, source))
+  const start = node.getStart(source)
+  return node.end > start ? [{ text: node.getText(source), start, end: node.end }] : []
+}
+
+/**
+ * The node's source text with comments removed, any run of whitespace or
+ * comments between two tokens turned into one space, and type literal members
+ * separated by `; `.
+ */
+function flat(node: ts.Node, source: ts.SourceFile): string {
+  return joined(piecesOf(node, source))
 }
 
 function lineOf(node: ts.Node, source: ts.SourceFile): number {
@@ -153,30 +185,59 @@ function heritageOf(
   return (clauses ?? []).map(clause => ` ${flat(clause, source)}`).join('')
 }
 
-function bindingText(name: ts.BindingName, source: ts.SourceFile): string {
+/** How much of a parameter list is written out, from all of it to its names and nothing else. */
+type Shrink = 'none' | 'patterns' | 'literals'
+
+const shrinks: readonly Shrink[] = ['none', 'patterns', 'literals']
+
+/** The signature from the first level of detail that fits, else the last one cut to length. */
+function fitted(signature: (shrink: Shrink) => string): string {
+  const fitting = shrinks.map(signature).find(fits)
+  return oneLine(fitting ?? signature('literals'))
+}
+
+function bindingText(name: ts.BindingName, source: ts.SourceFile, shrink: Shrink): string {
   if (ts.isIdentifier(name)) return name.text
+  if (shrink !== 'none' && ts.isObjectBindingPattern(name) && name.elements.length > 0) {
+    return '{ … }'
+  }
   const elements = name.elements.map(element =>
-    ts.isOmittedExpression(element) ? '' : bindingElementText(element, source)
+    ts.isOmittedExpression(element) ? '' : bindingElementText(element, source, shrink)
   )
   if (ts.isArrayBindingPattern(name)) return `[${elements.join(', ')}]`
   return elements.length === 0 ? '{}' : `{ ${elements.join(', ')} }`
 }
 
-function bindingElementText(element: ts.BindingElement, source: ts.SourceFile): string {
+function bindingElementText(
+  element: ts.BindingElement,
+  source: ts.SourceFile,
+  shrink: Shrink
+): string {
   const rest = element.dotDotDotToken ? '...' : ''
   const property = element.propertyName ? `${flat(element.propertyName, source)}: ` : ''
-  return `${rest}${property}${bindingText(element.name, source)}`
+  return `${rest}${property}${bindingText(element.name, source, shrink)}`
 }
 
-function parameterText(parameter: ts.ParameterDeclaration, source: ts.SourceFile): string {
+function annotationText(type: ts.TypeNode, source: ts.SourceFile, shrink: Shrink): string {
+  const elided = shrink === 'literals' && ts.isTypeLiteralNode(type) && type.members.length > 0
+  return elided ? '{ … }' : flat(type, source)
+}
+
+function parameterText(
+  parameter: ts.ParameterDeclaration,
+  source: ts.SourceFile,
+  shrink: Shrink
+): string {
   const rest = parameter.dotDotDotToken ? '...' : ''
   const optional = parameter.questionToken ? '?' : ''
-  const type = parameter.type ? `: ${flat(parameter.type, source)}` : ''
-  return `${rest}${bindingText(parameter.name, source)}${optional}${type}`
+  const type = parameter.type ? `: ${annotationText(parameter.type, source, shrink)}` : ''
+  return `${rest}${bindingText(parameter.name, source, shrink)}${optional}${type}`
 }
 
-function callText(fn: ts.SignatureDeclarationBase, source: ts.SourceFile): string {
-  const parameters = fn.parameters.map(parameter => parameterText(parameter, source)).join(', ')
+function callText(fn: ts.SignatureDeclarationBase, source: ts.SourceFile, shrink: Shrink): string {
+  const parameters = fn.parameters
+    .map(parameter => parameterText(parameter, source, shrink))
+    .join(', ')
   const returns = fn.type ? `: ${flat(fn.type, source)}` : ''
   return `${listOf(fn.typeParameters, source)}(${parameters})${returns}`
 }
@@ -186,8 +247,8 @@ type FunctionValue = ts.ArrowFunction | ts.FunctionExpression
 const isFunctionValue = (node: ts.Node): node is FunctionValue =>
   ts.isArrowFunction(node) || ts.isFunctionExpression(node)
 
-function arrowText(fn: FunctionValue, source: ts.SourceFile): string {
-  return `${prefixOf(fn, source)}${callText(fn, source)} =>`
+function arrowText(fn: FunctionValue, source: ts.SourceFile, shrink: Shrink): string {
+  return `${prefixOf(fn, source)}${callText(fn, source, shrink)} =>`
 }
 
 type Wrapped = ts.ParenthesizedExpression | ts.AsExpression | ts.SatisfiesExpression
@@ -269,17 +330,17 @@ function isWrapperCall(node: ts.Node, source: ts.SourceFile): node is ts.CallExp
   return ts.isCallExpression(node) && componentWrappers.has(flat(node.expression, source))
 }
 
-function wrappedText(argument: ts.Expression, source: ts.SourceFile): string {
+function wrappedText(argument: ts.Expression, source: ts.SourceFile, shrink: Shrink): string {
   const inner = unwrapped(argument)
-  if (isWrapperCall(inner, source)) return wrapperText(inner, source)
-  if (isFunctionValue(inner)) return arrowText(inner, source)
+  if (isWrapperCall(inner, source)) return wrapperText(inner, source, shrink)
+  if (isFunctionValue(inner)) return arrowText(inner, source, shrink)
   return ts.isIdentifier(inner) ? inner.text : '...'
 }
 
 /** `forwardRef<A, B>((params) =>)`, down to the inner-most wrapped function. */
-function wrapperText(call: ts.CallExpression, source: ts.SourceFile): string {
+function wrapperText(call: ts.CallExpression, source: ts.SourceFile, shrink: Shrink): string {
   const [first] = call.arguments
-  const argument = first ? wrappedText(first, source) : ''
+  const argument = first ? wrappedText(first, source, shrink) : ''
   return `${flat(call.expression, source)}${listOf(call.typeArguments, source)}(${argument})`
 }
 
@@ -323,22 +384,25 @@ function valueOf(
   type: ts.TypeNode | undefined,
   initializer: ts.Expression | undefined,
   scope: Scope
-): Pick<Described, 'kind' | 'signature'> {
+): Pick<Described, 'kind'> & { readonly signature: (shrink: Shrink) => string } {
   const { source } = scope
   const value = initializer && unwrapped(initializer)
   if (value && isFunctionValue(value)) {
     return {
       kind: returnsJsx(value) ? 'component' : 'function',
-      signature: `${head} = ${arrowText(value, source)}`
+      signature: shrink => `${head} = ${arrowText(value, source, shrink)}`
     }
   }
   if (value && isWrapperCall(value, source)) {
-    return { kind: 'component', signature: `${head} = ${wrapperText(value, source)}` }
+    return {
+      kind: 'component',
+      signature: shrink => `${head} = ${wrapperText(value, source, shrink)}`
+    }
   }
-  if (type) return { kind: 'const', signature: `${head}: ${flat(type, source)}` }
+  if (type) return { kind: 'const', signature: () => `${head}: ${flat(type, source)}` }
   return {
     kind: 'const',
-    signature: initializer ? head + initializerText(head, initializer, scope) : head
+    signature: () => (initializer ? head + initializerText(head, initializer, scope) : head)
   }
 }
 
@@ -359,8 +423,9 @@ function describedFunction(node: ts.FunctionDeclaration, { source, functions }: 
   return {
     kind: returnsJsx(shown) ? 'component' : 'function',
     line: lineOf(first.name ?? first, source),
-    signature: oneLine(
-      `${prefixOf(shown, source)}function${star} ${name}${callText(shown, source)}`
+    signature: fitted(
+      shrink =>
+        `${prefixOf(shown, source)}function${star} ${name}${callText(shown, source, shrink)}`
     ),
     doc: group.map(fn => docOf(fn)).find(doc => doc !== undefined)
   }
@@ -423,7 +488,7 @@ function describedVariable(node: NamedVariable, scope: Scope): Described {
   const keyword = node.parent.getFirstToken(source)?.getText(source) ?? 'const'
   const head = `${prefixOf(statement, source)}${keyword} ${node.name.text}`
   const { kind, signature } = valueOf(head, node.type, node.initializer, scope)
-  return { kind, line: lineOf(node.name, source), signature: oneLine(signature), doc: docOf(node) }
+  return { kind, line: lineOf(node.name, source), signature: fitted(signature), doc: docOf(node) }
 }
 
 const describers = [
@@ -450,7 +515,7 @@ function describedValue(
   return {
     kind,
     line: lineOf(statement, scope.source),
-    signature: oneLine(signature),
+    signature: fitted(signature),
     doc: docOf(statement)
   }
 }

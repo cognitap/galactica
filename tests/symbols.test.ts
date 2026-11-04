@@ -398,9 +398,86 @@ test('signatures are one line without comments, cut at 160 characters', () => {
     ') {}',
     `export function g(${Array.from({ length: 40 }, (_, i) => `p${i}: number`).join(', ')}) {}`
   ])
-  assert.equal(multiline, 'function f(a: { first: string second: number })')
+  assert.equal(multiline, 'function f(a: { first: string; second: number })')
   assert.equal(long?.length, 160)
   assert.ok(long?.endsWith('…'), long)
+})
+
+const names = (prefix: string, count: number) =>
+  Array.from({ length: count }, (_, i) => `${prefix}${i}`)
+
+test('type literal members are separated by `; ` whatever the source used', () => {
+  assert.deepEqual(
+    signatures([
+      'export function multiline({ a }: {',
+      '  title: string',
+      '  files: readonly string[]',
+      '  reset?: boolean',
+      '}) {}',
+      'export function mixed(x: { a: 1, b: 2; c: 3, }) {}',
+      'export function semicolons(x: { a: 1; b: 2; }) {}',
+      'export function nested(x: { a: { b: 1',
+      'c: 2 }, d: string[] }): { e: 1, f: 2 } {}',
+      'export function methods(x: { run(): void, readonly id: string }) {}',
+      'export function empty(x: {}) {}',
+      'export type Shape = {',
+      '  a: string',
+      '  b: number',
+      '}',
+      "export const config: { mode: 'a' | 'b', depth: number } = { mode: 'a', depth: 1 }"
+    ]),
+    [
+      'function multiline({ a }: { title: string; files: readonly string[]; reset?: boolean })',
+      'function mixed(x: { a: 1; b: 2; c: 3 })',
+      'function semicolons(x: { a: 1; b: 2 })',
+      'function nested(x: { a: { b: 1; c: 2 }; d: string[] }): { e: 1; f: 2 }',
+      'function methods(x: { run(): void; readonly id: string })',
+      'function empty(x: {})',
+      'type Shape = { a: string; b: number }',
+      "const config: { mode: 'a' | 'b'; depth: number }"
+    ]
+  )
+})
+
+test('an over-long signature shortens its binding patterns, then its type literals, then is cut', () => {
+  const props = names('property', 14).join(', ')
+  const members = names('member', 14)
+    .map(name => `${name}: string`)
+    .join('\n  ')
+  const [named, inline, arrow, wrapped, stillLong, cut, fits] = signatures(
+    [
+      `export function Named({ ${props} }: NamedProps) {}`,
+      `export function Inline({ ${props} }: {\n  ${members}\n}) {}`,
+      `export const Arrow = ({ ${props} }: ArrowProps): number => 1`,
+      `export const Wrapped = forwardRef<HTMLDivElement, WrappedProps>(({ ${props} }, ref) => null)`,
+      `export function Long(first: { ${members.replaceAll('\n  ', ', ')} }, ${names('second', 14).join(', ')}, last: string) {}`,
+      `export function Cut(${names('parameter', 30).join(', ')}) {}`,
+      `export function Fits({ a, b }: { a: string; b: string }) {}`
+    ],
+    'tsx'
+  )
+  assert.equal(named, 'function Named({ … }: NamedProps)')
+  assert.equal(inline, 'function Inline({ … }: { … })')
+  assert.equal(arrow, 'const Arrow = ({ … }: ArrowProps): number =>')
+  assert.equal(wrapped, 'const Wrapped = forwardRef<HTMLDivElement, WrappedProps>(({ … }, ref) =>)')
+  assert.equal(
+    stillLong?.startsWith('function Long(first: { … }, second0, second1'),
+    true,
+    stillLong
+  )
+  assert.equal(stillLong?.length, 160)
+  assert.ok(stillLong?.endsWith('…'), stillLong)
+  assert.equal(cut?.length, 160)
+  assert.ok(cut?.startsWith('function Cut(parameter0, parameter1'), cut)
+  assert.equal(fits, 'function Fits({ a, b }: { a: string; b: string })')
+})
+
+test('shortening stops at the first level that fits', () => {
+  const props = names('property', 14).join(', ')
+  assert.deepEqual(
+    signatures([`export function A({ ${props} }: { one: 1; two: 2 }, third: { three: 3 }) {}`]),
+    ['function A({ … }: { one: 1; two: 2 }, third: { three: 3 })']
+  )
 })
 
 test('doc is the first sentence of the closest JSDoc, on one line', () => {
