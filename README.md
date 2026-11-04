@@ -9,7 +9,7 @@ Galactica is inspired by [codemap](https://github.com/peterretief/codemap), whic
 
 ## Status
 
-The five agent commands work from a checkout. Galactica is not on npm yet, and `html` and `init` do not exist yet. Work is tracked in the Galactica project in Linear.
+The five agent commands and `html` work from a checkout. Galactica is not on npm yet, and `init` does not exist yet. Work is tracked in the Galactica project in Linear.
 
 To run the commands, build Galactica once, then run `dist/cli.js` from the repository you want to map, or pass that repository with `--root`:
 
@@ -72,6 +72,8 @@ packages: none
 external: cn
 unresolved: none
 ```
+
+`html` writes the map for people to `galactica.html` in the current directory, or to the file `--out` names, and prints the path and size. `--open` opens the file in the default browser. The page is one file that loads nothing from the network, so it opens from disk and can be shared as an attachment. Each package is a section, highest in the dependency order first. Inside it, each area is a box in a row by layer: the bottom row imports no other area, and each row above imports only from rows below, except areas marked as a cycle. A box is wider when its modules export more symbols, and its colour marks its top-level folder. Each module expands to list its exported symbols with their signatures and docs. Tests and stories are hidden until you show them. On Radiant, the page is about 350 KB and takes under a second to write.
 
 `galactica init` installs a skill in `.agents/skills/galactica/`, which agents that follow the Agent Skills standard read. The skill tells an agent to run `overview` when it starts in an unfamiliar repository, `where` instead of grep, and `uses` before it edits a file.
 
