@@ -25,6 +25,7 @@
     "build": "rimraf dist && tsc -p tsconfig.build.json",
     "typecheck": "tsc --noEmit",
     "test": "pnpm build && node --test tests/*.test.ts",
+    "fixtures:update": "node tests/update-fixtures.ts",
     "lint": "oxlint --deny-warnings",
     "format": "oxfmt",
     "format:check": "oxfmt --check",

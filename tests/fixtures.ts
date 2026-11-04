@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict'
-import { existsSync, readdirSync, readFileSync } from 'node:fs'
+import { existsSync, readdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
+import type { Discovery } from '../src/discovery.ts'
 import type { Area, Graph, Model, ModuleFacts, ModuleNode, RepoPath } from '../src/model.ts'
 
 /** A `Model` without the content hashes, which a hand-written file cannot know. */
@@ -16,6 +17,12 @@ export type ExpectedGraph = Partial<{
   readonly cycles: Graph['cycles']
 }>
 
+/** A case's expected.json, and its expected-graph.json when it has one. */
+export interface ExpectedFiles {
+  readonly model: ExpectedModel
+  readonly graph: ExpectedGraph | undefined
+}
+
 const fixtures = new URL('fixtures/', import.meta.url)
 
 export function fixtureCases(): string[] {
@@ -30,24 +37,165 @@ export function fixtureRepo(name: string): string {
   return fileURLToPath(new URL(`${name}/repo`, fixtures))
 }
 
-export function readExpected(name: string): ExpectedModel {
-  return JSON.parse(readFileSync(new URL(`${name}/expected.json`, fixtures), 'utf8'))
+const modelFile = (name: string) => new URL(`${name}/expected.json`, fixtures)
+const graphFile = (name: string) => new URL(`${name}/expected-graph.json`, fixtures)
+
+export function readExpected(name: string): ExpectedFiles {
+  const graph = graphFile(name)
+  return {
+    model: JSON.parse(readFileSync(modelFile(name), 'utf8')),
+    graph: existsSync(graph) ? JSON.parse(readFileSync(graph, 'utf8')) : undefined
+  }
 }
 
-export function readExpectedGraph(name: string): ExpectedGraph | undefined {
-  const url = new URL(`${name}/expected-graph.json`, fixtures)
-  return existsSync(url) ? JSON.parse(readFileSync(url, 'utf8')) : undefined
-}
+const isPrimitive = (value: unknown) => value === null || typeof value !== 'object'
 
-/** Asserts that `actual` matches the case's expected.json, ignoring hashes. */
-export function compareFixture(name: string, actual: Model): void {
-  const modules: ExpectedModel['modules'] = Object.fromEntries(
-    Object.values(actual.modules).map(({ path, symbols, edges }) => [
-      path,
-      { path, symbols, edges }
-    ])
+/**
+ * JSON as the expected files are written: two-space indent, arrays of
+ * primitives and objects of at most two primitive fields on one line.
+ */
+function formatExpected(value: unknown, indent = ''): string {
+  if (isPrimitive(value)) return JSON.stringify(value)
+  const inner = `${indent}  `
+  if (Array.isArray(value)) {
+    if (value.every(isPrimitive)) return `[${value.map(item => JSON.stringify(item)).join(', ')}]`
+    return `[\n${value.map(item => inner + formatExpected(item, inner)).join(',\n')}\n${indent}]`
+  }
+  const entries = Object.entries(value as object)
+  if (entries.length === 0) return '{}'
+  const fields = entries.map(
+    ([key, item]) => `${JSON.stringify(key)}: ${formatExpected(item, inner)}`
   )
-  const expected = readExpected(name)
-  assert.deepStrictEqual({ ...actual, modules }, expected)
-  assert.deepStrictEqual(Object.keys(modules), Object.keys(expected.modules))
+  if (entries.length <= 2 && entries.every(([, item]) => isPrimitive(item))) {
+    return `{ ${fields.join(', ')} }`
+  }
+  return `{\n${fields.map(field => inner + field).join(',\n')}\n${indent}}`
+}
+
+/** The expected files whose text on disk is not `files` as `formatExpected` writes them. */
+function staleTexts(name: string, files: ExpectedFiles): readonly [URL, string][] {
+  const targets = [
+    [modelFile(name), files.model],
+    [graphFile(name), files.graph]
+  ] as const
+  return targets.flatMap(([url, value]): [URL, string][] => {
+    if (value === undefined) return []
+    const text = `${formatExpected(value)}\n`
+    return existsSync(url) && readFileSync(url, 'utf8') === text ? [] : [[url, text]]
+  })
+}
+
+export function staleExpected(name: string, files: ExpectedFiles): string[] {
+  return staleTexts(name, files).map(([url]) => fileURLToPath(url))
+}
+
+/** Writes the expected files that differ from `files`. Returns their paths. */
+export function writeExpected(name: string, files: ExpectedFiles): string[] {
+  return staleTexts(name, files).map(([url, text]) => {
+    writeFileSync(url, text)
+    return fileURLToPath(url)
+  })
+}
+
+/** How an implemented aspect reads its slice of the expected files and of the analyzer's output. */
+export interface Check {
+  /** Asserts that the analyzer's output matches the expected files. */
+  readonly compare: (files: ExpectedFiles, discovery: Discovery) => void
+  /** The expected files with this aspect replaced by the analyzer's output. */
+  readonly update: (files: ExpectedFiles, discovery: Discovery) => ExpectedFiles
+}
+
+function check<T>(
+  expected: (files: ExpectedFiles) => T,
+  actual: (discovery: Discovery) => T,
+  replace: (files: ExpectedFiles, value: T) => ExpectedFiles
+): Check {
+  return {
+    compare: (files, discovery) => assert.deepStrictEqual(actual(discovery), expected(files)),
+    update: (files, discovery) => replace(files, actual(discovery))
+  }
+}
+
+export interface Aspect {
+  readonly name: string
+  /** The Linear issue that implements the aspect. */
+  readonly owner: string
+  /** Absent until the owner lands. */
+  readonly check?: Check
+  /** Cases a later issue finishes, with that issue. */
+  readonly pendingIn?: Readonly<Record<string, string>>
+  /** Whether a case's expected files state the aspect at all. */
+  readonly stated: (files: ExpectedFiles) => boolean
+}
+
+const always = () => true
+
+/** Each part of the expected files, with the issue that makes the analyzer produce it. */
+export const aspects: readonly Aspect[] = [
+  {
+    name: 'files',
+    owner: 'DEV-668',
+    stated: always,
+    check: check(
+      ({ model }) => Object.keys(model.modules) as RepoPath[],
+      discovery => discovery.modules.map(module => module.path),
+      (files, paths) => ({
+        ...files,
+        model: {
+          ...files.model,
+          modules: Object.fromEntries(
+            paths.map(path => [path, files.model.modules[path] ?? { path, symbols: [], edges: [] }])
+          )
+        }
+      })
+    )
+  },
+  {
+    name: 'packages',
+    owner: 'DEV-668',
+    pendingIn: { monorepo: 'DEV-689' },
+    stated: always,
+    check: check(
+      ({ model }) => ({ repository: model.repository, packages: model.packages }),
+      ({ repository, packages }) => ({ repository, packages }),
+      (files, packages) => ({ ...files, model: { ...files.model, ...packages } })
+    )
+  },
+  {
+    name: 'kinds',
+    owner: 'DEV-668',
+    stated: ({ graph }) => graph?.kinds !== undefined,
+    check: check(
+      ({ graph }) => graph?.kinds,
+      discovery => Object.fromEntries(discovery.modules.map(module => [module.path, module.kind])),
+      (files, kinds) => ({ ...files, graph: { ...files.graph, kinds } })
+    )
+  },
+  {
+    name: 'symbols',
+    owner: 'DEV-669',
+    pendingIn: { astro: 'DEV-690', svelte: 'DEV-690', vue: 'DEV-690' },
+    stated: always
+  },
+  {
+    name: 'edges',
+    owner: 'DEV-671',
+    pendingIn: {
+      astro: 'DEV-690',
+      barrels: 'DEV-672',
+      monorepo: 'DEV-689',
+      svelte: 'DEV-690',
+      vue: 'DEV-690'
+    },
+    stated: always
+  },
+  { name: 'areas', owner: 'DEV-673', stated: ({ graph }) => graph?.areas !== undefined },
+  { name: 'cycles', owner: 'DEV-673', stated: ({ graph }) => graph?.cycles !== undefined }
+]
+
+/** What a case does with an aspect it states: run the check, or wait for an issue. */
+export function statusOf(aspect: Aspect, name: string): Check | { readonly pending: string } {
+  const issue = aspect.pendingIn?.[name]
+  if (issue !== undefined) return { pending: issue }
+  return aspect.check ?? { pending: aspect.owner }
 }

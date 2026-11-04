@@ -31,3 +31,9 @@ Each `expected.json` is the spec for the analyzer. It holds the `Model` from `sr
 ## Derived data
 
 `expected-graph.json` holds only the fields its case is about: `kinds` for every module, `areas` sorted by path, and `cycles` among source modules.
+
+## Checking and updating
+
+`tests/fixtures.ts` splits the expected files into aspects, such as module paths, packages, kinds, symbols and edges, and names the issue that implements each one. The tests compare every implemented aspect with the analyzer's output and list the others as `todo` with their issue. When a change to the output is intended, `pnpm fixtures:update` rewrites the implemented aspects from the analyzer and keeps the hand-written content of the rest.
+
+The files are JSON with a two-space indent. Arrays of strings and numbers, and objects with at most two such fields, stay on one line. A test fails when a file is written any other way.

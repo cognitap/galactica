@@ -3,20 +3,15 @@ import { readdirSync, readFileSync } from 'node:fs'
 import { basename, extname, join, relative } from 'node:path'
 import { test } from 'node:test'
 import { languages, moduleKinds, symbolKinds } from '../src/contract.ts'
+import { discover, type Discovery } from '../src/discovery.ts'
+import { MODEL_FORMAT, parseRepoPath, type RepoPath, type Target } from '../src/model.ts'
 import {
-  MODEL_FORMAT,
-  parseRepoPath,
-  type Model,
-  type RepoPath,
-  type Target
-} from '../src/model.ts'
-import {
-  compareFixture,
+  aspects,
   fixtureCases,
   fixtureRepo,
   readExpected,
-  readExpectedGraph,
-  type ExpectedModel
+  staleExpected,
+  statusOf
 } from './fixtures.ts'
 
 const cases = [
@@ -77,7 +72,8 @@ test('every listed case has a fixture, and every fixture is listed', () => {
 
 for (const name of cases) {
   const repo = fixtureRepo(name)
-  const expected = readExpected(name)
+  const files = readExpected(name)
+  const expected = files.model
   const modules = Object.values(expected.modules)
 
   test(`${name}: modules are exactly the mapped files, with normalized sorted keys`, () => {
@@ -160,7 +156,7 @@ for (const name of cases) {
     }
   })
 
-  const graph = readExpectedGraph(name)
+  const graph = files.graph
   if (graph) {
     test(`${name}: expected-graph.json names known modules and packages`, () => {
       const paths = Object.keys(expected.modules)
@@ -196,23 +192,40 @@ for (const name of cases) {
       }
     })
   }
-}
 
-function withHashes(expected: ExpectedModel): Model {
-  const modules = Object.entries(expected.modules).map(([path, facts]) => [
-    path,
-    { ...facts, hash: 'h' }
-  ])
-  return { ...expected, modules: Object.fromEntries(modules) }
-}
+  test(`${name}: expected files are written as fixtures:update writes them`, () => {
+    assert.deepEqual(staleExpected(name, files), [])
+  })
 
-test('compareFixture ignores hashes and reports any other difference', () => {
-  const expected = readExpected('plain-relative')
-  compareFixture('plain-relative', withHashes(expected))
-  const path = 'src/math.ts' as RepoPath
-  const moved = {
-    ...expected,
-    modules: { ...expected.modules, [path]: { ...expected.modules[path]!, symbols: [] } }
+  let discovery: Discovery | undefined
+  for (const aspect of aspects.filter(aspect => aspect.stated(files))) {
+    const status = statusOf(aspect, name)
+    const title = `${name}: ${aspect.name} match the analyzer`
+    if ('pending' in status) {
+      test(title, { todo: `pending until ${status.pending}` })
+    } else {
+      test(title, () => status.compare(files, (discovery ??= discover(repo))))
+    }
   }
-  assert.throws(() => compareFixture('plain-relative', withHashes(moved)), /symbols/)
+}
+
+test('an implemented aspect fails on any difference and updates to the analyzer output', () => {
+  const name = 'plain-relative'
+  const files = readExpected(name)
+  const discovery = discover(fixtureRepo(name))
+  const extra = 'src/extra.ts' as RepoPath
+  const changed = {
+    ...files,
+    model: {
+      ...files.model,
+      modules: { ...files.model.modules, [extra]: { path: extra, symbols: [], edges: [] } }
+    }
+  }
+  const check = statusOf(
+    aspects.find(aspect => aspect.name === 'files')!,
+    name
+  )
+  assert.ok(!('pending' in check))
+  assert.throws(() => check.compare(changed, discovery), /src\/extra\.ts/)
+  assert.deepStrictEqual(check.update(changed, discovery), files)
 })
