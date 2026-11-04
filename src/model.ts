@@ -114,7 +114,8 @@ export interface Edge {
   readonly via: readonly RepoPath[]
 }
 
-const compare = (a: string, b: string) => (a < b ? -1 : a > b ? 1 : 0)
+/** Code-unit order, the same on every machine and locale. */
+export const compare = (a: string, b: string) => (a < b ? -1 : a > b ? 1 : 0)
 
 function targetKey(target: Target): string {
   if (target.kind === 'module') return target.path
