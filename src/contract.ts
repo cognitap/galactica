@@ -111,6 +111,8 @@ export interface Where extends Envelope<'where'> {
   readonly name: string
   /** Sorted by module path, then line. Empty is a valid answer, not a failure. */
   readonly definitions: readonly (SymbolRef & { readonly module: ModuleRef })[]
+  /** Up to three exported names like `name`, when `definitions` is empty. Otherwise empty. */
+  readonly suggestions: readonly string[]
 }
 
 export interface Outline extends Envelope<'outline'> {
