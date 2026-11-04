@@ -2,8 +2,9 @@
  * The private model, in two layers split by what each one needs.
  *
  * `Model` holds per-module facts that need the file's contents: its symbols and
- * its resolved outgoing edges. It is the cache, plain JSON, and the analyzer
- * replaces one module at a time.
+ * its resolved outgoing edges. It is plain JSON. Edges depend on other files,
+ * so the cache in `src/cache.ts` keeps only what each file gives on its own,
+ * and the model is rebuilt from it on every run.
  *
  * `Graph` is everything computable from a `Model` plus `galactica.config.json`:
  * package membership, kind, language, areas, layers, reverse edges, the symbol
@@ -52,7 +53,6 @@ export function parseRepoPath(raw: string): RepoPath {
 export const MODEL_FORMAT = 1
 
 export interface Model {
-  /** A mismatch discards the cache. It is never migrated. */
   readonly format: typeof MODEL_FORMAT
   readonly repository: { readonly name: string }
   /** From the workspace manifest. A module belongs to the package with the longest `dir` prefix of its path. */
@@ -63,7 +63,7 @@ export interface Model {
 
 export interface ModuleFacts {
   readonly path: RepoPath
-  /** Content hash. The incremental update skips a module whose hash is unchanged. */
+  /** The sha256 of the file's bytes. */
   readonly hash: string
   /** Exported declarations defined in this file, in line order. Re-exports are edges. */
   readonly symbols: readonly SymbolFacts[]

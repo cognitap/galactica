@@ -27,6 +27,7 @@ import { compare, type RepoPath, type SymbolFacts } from './model.ts'
 export const CACHE_FORMAT = 1
 
 export interface CacheEntry extends Extraction {
+  readonly hash: string
   readonly mtimeMs: number
   readonly size: number
 }

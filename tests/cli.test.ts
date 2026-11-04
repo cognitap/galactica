@@ -1,16 +1,32 @@
 import assert from 'node:assert/strict'
 import { spawnSync } from 'node:child_process'
-import { existsSync, readdirSync, readFileSync, writeFileSync } from 'node:fs'
-import { join } from 'node:path'
-import { test } from 'node:test'
+import { existsSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { tmpdir } from 'node:os'
+import { join, relative } from 'node:path'
+import { after, test } from 'node:test'
 import { commands } from '../src/contract.ts'
 import { fixtureRepo } from './fixtures.ts'
 import { repository } from './temp-repository.ts'
 
 const cli = new URL('../dist/cli.js', import.meta.url).pathname
 
+/** A home of its own, so a repository without node_modules keeps its cache out of the user's. */
+const home = mkdtempSync(join(tmpdir(), 'galactica-home-'))
+after(() => rmSync(home, { recursive: true, force: true }))
+const env = {
+  ...process.env,
+  HOME: home,
+  USERPROFILE: home,
+  XDG_CACHE_HOME: join(home, '.cache'),
+  LOCALAPPDATA: join(home, 'AppData', 'Local')
+}
+
 function galactica(cwd: string, ...args: string[]) {
-  const { status, stdout, stderr } = spawnSync('node', [cli, ...args], { cwd, encoding: 'utf8' })
+  const { status, stdout, stderr } = spawnSync('node', [cli, ...args], {
+    cwd,
+    env,
+    encoding: 'utf8'
+  })
   return { status, stdout, stderr }
 }
 
@@ -233,4 +249,34 @@ test('init takes no argument, no flag of another command and no empty --command'
     assert.match(stderr, /^galactica: /, args.join(' '))
   }
   assert.ok(!existsSync(join(plain, '.agents')))
+})
+
+function filesUnder(root: string): readonly string[] {
+  return readdirSync(root, { recursive: true, withFileTypes: true })
+    .filter(entry => entry.isFile())
+    .map(entry => relative(root, join(entry.parentPath, entry.name)))
+    .sort()
+}
+
+test('a command keeps its cache under node_modules/.cache/galactica, and --no-cache writes none', t => {
+  const root = repository(t, {
+    'package.json': { name: 'cached' },
+    'src/a.ts': "import { b } from './b'\nexport const a = b",
+    'src/b.ts': 'export const b = 1',
+    'node_modules/left-pad/index.js': ''
+  })
+  const before = filesUnder(root)
+  const uncached = galactica(root, 'deps', 'src/a.ts', '--json', '--no-cache')
+  assert.equal(uncached.status, 0)
+  assert.deepEqual(filesUnder(root), before)
+
+  const cold = galactica(root, 'deps', 'src/a.ts', '--json')
+  const warm = galactica(root, 'deps', 'src/a.ts', '--json')
+  assert.equal(cold.stdout, uncached.stdout)
+  assert.equal(warm.stdout, uncached.stdout)
+  assert.deepEqual(
+    filesUnder(root),
+    [...before, join('node_modules', '.cache', 'galactica', 'cache.json')].sort()
+  )
+  assert.equal(galactica(root, 'html', '--no-cache', '--out', join(home, 'map.html')).status, 0)
 })

@@ -187,7 +187,11 @@ function takenBy(node: ts.Node): Taken | undefined {
 const sortedNames = (names: readonly string[]) =>
   [...new Set(names)].sort((a, b) => (a < b ? -1 : a > b ? 1 : 0))
 
-/** Options under which module resolution ignores import syntax, so TypeScript gives a mode only for an override. */
+/**
+ * Options under which module resolution ignores import syntax, so TypeScript
+ * gives a mode only for an override. Empty options would not do, since the
+ * defaults of TypeScript 6 resolve package exports, which reads the syntax.
+ */
 const syntaxBlind: ts.CompilerOptions = {
   moduleResolution: ts.ModuleResolutionKind.Bundler,
   resolvePackageJsonExports: false,
