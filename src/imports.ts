@@ -18,6 +18,7 @@ interface Taken {
   readonly specifier: ts.Expression | undefined
   readonly form: Edge['form']
   readonly names: readonly string[]
+  readonly renames?: Edge['renames']
   readonly typeOnly: boolean
   readonly dynamic: boolean
 }
@@ -56,6 +57,20 @@ function fromImportDeclaration(node: ts.ImportDeclaration): Taken {
   }
 }
 
+const byKey = ([a]: readonly [string, string], [b]: readonly [string, string]) =>
+  a < b ? -1 : a > b ? 1 : 0
+
+/** Without an entry for each name passed on unrenamed, `{ a as b, a }` would read as `{ a as b }`. */
+function renamesOf(specifiers: readonly ts.ExportSpecifier[]): Edge['renames'] {
+  const renamed = new Set(
+    specifiers.filter(specifier => nameOf(specifier) !== specifier.name.text).map(nameOf)
+  )
+  const entries = specifiers
+    .filter(specifier => renamed.has(nameOf(specifier)))
+    .map(specifier => [specifier.name.text, nameOf(specifier)] as const)
+  return entries.length > 0 ? Object.fromEntries(entries.sort(byKey)) : undefined
+}
+
 function fromExportDeclaration(node: ts.ExportDeclaration): Taken | undefined {
   if (!node.moduleSpecifier) return undefined
   const clause = node.exportClause
@@ -64,6 +79,12 @@ function fromExportDeclaration(node: ts.ExportDeclaration): Taken | undefined {
     specifier: node.moduleSpecifier,
     form: 'reexport',
     names: clause && ts.isNamedExports(clause) ? named.map(nameOf) : ['*'],
+    renames:
+      clause === undefined
+        ? undefined
+        : ts.isNamedExports(clause)
+          ? renamesOf(named)
+          : { [clause.name.text]: '*' },
     typeOnly: node.isTypeOnly || allTypeOnly(named),
     dynamic: false
   }
@@ -77,6 +98,7 @@ function fromImportEquals(node: ts.ImportEqualsDeclaration): Taken | undefined {
     specifier: reference.expression,
     form: exported ? 'reexport' : 'import',
     names: ['*'],
+    renames: exported ? { [node.name.text]: '*' } : undefined,
     typeOnly: node.isTypeOnly,
     dynamic: false
   }
@@ -166,6 +188,7 @@ export function importsOf(source: ts.SourceFile): readonly Import[] {
         line: source.getLineAndCharacterOfPosition(specifier.getStart(source)).line + 1,
         form: taken.form,
         names: sortedNames(taken.names),
+        ...(taken.renames === undefined ? {} : { renames: taken.renames }),
         typeOnly: taken.typeOnly,
         dynamic: taken.dynamic
       })
