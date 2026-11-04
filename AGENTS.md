@@ -18,6 +18,7 @@ Galactica analyzes a JavaScript or TypeScript repository into one internal model
 - `src/model.ts`: the cached `Model` of per-module facts, and the in-memory `Graph` derived from it.
 - `src/discovery.ts`: `discover` lists a repository's modules with their language, kind and tsconfig, and collects config warnings. `compilerOptionsOf` gives the options for one module.
 - `src/source-file.ts`: what a path is. `languageOf` and `kindOf` classify a file from its path alone.
+- `src/symbols.ts`: what a module exports. `symbolsOf` reads a module's `SymbolFacts` from its text alone, with no program and no type checker.
 - `src/repository-files.ts`: which files a repository has. Uses `git ls-files` so `.gitignore` applies, and a directory walk outside a git work tree, which ignores `.gitignore`.
 - `src/compiler-settings.ts`: which tsconfig applies to a file, following `extends` and project references, and the defaults when none does.
 - `docs/json-output.md`: reference for the `--json` output. Update it with `src/contract.ts`.
