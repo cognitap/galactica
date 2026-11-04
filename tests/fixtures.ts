@@ -1,8 +1,8 @@
 import assert from 'node:assert/strict'
 import { existsSync, readdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
+import { graphOf } from '../src/graph.ts'
 import type { Area, Graph, Model, ModuleFacts, ModuleNode, RepoPath } from '../src/model.ts'
-import { kindOf } from '../src/source-file.ts'
 
 /** A `Model` without the content hashes, which a hand-written file cannot know. */
 export type ExpectedModel = Omit<Model, 'modules'> & {
@@ -193,7 +193,8 @@ export const aspects: readonly Aspect[] = [
     stated: ({ graph }) => graph?.kinds !== undefined,
     check: check(
       ({ graph }) => graph?.kinds,
-      model => Object.fromEntries(pathsOf(model).map(path => [path, kindOf(path)])),
+      model =>
+        Object.fromEntries([...graphOf(model).modules].map(([path, node]) => [path, node.kind])),
       (files, kinds) => ({ ...files, graph: { ...files.graph, kinds } })
     )
   },
@@ -215,8 +216,26 @@ export const aspects: readonly Aspect[] = [
     stated: always,
     check: moduleField('edges')
   },
-  { name: 'areas', owner: 'DEV-673', stated: ({ graph }) => graph?.areas !== undefined },
-  { name: 'cycles', owner: 'DEV-673', stated: ({ graph }) => graph?.cycles !== undefined }
+  {
+    name: 'areas',
+    owner: 'DEV-673',
+    stated: ({ graph }) => graph?.areas !== undefined,
+    check: check(
+      ({ graph }) => graph?.areas,
+      model => [...graphOf(model).areas.values()],
+      (files, areas) => ({ ...files, graph: { ...files.graph, areas } })
+    )
+  },
+  {
+    name: 'cycles',
+    owner: 'DEV-673',
+    stated: ({ graph }) => graph?.cycles !== undefined,
+    check: check(
+      ({ graph }) => graph?.cycles,
+      model => graphOf(model).cycles,
+      (files, cycles) => ({ ...files, graph: { ...files.graph, cycles } })
+    )
+  }
 ]
 
 /** What a case does with an aspect it states: run the check, or wait for an issue. */

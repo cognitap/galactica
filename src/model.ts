@@ -228,9 +228,12 @@ export interface Graph {
   readonly areas: ReadonlyMap<AreaPath, Area>
   /** Sorted by first area. */
   readonly areaCycles: readonly AreaCycle[]
-  /** Reverse edges per module. Feeds `uses` and the importer counts in `overview`. */
+  /**
+   * Reverse edges for every module, empty when nothing imports it, sorted by
+   * `from`, then edge. Feeds `uses` and the importer counts in `overview`.
+   */
   readonly incoming: ReadonlyMap<RepoPath, readonly Incoming[]>
-  /** Exported name to its definitions, sorted by module path, then line. Feeds `where`. */
+  /** Exported name to its definitions, names sorted, definitions by module path, then line. Feeds `where`. */
   readonly symbols: ReadonlyMap<string, readonly SymbolLocation[]>
   /**
    * Strongly connected components of size above one among source and config
