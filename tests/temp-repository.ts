@@ -3,6 +3,7 @@ import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
 import type { TestContext } from 'node:test'
+import { gitEnvironment } from '../src/repository-files.ts'
 
 /** File path to its text, or to a value written as JSON. */
 export type Files = Readonly<Record<string, string | object>>
@@ -20,7 +21,7 @@ export function repository(t: TestContext, files: Files): string {
 }
 
 export function git(root: string, ...args: string[]): void {
-  execFileSync('git', args, { cwd: root, stdio: 'ignore' })
+  execFileSync('git', args, { cwd: root, env: gitEnvironment(), stdio: 'ignore' })
 }
 
 export function gitRepository(t: TestContext, files: Files): string {

@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict'
-import { rmSync } from 'node:fs'
+import { existsSync, rmSync } from 'node:fs'
 import { basename, join } from 'node:path'
 import { test } from 'node:test'
 import ts from 'typescript'
@@ -45,6 +45,21 @@ test('in a git work tree, ignored files are skipped and untracked ones are kept'
   git(root, 'add', 'src/tracked.ts', 'src/gone.ts')
   rmSync(join(root, 'src/gone.ts'))
   assert.deepEqual(paths(discover(root)), ['src/tracked.ts', 'src/untracked.ts'])
+})
+
+test('a GIT_DIR inherited from a hook or rebase --exec does not redirect git', t => {
+  const other = gitRepository(t, { 'elsewhere.ts': '' })
+  const root = gitRepository(t, { '.gitignore': 'vendor.ts\n', 'kept.ts': '', 'vendor.ts': '' })
+  git(root, 'add', '--force', 'vendor.ts')
+  const inherited = process.env.GIT_DIR
+  process.env.GIT_DIR = join(other, '.git')
+  t.after(() => {
+    if (inherited === undefined) delete process.env.GIT_DIR
+    else process.env.GIT_DIR = inherited
+  })
+  assert.deepEqual(paths(discover(root)), ['kept.ts', 'vendor.ts'])
+  const fresh = gitRepository(t, { 'fresh.ts': '' })
+  assert.ok(existsSync(join(fresh, '.git')), 'the helper initialises its own repository')
 })
 
 test('build output and installed packages are skipped, even when git tracks them', t => {
