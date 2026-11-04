@@ -29,7 +29,7 @@ npx @cognitap/galactica overview
 | `html`           | Write the human map as one HTML file.                               |
 | `init`           | Install the agent skill into this repository.                       |
 
-Every command except `html` and `init` prints short text by default and structured output with `--json`.
+Every command except `html` and `init` prints short text by default and structured output with `--json`. The [JSON output reference](docs/json-output.md) documents the fields.
 
 `galactica init` installs a skill in `.agents/skills/galactica/`, which agents that follow the Agent Skills standard read. The skill tells an agent to run `overview` when it starts in an unfamiliar repository, `where` instead of grep, and `uses` before it edits a file.
 

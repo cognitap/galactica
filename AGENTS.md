@@ -14,6 +14,9 @@ Galactica analyzes a JavaScript or TypeScript repository into one internal model
 ## Structure
 
 - `src/cli.ts`: command-line entry point.
+- `src/contract.ts`: the public `--json` output types and `SCHEMA_VERSION`. Imports nothing from `src/model.ts`.
+- `src/model.ts`: the cached `Model` of per-module facts, and the in-memory `Graph` derived from it.
+- `docs/json-output.md`: reference for the `--json` output. Update it with `src/contract.ts`.
 - `tests/`: `node:test` suites run against the built `dist/`. Fixture repositories go in `tests/fixtures/`.
 
 ## Conventions
