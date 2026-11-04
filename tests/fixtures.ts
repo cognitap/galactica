@@ -209,7 +209,6 @@ export const aspects: readonly Aspect[] = [
     owner: 'DEV-671',
     pendingIn: {
       astro: 'DEV-690',
-      barrels: 'DEV-672',
       svelte: 'DEV-690',
       vue: 'DEV-690'
     },

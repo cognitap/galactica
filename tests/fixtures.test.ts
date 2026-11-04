@@ -150,9 +150,10 @@ for (const name of cases) {
         assert.deepEqual(edge.names, sorted(edge.names), `${where} names are not sorted`)
         if (edge.form === 'reexport') assert.match(line, /\bexport\b/, `${where} reexport`)
         if (edge.dynamic) assert.match(line, /\bimport\s*\(/, `${where} dynamic`)
+        if (edge.renames) assert.equal(edge.form, 'reexport', `${where} renames on an import`)
         if (edge.to.kind === 'module') {
           assert.ok(edge.to.path in expected.modules, `${where} targets a path that is no module`)
-        } else {
+        } else if (edge.via.length === 0) {
           assert.ok(line.includes(targetKey(edge.to)), `${where} is not on its line: ${line}`)
         }
         for (const barrel of edge.via) {

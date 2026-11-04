@@ -1,7 +1,8 @@
 /**
  * Analysing a repository into its `Model`: discovery, then for each module one
  * read and one parse, from which come its content hash, its symbols and its
- * resolved edges. There is no program and no type checker.
+ * resolved edges, and last the pass that follows imports through barrels.
+ * There is no program and no type checker.
  */
 
 import { createHash } from 'node:crypto'
@@ -9,6 +10,7 @@ import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { performance } from 'node:perf_hooks'
 import ts from 'typescript'
+import { resolveBarrels } from './barrels.ts'
 import { compilerOptionsOf, discover, type DiscoveredModule, type Warning } from './discovery.ts'
 import { importResolver, type ImportResolver } from './import-resolution.ts'
 import { importsOf } from './imports.ts'
@@ -29,6 +31,7 @@ export interface Summary {
     readonly discovery: number
     readonly parse: number
     readonly resolution: number
+    readonly barrels: number
   }
 }
 
@@ -92,7 +95,7 @@ function analyzeModule(
 
 /** The repository's model, with a summary of what the analysis could not resolve or map. */
 export function analyzeRepository(rootDir: string): Analysis {
-  const clock: Clock = { discovery: 0, parse: 0, resolution: 0 }
+  const clock: Clock = { discovery: 0, parse: 0, resolution: 0, barrels: 0 }
   const discovery = timed(clock, 'discovery', () => discover(rootDir))
   const resolver = importResolver(discovery)
   const analyzed = discovery.modules.map(module =>
@@ -103,13 +106,16 @@ export function analyzeRepository(rootDir: string): Analysis {
   for (const extension of analyzed.flatMap(module => module.skipped).sort(compare)) {
     skipped[extension] = (skipped[extension] ?? 0) + 1
   }
-  const edges = analyzed.flatMap(module => module.facts.edges)
+  const modules = timed(clock, 'barrels', () =>
+    resolveBarrels(Object.fromEntries(analyzed.map(({ facts }) => [facts.path, facts])))
+  )
+  const edges = Object.values(modules).flatMap(facts => facts.edges)
   return {
     model: {
       format: MODEL_FORMAT,
       repository: discovery.repository,
       packages: discovery.packages,
-      modules: Object.fromEntries(analyzed.map(({ facts }) => [facts.path, facts]))
+      modules
     },
     summary: {
       warnings: [...discovery.warnings, ...resolver.warnings()].sort(
