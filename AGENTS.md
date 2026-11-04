@@ -17,7 +17,9 @@ Galactica analyzes a JavaScript or TypeScript repository into one internal model
 - `src/contract.ts`: the public `--json` output types and `SCHEMA_VERSION`. It imports nothing, which `tests/contract.test.ts` enforces.
 - `src/model.ts`: the cached `Model` of per-module facts, and the in-memory `Graph` derived from it.
 - `docs/json-output.md`: reference for the `--json` output. Update it with `src/contract.ts`.
-- `tests/`: `node:test` suites. CLI tests run the built `dist/`, and unit tests import `src/` directly. Fixture repositories go in `tests/fixtures/`.
+- `tests/`: `node:test` suites. CLI tests run the built `dist/`, and unit tests import `src/` directly.
+- `tests/fixtures/<case>/`: one small repository per hard analysis case in `repo/`, with its expected `Model` in `expected.json` and, where the case is about derived data, `expected-graph.json`. `tests/fixtures/README.md` states the conventions. Formatters never touch these files, because the expected files pin line numbers.
+- `tests/fixtures.ts`: lists the cases, reads the expected files and compares an analyzer's `Model` with `compareFixture`. `tests/fixtures.test.ts` checks each expected file against its repository.
 
 ## Conventions
 
