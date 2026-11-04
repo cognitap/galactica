@@ -1,0 +1,67 @@
+{
+  "format": 1,
+  "repository": { "name": "commonjs" },
+  "packages": {
+    "commonjs": { "dir": "." }
+  },
+  "modules": {
+    "src/config.cjs": {
+      "path": "src/config.cjs",
+      "symbols": [
+        {
+          "name": "port",
+          "kind": "const",
+          "line": 1,
+          "default": false,
+          "signature": "const port"
+        }
+      ],
+      "edges": []
+    },
+    "src/index.js": {
+      "path": "src/index.js",
+      "symbols": [
+        {
+          "name": "run",
+          "kind": "function",
+          "line": 4,
+          "default": false,
+          "signature": "function run()"
+        }
+      ],
+      "edges": [
+        {
+          "to": { "kind": "module", "path": "src/math.js" },
+          "line": 1,
+          "form": "import",
+          "names": ["add"],
+          "typeOnly": false,
+          "dynamic": false,
+          "via": []
+        },
+        {
+          "to": { "kind": "module", "path": "src/config.cjs" },
+          "line": 2,
+          "form": "import",
+          "names": ["*"],
+          "typeOnly": false,
+          "dynamic": false,
+          "via": []
+        }
+      ]
+    },
+    "src/math.js": {
+      "path": "src/math.js",
+      "symbols": [
+        {
+          "name": "add",
+          "kind": "function",
+          "line": 1,
+          "default": false,
+          "signature": "function add(a, b)"
+        }
+      ],
+      "edges": []
+    }
+  }
+}

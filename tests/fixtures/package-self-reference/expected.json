@@ -1,0 +1,90 @@
+{
+  "format": 1,
+  "repository": { "name": "@acme/self" },
+  "packages": {
+    "@acme/self": { "dir": "." }
+  },
+  "modules": {
+    "src/cli.ts": {
+      "path": "src/cli.ts",
+      "symbols": [
+        {
+          "name": "heading",
+          "kind": "const",
+          "line": 3,
+          "default": false,
+          "signature": "const heading: string"
+        }
+      ],
+      "edges": [
+        {
+          "to": { "kind": "module", "path": "src/index.ts" },
+          "line": 1,
+          "form": "import",
+          "names": ["title"],
+          "typeOnly": false,
+          "dynamic": false,
+          "via": []
+        }
+      ]
+    },
+    "src/index.ts": {
+      "path": "src/index.ts",
+      "symbols": [
+        {
+          "name": "title",
+          "kind": "function",
+          "line": 4,
+          "default": false,
+          "signature": "function title(text: string): string"
+        }
+      ],
+      "edges": [
+        {
+          "to": { "kind": "module", "path": "src/internal/log.ts" },
+          "line": 1,
+          "form": "import",
+          "names": ["log"],
+          "typeOnly": false,
+          "dynamic": false,
+          "via": []
+        },
+        {
+          "to": { "kind": "module", "path": "src/utils.ts" },
+          "line": 2,
+          "form": "import",
+          "names": ["slugify"],
+          "typeOnly": false,
+          "dynamic": false,
+          "via": []
+        }
+      ]
+    },
+    "src/internal/log.ts": {
+      "path": "src/internal/log.ts",
+      "symbols": [
+        {
+          "name": "log",
+          "kind": "function",
+          "line": 1,
+          "default": false,
+          "signature": "function log(message: string): void"
+        }
+      ],
+      "edges": []
+    },
+    "src/utils.ts": {
+      "path": "src/utils.ts",
+      "symbols": [
+        {
+          "name": "slugify",
+          "kind": "function",
+          "line": 1,
+          "default": false,
+          "signature": "function slugify(text: string): string"
+        }
+      ],
+      "edges": []
+    }
+  }
+}

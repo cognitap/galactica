@@ -19,7 +19,23 @@ import {
   type ExpectedModel
 } from './fixtures.ts'
 
-const cases = ['plain-relative', 'tsconfig-paths']
+const cases = [
+  'plain-relative',
+  'tsconfig-paths',
+  'barrels',
+  'cycle',
+  'javascript',
+  'allowjs-mixed',
+  'type-only-and-dynamic',
+  'react-components',
+  'tests-and-stories',
+  'package-self-reference',
+  'commonjs',
+  'monorepo',
+  'vue',
+  'svelte',
+  'astro'
+]
 
 const mapped = new Set<string>(languages)
 const frameworks = new Set(['vue', 'svelte', 'astro'])
@@ -99,7 +115,7 @@ for (const name of cases) {
         assert.ok(symbolKinds.includes(symbol.kind), `${where} has unknown kind ${symbol.kind}`)
         assert.match(
           symbol.signature,
-          /^(function|class|interface|type|enum|const|component)\b[^\n]*$/,
+          /^(async function|function|class|interface|type|enum|const|component)\b[^\n]*$/,
           `${where} signature is not one declaration line`
         )
         if (symbol.doc !== undefined) assert.match(symbol.doc, /^[^\n]+$/, `${where} doc`)

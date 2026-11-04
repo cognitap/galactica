@@ -1,0 +1,12 @@
+{
+  "name": "@acme/self",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./utils": "./src/utils.ts"
+  },
+  "imports": {
+    "#internal/*": "./src/internal/*.ts"
+  }
+}

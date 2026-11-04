@@ -1,0 +1,8 @@
+{
+  "name": "@mono/app",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "@mono/core": "workspace:*"
+  }
+}

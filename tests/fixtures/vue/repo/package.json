@@ -1,0 +1,8 @@
+{
+  "name": "vue",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "vue": "*"
+  }
+}

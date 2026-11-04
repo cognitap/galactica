@@ -1,0 +1,8 @@
+{
+  "name": "astro",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "astro": "*"
+  }
+}

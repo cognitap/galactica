@@ -1,0 +1,131 @@
+{
+  "format": 1,
+  "repository": { "name": "type-only-and-dynamic" },
+  "packages": {
+    "type-only-and-dynamic": { "dir": "." }
+  },
+  "modules": {
+    "src/api.ts": {
+      "path": "src/api.ts",
+      "symbols": [
+        {
+          "name": "fetchUser",
+          "kind": "function",
+          "line": 4,
+          "default": false,
+          "signature": "async function fetchUser(role: Role, settings: Settings): Promise<User>"
+        }
+      ],
+      "edges": [
+        {
+          "to": { "kind": "module", "path": "src/roles.ts" },
+          "line": 1,
+          "form": "import",
+          "names": ["Role"],
+          "typeOnly": true,
+          "dynamic": false,
+          "via": []
+        },
+        {
+          "to": { "kind": "module", "path": "src/types.ts" },
+          "line": 2,
+          "form": "import",
+          "names": ["Settings", "User"],
+          "typeOnly": true,
+          "dynamic": false,
+          "via": []
+        }
+      ]
+    },
+    "src/main.ts": {
+      "path": "src/main.ts",
+      "symbols": [
+        {
+          "name": "load",
+          "kind": "function",
+          "line": 5,
+          "default": false,
+          "signature": "async function load(settings: Settings): Promise<User>"
+        }
+      ],
+      "edges": [
+        {
+          "to": { "kind": "module", "path": "src/types.ts" },
+          "line": 1,
+          "form": "import",
+          "names": ["User"],
+          "typeOnly": true,
+          "dynamic": false,
+          "via": []
+        },
+        {
+          "to": { "kind": "module", "path": "src/roles.ts" },
+          "line": 2,
+          "form": "import",
+          "names": ["Role", "roles"],
+          "typeOnly": false,
+          "dynamic": false,
+          "via": []
+        },
+        {
+          "to": { "kind": "module", "path": "src/types.ts" },
+          "line": 3,
+          "form": "import",
+          "names": ["Settings"],
+          "typeOnly": true,
+          "dynamic": false,
+          "via": []
+        },
+        {
+          "to": { "kind": "module", "path": "src/api.ts" },
+          "line": 6,
+          "form": "import",
+          "names": ["fetchUser"],
+          "typeOnly": false,
+          "dynamic": true,
+          "via": []
+        }
+      ]
+    },
+    "src/roles.ts": {
+      "path": "src/roles.ts",
+      "symbols": [
+        {
+          "name": "Role",
+          "kind": "type",
+          "line": 1,
+          "default": false,
+          "signature": "type Role"
+        },
+        {
+          "name": "roles",
+          "kind": "const",
+          "line": 3,
+          "default": false,
+          "signature": "const roles: readonly Role[]"
+        }
+      ],
+      "edges": []
+    },
+    "src/types.ts": {
+      "path": "src/types.ts",
+      "symbols": [
+        {
+          "name": "User",
+          "kind": "interface",
+          "line": 1,
+          "default": false,
+          "signature": "interface User"
+        },
+        {
+          "name": "Settings",
+          "kind": "interface",
+          "line": 5,
+          "default": false,
+          "signature": "interface Settings"
+        }
+      ],
+      "edges": []
+    }
+  }
+}
