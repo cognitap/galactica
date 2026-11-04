@@ -1,35 +1,11 @@
 import assert from 'node:assert/strict'
-import { execFileSync } from 'node:child_process'
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
-import { tmpdir } from 'node:os'
-import { basename, dirname, join } from 'node:path'
-import { test, type TestContext } from 'node:test'
+import { rmSync } from 'node:fs'
+import { basename, join } from 'node:path'
+import { test } from 'node:test'
 import ts from 'typescript'
 import { defaultCompilerOptions } from '../src/compiler-settings.ts'
 import { compilerOptionsOf, discover, type Discovery } from '../src/discovery.ts'
-
-type Files = Readonly<Record<string, string | object>>
-
-function repository(t: TestContext, files: Files): string {
-  const root = mkdtempSync(join(tmpdir(), 'galactica-'))
-  t.after(() => rmSync(root, { recursive: true, force: true }))
-  for (const [path, content] of Object.entries(files)) {
-    mkdirSync(dirname(join(root, path)), { recursive: true })
-    const text = typeof content === 'string' ? content : JSON.stringify(content)
-    writeFileSync(join(root, path), text)
-  }
-  return root
-}
-
-function git(root: string, ...args: string[]): void {
-  execFileSync('git', args, { cwd: root, stdio: 'ignore' })
-}
-
-function gitRepository(t: TestContext, files: Files): string {
-  const root = repository(t, files)
-  git(root, 'init', '--quiet')
-  return root
-}
+import { git, gitRepository, repository } from './temp-repository.ts'
 
 const paths = (discovery: Discovery) => discovery.modules.map(module => module.path)
 const configs = (discovery: Discovery) =>
