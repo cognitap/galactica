@@ -6,6 +6,7 @@
 
 import type { ModuleKind } from './contract.ts'
 import { compare, type AreaPath, type Graph, type RepoPath, type SymbolFacts } from './model.ts'
+import { orderRows } from './row-order.ts'
 import { isSourceOrConfig } from './source-file.ts'
 
 export interface PageModule {
@@ -84,6 +85,14 @@ function importCounts(graph: Graph, path: RepoPath) {
   }
 }
 
+function areaLinks(graph: Graph): readonly (readonly [AreaPath, AreaPath])[] {
+  return [...graph.modules.values()].flatMap(({ facts, area }) =>
+    facts.edges.flatMap(edge =>
+      edge.to.kind === 'module' ? [[area, graph.modules.get(edge.to.path)!.area] as const] : []
+    )
+  )
+}
+
 function foldersOf(labels: readonly string[]): readonly string[] {
   const counts = new Map<string, number>()
   for (const folder of labels.map(topFolder)) counts.set(folder, (counts.get(folder) ?? 0) + 1)
@@ -137,14 +146,18 @@ export function pageData(graph: Graph): PageData {
     }
   })
 
+  const links = areaLinks(graph)
   const packages = packageNames.map((name): PagePackage => {
     const { dir, layer, areas: members } = graph.packages.get(name)!
-    const byLayer = new Map<number, number[]>()
+    const byLayer = new Map<number, AreaPath[]>()
     for (const path of members) {
-      const area = graph.areas.get(path)!
-      byLayer.set(area.layer, [...(byLayer.get(area.layer) ?? []), areaIndex.get(path)!])
+      const areaLayer = graph.areas.get(path)!.layer
+      byLayer.set(areaLayer, [...(byLayer.get(areaLayer) ?? []), path])
     }
-    const rows = [...byLayer].sort(([a], [b]) => b - a).map(([, row]) => row)
+    const rows = orderRows(
+      [...byLayer].sort(([a], [b]) => b - a).map(([, row]) => row),
+      links
+    ).map(row => row.map(path => areaIndex.get(path)!))
     const areaCycles = graph.areaCycles
       .filter(cycle => graph.areas.get(cycle.areas[0]!)!.package === name)
       .map(cycle => ({

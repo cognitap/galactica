@@ -151,3 +151,27 @@ test('area cycles carry their closing imports, and module cycles are listed', ()
     ]
   )
 })
+
+test('areas in a row are ordered so the imports between rows cross less', () => {
+  const page = pageData(
+    graphOf(
+      modelOf({
+        'src/a/one.ts': { edges: [edge('src/y/one.ts')] },
+        'src/a/two.ts': {},
+        'src/b/one.ts': { edges: [edge('src/x/one.ts')] },
+        'src/b/two.ts': {},
+        'src/x/one.ts': {},
+        'src/x/two.ts': {},
+        'src/y/one.ts': {},
+        'src/y/two.ts': {}
+      })
+    )
+  )
+  assert.deepEqual(
+    page.packages[0]!.rows.map(row => areaPaths(page, row)),
+    [
+      ['src/b', 'src/a'],
+      ['src/x', 'src/y']
+    ]
+  )
+})
