@@ -13,7 +13,12 @@ Galactica analyzes a JavaScript or TypeScript repository into one internal model
 
 ## Structure
 
-- `src/cli.ts`: command-line entry point.
+- `src/cli.ts`: command-line entry point. It parses argv against the command table, analyzes the repository, runs the command and prints its JSON object or its text. It holds no command logic.
+- `src/commands.ts`: the command table. Each entry gives a command's argument, the options it takes, and the pure function from the `Graph` to its `--json` object. Adding a command is one entry here and one renderer in `src/render.ts`.
+- `src/render.ts`: the text form of each command, built only from its `--json` object, so text and JSON never disagree.
+- `src/subjects.ts`: what a command argument names. `resolveSubject` reads a module path, package name, package directory or area path, from the current directory and from the root, and `resolveModule` reads a module path only.
+- `src/queries.ts`: the answers of `where`, `outline`, `uses` and `deps`, built from the `Graph`. `uses` and `deps` share one breadth-first walk.
+- `src/overview.ts`: the answer of `overview`, with each area's modules ranked by their importers.
 - `src/contract.ts`: the public `--json` output types and `SCHEMA_VERSION`. It imports nothing, which `tests/contract.test.ts` enforces.
 - `src/model.ts`: the cached `Model` of per-module facts, and the in-memory `Graph` derived from it.
 - `src/discovery.ts`: `discover` lists a repository's packages, and its modules with their language, kind, tsconfig and package, and collects config warnings. `compilerOptionsOf` gives the options for one module.
@@ -34,7 +39,7 @@ Galactica analyzes a JavaScript or TypeScript repository into one internal model
 - `src/package-resolution.ts`: which source module a bare specifier reaches when it names a workspace package, through `exports` or the entry fields, and back from build output to source.
 - `src/compiler-settings.ts`: which tsconfig applies to a file, following `extends` and project references, and the defaults when none does.
 - `docs/json-output.md`: reference for the `--json` output. Update it with `src/contract.ts`.
-- `tests/`: `node:test` suites. CLI tests run the built `dist/`, and unit tests import `src/` directly. `tests/temp-repository.ts` writes a throwaway repository for a test.
+- `tests/`: `node:test` suites. CLI tests run the built `dist/`, and unit tests import `src/` directly. `tests/temp-repository.ts` writes a throwaway repository for a test, and `tests/models.ts` builds a `Model` in memory for the command tests.
 - `tests/fixtures/<case>/`: one small repository per hard analysis case in `repo/`, with its expected `Model` in `expected.json` and, where the case is about derived data, `expected-graph.json`. `tests/fixtures/README.md` states the conventions. Formatters never touch these files, because the expected files pin line numbers.
 - `tests/fixtures.ts`: lists the cases, reads and writes the expected files, and holds the aspect table. Each aspect is one part of the expected files with the issue that implements it. `tests/fixtures.test.ts` checks each expected file against its repository, and compares each implemented aspect with the analyzer's output. `tests/update-fixtures.ts` rewrites the implemented aspects.
 

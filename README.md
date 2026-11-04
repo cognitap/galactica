@@ -9,11 +9,21 @@ Galactica is inspired by [codemap](https://github.com/peterretief/codemap), whic
 
 ## Status
 
-Not usable yet. Work is tracked in the Galactica project in Linear.
+The five agent commands work from a checkout. Galactica is not on npm yet, and `html` and `init` do not exist yet. Work is tracked in the Galactica project in Linear.
 
-## Planned usage
+To run the commands, build Galactica once, then run `dist/cli.js` from the repository you want to map, or pass that repository with `--root`:
 
-Galactica needs Node.js 24 or newer. It runs in any repository with no install and no config:
+```sh
+pnpm install
+pnpm build
+node /path/to/galactica/dist/cli.js overview --root /path/to/repository
+```
+
+There is no cache yet, so each command analyzes the whole repository. On Radiant, about 500 modules, a command takes under a second.
+
+## Usage
+
+Galactica needs Node.js 24 or newer. Once it is published, it runs in any repository with no install and no config:
 
 ```sh
 npx @cognitap/galactica overview
@@ -29,7 +39,39 @@ npx @cognitap/galactica overview
 | `html`           | Write the human map as one HTML file.                               |
 | `init`           | Install the agent skill into this repository.                       |
 
-Every command except `html` and `init` prints short text by default and structured output with `--json`. The [JSON output reference](docs/json-output.md) documents the fields.
+Every command except `html` and `init` prints short text by default and structured output with `--json`. The [JSON output reference](docs/json-output.md) documents the fields. A subject is a module path, a package name, a package directory or an area path. `uses` and `deps` follow `--depth` import steps, 1 by default, and `overview --all` ranks every module instead of the top five of each area. A command that cannot answer prints one line to stderr and exits with code 1.
+
+`uses` lists what imports a file, with the names each direct dependent takes, and every test that reaches it at any distance. On Radiant:
+
+```text
+$ galactica uses src/components/Kbd/Kbd.tsx
+src/components/Kbd/Kbd.tsx (module): 7 dependents within depth 1, 6 tests
+1  .storybook/examples/CommandExamples.tsx  Kbd, KbdGroup
+1  .storybook/examples/InputGroupExamples.tsx  Kbd, KbdGroup
+1  .storybook/examples/KbdExamples.tsx  Kbd, KbdGroup, KbdProps
+1  src/components/Command/Command.tsx  Kbd, KbdGroup
+1  src/components/Kbd/Kbd.stories.tsx  Kbd
+1  src/index.ts  Kbd, KbdGroup, KbdGroupProps, KbdProps
+1  src/recipes/ThemeShowcase.stories.tsx  Kbd, KbdGroup
+tests:
+1  tests/browser/InputGroup.test.tsx  Kbd
+1  tests/browser/Kbd.test.tsx  Kbd, KbdGroup
+2  tests/browser/Command.test.tsx
+2  tests/browser/DataSlot.test.tsx
+2  tests/browser/DisclosureTriggerState.test.tsx
+3  tests/browser/EmptyState.test.tsx
+```
+
+`deps` lists what a file or area imports, inside the workspace and outside it:
+
+```text
+$ galactica deps src/cn.ts
+src/cn.ts (module): 1 dependency within depth 1, 1 external package, 0 unresolved imports
+1  src/themes/tokens.ts  typographyRoles
+packages: none
+external: cn
+unresolved: none
+```
 
 `galactica init` installs a skill in `.agents/skills/galactica/`, which agents that follow the Agent Skills standard read. The skill tells an agent to run `overview` when it starts in an unfamiliar repository, `where` instead of grep, and `uses` before it edits a file.
 

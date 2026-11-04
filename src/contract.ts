@@ -85,6 +85,8 @@ export interface Failure {
 }
 
 export interface Overview extends Envelope<'overview'> {
+  /** Whether `--all` was given, so `top` lists every source and config module. */
+  readonly all: boolean
   /** Sorted by name. */
   readonly packages: readonly {
     readonly name: string
@@ -95,7 +97,7 @@ export interface Overview extends Envelope<'overview'> {
       readonly path: string
       readonly layer: number
       readonly modules: number
-      /** Sorted by importers descending, then path. Five unless `--all`. */
+      /** Source and config modules, sorted by importers descending, then path. Five unless `--all`. */
       readonly top: readonly {
         readonly path: string
         readonly importers: number
@@ -111,6 +113,8 @@ export interface Where extends Envelope<'where'> {
   readonly name: string
   /** Sorted by module path, then line. Empty is a valid answer, not a failure. */
   readonly definitions: readonly (SymbolRef & { readonly module: ModuleRef })[]
+  /** Up to three exported names like `name`, when `definitions` is empty. Otherwise empty. */
+  readonly suggestions: readonly string[]
 }
 
 export interface Outline extends Envelope<'outline'> {
