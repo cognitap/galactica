@@ -22,7 +22,7 @@ Galactica analyzes a JavaScript or TypeScript repository into one internal model
 - `src/html.ts`: the HTML page. `htmlOf` fills `src/page/page.html` with the stylesheet, the page script and the page data, inlined so the page makes no network requests.
 - `src/page-data.ts`: what the page draws. `pageData` turns the `Graph` into the compact object the page embeds, with areas and modules referred to by index. Each module and area carries what `uses` and `deps` answer for it at depth 1, so the page never walks the imports itself. Its shape is private to the page.
 - `src/row-order.ts`: the order of the boxes within each row of the page. `orderRows` reduces crossings between rows with a barycenter sweep, in path order where nothing pulls.
-- `src/page/`: the page template, `page.css` and `page.js`, plain files that the build copies to `dist/page`. The script is type-checked against `src/page-data.ts` through JSDoc, and builds the page with no framework.
+- `src/page/`: the page template, `page.css`, `page.js` and `search.js`, plain files that the build copies to `dist/page`. The scripts are type-checked against `src/page-data.ts` through JSDoc, and build the page with no framework. `search.js` lists what the search field finds and ranks the matches, with no DOM, so `tests/search.test.ts` imports it.
 - `src/contract.ts`: the public `--json` output types and `SCHEMA_VERSION`. It imports nothing, which `tests/contract.test.ts` enforces.
 - `src/model.ts`: the cached `Model` of per-module facts, and the in-memory `Graph` derived from it.
 - `src/discovery.ts`: `discover` lists a repository's packages, and its modules with their language, kind, tsconfig and package, and collects config warnings. `compilerOptionsOf` gives the options for one module.
