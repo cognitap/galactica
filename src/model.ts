@@ -68,8 +68,8 @@ export interface ModuleFacts {
   /** Exported declarations defined in this file, in line order. Re-exports are edges. */
   readonly symbols: readonly SymbolFacts[]
   /**
-   * Sorted by line, then target. An import through a barrel yields one edge to
-   * the module that defines each name, so one statement can yield several edges.
+   * Sorted by `compareEdges`. An import through a barrel yields one edge to the
+   * module that defines each name, so one statement can yield several edges.
    */
   readonly edges: readonly Edge[]
 }
@@ -114,8 +114,25 @@ export interface Edge {
   readonly via: readonly RepoPath[]
 }
 
+const compare = (a: string, b: string) => (a < b ? -1 : a > b ? 1 : 0)
+
+function targetKey(target: Target): string {
+  if (target.kind === 'module') return target.path
+  if (target.kind === 'external') return target.name
+  return target.specifier
+}
+
+/** By line, then target, then `via`, since one statement can reach one target through different barrels. */
+export function compareEdges(a: Edge, b: Edge): number {
+  return (
+    a.line - b.line ||
+    compare(targetKey(a.to), targetKey(b.to)) ||
+    compare(a.via.join('\0'), b.via.join('\0'))
+  )
+}
+
 function sortedModules(entries: Iterable<[RepoPath, ModuleFacts]>): Model['modules'] {
-  return Object.fromEntries([...entries].sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0)))
+  return Object.fromEntries([...entries].sort(([a], [b]) => compare(a, b)))
 }
 
 /** Returns a model with `facts` in place of any entry at its path. Idempotent. */

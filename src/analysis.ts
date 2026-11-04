@@ -12,7 +12,7 @@ import ts from 'typescript'
 import { compilerOptionsOf, discover, type DiscoveredModule, type Warning } from './discovery.ts'
 import { importResolver, type ImportResolver } from './import-resolution.ts'
 import { importsOf } from './imports.ts'
-import { MODEL_FORMAT, type Edge, type Model, type ModuleFacts, type Target } from './model.ts'
+import { compareEdges, MODEL_FORMAT, type Edge, type Model, type ModuleFacts } from './model.ts'
 import { symbolsOf } from './symbols.ts'
 import { isScriptLanguage, parseScript } from './syntax.ts'
 
@@ -39,12 +39,6 @@ export interface Analysis {
 
 function compare(a: string, b: string): number {
   return a < b ? -1 : a > b ? 1 : 0
-}
-
-function targetKey(target: Target): string {
-  if (target.kind === 'module') return target.path
-  if (target.kind === 'external') return target.name
-  return target.specifier
 }
 
 const extensionOf = (path: string) => /(\.d)?\.[^./]+$/.exec(path)?.[0] ?? '(none)'
@@ -92,7 +86,7 @@ function analyzeModule(
       else edges.push({ to, ...taken, via: [] })
     }
   })
-  edges.sort((a, b) => a.line - b.line || compare(targetKey(a.to), targetKey(b.to)))
+  edges.sort(compareEdges)
   return { facts: { path, hash, symbols, edges }, skipped }
 }
 
