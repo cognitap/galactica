@@ -1,10 +1,11 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
 import { parseRepoPath } from '../src/model.ts'
-import { isScriptLanguage, symbolsOf, type ScriptLanguage } from '../src/symbols.ts'
+import { symbolsOf } from '../src/symbols.ts'
+import { parseScript, type ScriptLanguage } from '../src/syntax.ts'
 
 const symbols = (lines: readonly string[], language: ScriptLanguage = 'ts') =>
-  symbolsOf(parseRepoPath(`src/a.${language}`), language, lines.join('\n'))
+  symbolsOf(parseScript(parseRepoPath(`src/a.${language}`), language, lines.join('\n')))
 
 const pick = (lines: readonly string[], language?: ScriptLanguage) =>
   symbols(lines, language).map(({ name, kind, line, default: isDefault }) => ({
@@ -21,12 +22,6 @@ const kinds = (lines: readonly string[], language?: ScriptLanguage) =>
   Object.fromEntries(symbols(lines, language).map(symbol => [symbol.name, symbol.kind]))
 
 const docs = (lines: readonly string[]) => symbols(lines).map(symbol => symbol.doc)
-
-test('framework languages are no script languages', () => {
-  assert.equal(isScriptLanguage('tsx'), true)
-  assert.equal(isScriptLanguage('cjs'), true)
-  assert.equal(isScriptLanguage('vue'), false)
-})
 
 test('each exported top-level declaration is a symbol at the line of its name', () => {
   assert.deepEqual(

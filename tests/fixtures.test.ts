@@ -3,8 +3,14 @@ import { readdirSync, readFileSync } from 'node:fs'
 import { basename, extname, join, relative } from 'node:path'
 import { test } from 'node:test'
 import { languages, moduleKinds, symbolKinds } from '../src/contract.ts'
-import { discover, type Discovery } from '../src/discovery.ts'
-import { MODEL_FORMAT, parseRepoPath, type RepoPath, type Target } from '../src/model.ts'
+import { analyzeRepository } from '../src/analysis.ts'
+import {
+  MODEL_FORMAT,
+  parseRepoPath,
+  type Model,
+  type RepoPath,
+  type Target
+} from '../src/model.ts'
 import {
   aspects,
   fixtureCases,
@@ -197,14 +203,14 @@ for (const name of cases) {
     assert.deepEqual(staleExpected(name, files), [])
   })
 
-  let discovery: Discovery | undefined
+  let model: Model | undefined
   for (const aspect of aspects.filter(aspect => aspect.stated(files))) {
     const status = statusOf(aspect, name)
     const title = `${name}: ${aspect.name} match the analyzer`
     if ('pending' in status) {
       test(title, { todo: `pending until ${status.pending}` })
     } else {
-      test(title, () => status.compare(files, (discovery ??= discover(repo))))
+      test(title, () => status.compare(files, (model ??= analyzeRepository(repo).model)))
     }
   }
 }
@@ -212,7 +218,7 @@ for (const name of cases) {
 test('an implemented aspect fails on any difference and updates to the analyzer output', () => {
   const name = 'plain-relative'
   const files = readExpected(name)
-  const discovery = discover(fixtureRepo(name))
+  const { model } = analyzeRepository(fixtureRepo(name))
   const extra = 'src/extra.ts' as RepoPath
   const changed = {
     ...files,
@@ -226,6 +232,6 @@ test('an implemented aspect fails on any difference and updates to the analyzer 
     name
   )
   assert.ok(!('pending' in check))
-  assert.throws(() => check.compare(changed, discovery), /src\/extra\.ts/)
-  assert.deepStrictEqual(check.update(changed, discovery), files)
+  assert.throws(() => check.compare(changed, model), /src\/extra\.ts/)
+  assert.deepStrictEqual(check.update(changed, model), files)
 })
