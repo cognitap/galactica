@@ -18,7 +18,11 @@ Galactica analyzes a JavaScript or TypeScript repository into one internal model
 - `src/model.ts`: the cached `Model` of per-module facts, and the in-memory `Graph` derived from it.
 - `src/discovery.ts`: `discover` lists a repository's packages, and its modules with their language, kind, tsconfig and package, and collects config warnings. `compilerOptionsOf` gives the options for one module.
 - `src/source-file.ts`: what a path is. `languageOf` and `kindOf` classify a file from its path alone.
-- `src/symbols.ts`: what a module exports. `symbolsOf` reads a module's `SymbolFacts` from its text alone, with no program and no type checker.
+- `src/analysis.ts`: `analyzeRepository` turns a repository root into its `Model`, reading and parsing each module once, and returns a summary of warnings, unresolved edges and skipped imports beside it.
+- `src/syntax.ts`: how TypeScript parses a script module. `parseScript` gives the one syntax tree that symbols and imports are read from.
+- `src/symbols.ts`: what a module exports. `symbolsOf` reads a module's `SymbolFacts` from its syntax tree alone, with no program and no type checker.
+- `src/imports.ts`: what a module imports. `importsOf` reads each import-like statement and `require()` or `import()` call with a literal specifier, with its names, from the syntax tree.
+- `src/import-resolution.ts`: where an import specifier leads. Workspace packages first, then TypeScript's module resolution with the module's options and mode, mapped to a module, an external package, an unresolved specifier, or a repository file that is no module and gets no edge.
 - `src/repository-files.ts`: which files a repository has. Uses `git ls-files` so `.gitignore` applies, and a directory walk outside a git work tree, which ignores `.gitignore`.
 - `src/workspace.ts`: which packages a workspace names, from `pnpm-workspace.yaml` or the root `package.json` `workspaces`. `packageOf` gives the package of a path.
 - `src/package-resolution.ts`: which source module a bare specifier reaches when it names a workspace package, through `exports` or the entry fields, and back from build output to source.
