@@ -52,12 +52,16 @@ test('overview text gives each layer one line, then the most imported modules', 
       'layer 1: src/ui (2)',
       'most imported:',
       'src/cn.ts  1 importer  cn',
-      'src/ui/Button.test.tsx  0 importers',
-      'src/ui/Button.tsx  0 importers  Button',
       '0 import cycles, 0 unresolved imports',
       'next: galactica where <name> finds a symbol, galactica uses <file> lists what to check and test before you edit it'
     ].join('\n')
   )
+})
+
+test('overview text lists modules with no importers only with --all', () => {
+  const lines = text('overview', '', { all: true }).split('\n')
+  assert.ok(lines.includes('src/ui/Button.tsx  0 importers  Button'))
+  assert.ok(!lines.some(line => line.startsWith('src/ui/Button.test.tsx')))
 })
 
 test('where and outline print one clickable path:line per symbol', () => {

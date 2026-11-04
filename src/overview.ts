@@ -1,6 +1,6 @@
 /**
  * The `overview` answer: each package with its areas in layer order and the
- * most imported modules of each area.
+ * most imported source and config modules of each area.
  */
 
 import { SCHEMA_VERSION, type Overview } from './contract.ts'
@@ -31,6 +31,7 @@ export function overview(graph: Graph, all: boolean): Overview {
         .sort((a, b) => a.layer - b.layer || compare(a.path, b.path))
         .map(area => {
           const ranked = area.modules
+            .filter(path => isSourceOrConfig(graph.modules.get(path)!.kind))
             .map(path => ({
               path,
               importers: importersOf(graph, path),
@@ -55,6 +56,7 @@ export function overview(graph: Graph, all: boolean): Overview {
   return {
     schemaVersion: SCHEMA_VERSION,
     command: 'overview',
+    all,
     packages,
     cycles: graph.cycles.length,
     unresolved: edges.filter(edge => edge.to.kind === 'unresolved').length

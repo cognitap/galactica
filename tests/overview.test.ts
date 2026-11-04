@@ -66,11 +66,26 @@ test('top ranks modules by distinct importers that are no tests or stories, barr
     ui.areas[1].top.map(({ path, importers }) => [path, importers]),
     [
       ['packages/ui/src/parts/Button.tsx', 1],
-      ['packages/ui/src/parts/Card.stories.tsx', 0],
-      ['packages/ui/src/parts/Card.test.tsx', 0],
       ['packages/ui/src/parts/Card.tsx', 0]
     ]
   )
+})
+
+test('top leaves out tests and stories, and is empty for an area of only those', () => {
+  const graph = graphOf(
+    modelOf({
+      'src/cn.ts': {},
+      'src/cn.test.ts': { edges: [edge('src/cn.ts')] },
+      'src/specs/a.test.ts': { edges: [edge('src/cn.ts')] },
+      'src/specs/a.stories.tsx': { edges: [edge('src/cn.ts')] }
+    })
+  )
+  for (const all of [false, true]) {
+    const areas = overview(graph, all).packages[0].areas
+    const tops = Object.fromEntries(areas.map(area => [area.path, area.top.map(m => m.path)]))
+    assert.deepEqual(tops, { src: ['src/cn.ts'], 'src/specs': [] })
+  }
+  assert.equal(overview(graph, false).packages[0].areas[1].modules, 2)
 })
 
 test('top holds five modules per area, or all of them with --all', () => {

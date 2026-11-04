@@ -14,12 +14,13 @@ import {
   type PackageName,
   type RepoPath
 } from './model.ts'
+import { isSourceOrConfig } from './source-file.ts'
 
 export interface Resolved {
   readonly subject: Subject
   /**
-   * The modules the subject stands for. An area or a package leaves out its
-   * tests, which depend on it like any other test does.
+   * The modules the subject stands for. An area or a package is its source and
+   * config modules. Its tests and stories use it like any other test or story.
    */
   readonly members: ReadonlySet<RepoPath>
 }
@@ -56,13 +57,13 @@ const moduleRule: Rule = (graph, _text, readings) =>
     return [{ subject: { kind: 'module', path, package: node.package }, members: new Set([path]) }]
   })
 
-const nonTests = (graph: Graph, paths: Iterable<RepoPath>): ReadonlySet<RepoPath> =>
-  new Set([...paths].filter(path => graph.modules.get(path)!.kind !== 'test'))
+const sourceOrConfig = (graph: Graph, paths: Iterable<RepoPath>): ReadonlySet<RepoPath> =>
+  new Set([...paths].filter(path => isSourceOrConfig(graph.modules.get(path)!.kind)))
 
 function packageSubject(graph: Graph, name: PackageName): Resolved {
   const { dir } = graph.packages.get(name)!
   const paths = graph.paths.filter(path => graph.modules.get(path)!.package === name)
-  return { subject: { kind: 'package', name, dir }, members: nonTests(graph, paths) }
+  return { subject: { kind: 'package', name, dir }, members: sourceOrConfig(graph, paths) }
 }
 
 const packageNameRule: Rule = (graph, text) =>
@@ -80,7 +81,7 @@ const areaRule: Rule = (graph, _text, readings) =>
     return [
       {
         subject: { kind: 'area', path: area.path, package: area.package },
-        members: nonTests(graph, area.modules)
+        members: sourceOrConfig(graph, area.modules)
       }
     ]
   })

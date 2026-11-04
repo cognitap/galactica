@@ -10,6 +10,7 @@ const monorepo = graphOf(
     {
       'packages/ui/src/Button.tsx': {},
       'packages/ui/src/Button.test.tsx': {},
+      'packages/ui/src/Button.stories.tsx': {},
       'packages/ui/src/cn.ts': {},
       'packages/ui/index.ts': {},
       'packages/app/src/main.ts': {},
@@ -67,7 +68,7 @@ test('an area path resolves to the area', () => {
   })
 })
 
-test('an area or a package stands for its modules other than tests', () => {
+test('an area or a package stands for its source and config modules', () => {
   const area = resolveSubject(monorepo, 'packages/ui/src', root)
   const pkg = resolveSubject(monorepo, '@acme/ui', root)
   assert.ok(!('error' in area) && !('error' in pkg))

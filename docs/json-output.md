@@ -9,7 +9,7 @@ For agent and tool authors. Every command except `html` and `init` prints one JS
 - Arrays are sorted as stated below, and the same repository gives byte-identical output. There are no timestamps.
 - `uses` and `deps` accept a module path, a package name, a package directory or an area path. Galactica tries them in that order and takes the first kind that matches, so a package directory that is also an area names the package. `outline` accepts only a module path.
 - A path reads from the current directory and from the repository root. When the two readings name different subjects of the same kind, the command reports `ambiguous`.
-- An area or a package stands for its modules other than tests. Its tests depend on it like any other test.
+- An area or a package stands for its source and config modules, for both `uses` and `deps`. Its tests and stories use it like any other test or story, so what they import is not a dependency of the subject. Its tests are listed in `uses` `tests`, and its stories in `uses` `modules`.
 - A command that cannot answer prints a failure object and exits with code 1. A successful command exits with code 0. An unknown command or no command prints usage and no JSON.
 
 ```json
@@ -24,12 +24,13 @@ For agent and tool authors. Every command except `html` and `init` prints one JS
 
 ## overview
 
-Packages are sorted by name. Areas are sorted by layer, lowest first, then by path. Layer 0 depends on no other area in its package, and areas in one import cycle share a layer. `top` lists the most imported modules of the area, sorted by `importers` descending, then path. It holds five entries, or all of them with `--all`. `importers` counts the modules other than tests and stories that import the module itself. An import through a barrel counts for the module that defines the name, not for the barrel. `exports` lists the names the module exports, in line order. `cycles` counts import cycles among source modules. `unresolved` counts imports that resolved to nothing.
+Packages are sorted by name. Areas are sorted by layer, lowest first, then by path. Layer 0 depends on no other area in its package, and areas in one import cycle share a layer. `all` is true when `--all` was given. `top` lists the most imported source and config modules of the area, never tests or stories, so an area of only tests and stories has an empty `top`. It is sorted by `importers` descending, then path. It holds five entries, or all of them with `--all`. `importers` counts the modules other than tests and stories that import the module itself. An import through a barrel counts for the module that defines the name, not for the barrel. `exports` lists the names the module exports, in line order. `cycles` counts import cycles among source modules. `unresolved` counts imports that resolved to nothing.
 
 ```json
 {
   "schemaVersion": 1,
   "command": "overview",
+  "all": false,
   "packages": [
     {
       "name": "@acme/ui",

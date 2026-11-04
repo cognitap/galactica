@@ -156,12 +156,37 @@ test('deps lists a barrel an import passes through, but walks on only from the d
   ])
 })
 
-test('uses of an area leaves out the modules inside it, and lists its own tests', () => {
+test('uses of an area leaves out the modules inside it, lists its own stories as dependents, and its own tests', () => {
   const result = uses(app, 'src/ui', root, 1)
   assert.ok(result.command === 'uses' && !('error' in result))
   assert.deepEqual(result.subject, { kind: 'area', path: 'src/ui', package: 'acme' })
-  assert.deepEqual(result.modules, [])
+  assert.deepEqual(summary(result.modules), [['src/ui/Button.stories.tsx', 1, 'default']])
   assert.deepEqual(summary(result.tests), [['src/ui/Card.test.tsx', 1, 'x']])
+})
+
+test('deps of an area and a package leave out what its tests and stories import', () => {
+  const graph = graphOf(
+    modelOf(
+      {
+        'ui/src/Button.tsx': { edges: [edge('lib/cn.ts')] },
+        'ui/src/Button.stories.tsx': {
+          edges: [edge('lib/examples.ts'), edgeTo({ kind: 'external', name: 'storybook' })]
+        },
+        'ui/src/Button.test.tsx': { edges: [edge('lib/helpers.ts')] },
+        'lib/cn.ts': {},
+        'lib/examples.ts': {},
+        'lib/helpers.ts': {}
+      },
+      { ui: 'ui', lib: 'lib' }
+    )
+  )
+  for (const subject of ['ui/src', 'ui']) {
+    const result = deps(graph, subject, root, 1)
+    assert.ok(result.command === 'deps' && !('error' in result))
+    assert.deepEqual(summary(result.modules), [['lib/cn.ts', 1, 'x']])
+    assert.deepEqual(result.packages, ['lib'])
+    assert.deepEqual(result.external, [])
+  }
 })
 
 test('deps lists the modules and barrels a module imports, its packages, externals and unresolved imports', () => {

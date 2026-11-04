@@ -52,7 +52,7 @@ function subjectLabel(subject: Subject): string {
     : `${subject.path} (${subject.kind})`
 }
 
-function renderOverview({ packages, cycles, unresolved }: Overview): readonly string[] {
+function renderOverview({ all, packages, cycles, unresolved }: Overview): readonly string[] {
   const areas = packages.flatMap(pkg => pkg.areas)
   const modules = packages.reduce((sum, pkg) => sum + pkg.modules, 0)
   const layered = packages.flatMap(pkg => {
@@ -65,11 +65,11 @@ function renderOverview({ packages, cycles, unresolved }: Overview): readonly st
       })
     ]
   })
-  const listed = areas.flatMap(area => area.top)
-  const complete = areas.every(area => area.top.length === area.modules)
-  const ranked = listed
+  const ranked = areas
+    .flatMap(area => area.top)
+    .filter(({ importers }) => all || importers > 0)
     .toSorted((a, b) => b.importers - a.importers || (a.path < b.path ? -1 : 1))
-    .slice(0, complete ? undefined : RANKED)
+    .slice(0, all ? undefined : RANKED)
     .map(({ path, importers, exports }) => {
       const shown = exports.slice(0, EXPORTS_SHOWN).join(', ')
       const more =
