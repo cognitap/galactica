@@ -46,11 +46,13 @@ test('the embedded data parses back to the page data, whatever the symbols conta
   assert.equal(html.match(/<script\b/g)?.length, 2)
 })
 
-test('the stylesheet and the page script are inlined, and the title names the repository', () => {
+test('the stylesheet and the page scripts are inlined, and the title names the repository', () => {
   const page = (name: string) =>
     readFileSync(new URL(`../src/page/${name}`, import.meta.url), 'utf8')
   assert.ok(html.includes(page('page.css')))
-  assert.ok(html.includes(page('page.js')))
+  assert.ok(html.includes(page('search.js')))
+  assert.ok(html.includes(page('page.js').replace(/^import .*\n/m, '')))
+  assert.doesNotMatch(html, /^import /m)
   assert.match(html, /<title>acme · Galactica<\/title>/)
   assert.doesNotMatch(html, /\{\{\w+\}\}/)
 })

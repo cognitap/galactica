@@ -1,7 +1,11 @@
+import { entriesOf, search } from './search.js'
+
 /** @typedef {import('../page-data.ts').PageData} PageData */
 /** @typedef {import('../page-data.ts').PageArea} PageArea */
 /** @typedef {import('../page-data.ts').PageModule} PageModule */
 /** @typedef {import('../page-data.ts').PagePackage} PagePackage */
+/** @typedef {import('./search.js').SearchEntry} SearchEntry */
+/** @typedef {import('./search.js').Target} Target */
 
 /** Folder colours the stylesheet defines. Further folders share one neutral colour. */
 const PALETTE = 8
@@ -91,16 +95,17 @@ function moduleItem(module, usualKind) {
   if (module.symbols.length === 0) {
     const row = element('div', 'module-row')
     row.title = `${module.path}, no exported symbols`
+    row.tabIndex = -1
     row.append(...head)
     item.append(row)
-    return item
+    return { item, focus: row, details: undefined, symbols: [] }
   }
-  const details = element('details')
+  const details = /** @type {HTMLDetailsElement} */ (element('details'))
   const summary = element('summary')
   summary.title = `${module.path}, ${plural(module.symbols.length, 'exported symbol')}`
   summary.append(...head)
   const symbols = element('ul', 'symbols')
-  for (const symbol of module.symbols) {
+  const entries = module.symbols.map(symbol => {
     const entry = element('li', 'symbol')
     const kind = symbol.default ? `default ${symbol.kind}` : symbol.kind
     const symbolHead = element('div', 'symbol-head')
@@ -108,11 +113,14 @@ function moduleItem(module, usualKind) {
     entry.append(symbolHead, element('code', 'signature', symbol.signature))
     if (symbol.doc !== undefined) entry.append(element('p', 'doc', symbol.doc))
     symbols.append(entry)
-  }
+    return entry
+  })
   details.append(summary, symbols)
   item.append(details)
-  return item
+  return { item, focus: summary, details, symbols: entries }
 }
+
+/** @typedef {ReturnType<typeof areaBox>} AreaView */
 
 /** @param {PageArea['kinds']} kinds */
 const usualKindOf = kinds =>
@@ -122,10 +130,12 @@ const usualKindOf = kinds =>
 
 /**
  * An area box, and what the toggle and its "Show more" button update.
- * @param {PageArea} area
+ * @param {number} index
  */
-function areaBox(area) {
+function areaBox(index) {
+  const area = data.areas[index]
   const box = element('article', 'area')
+  box.tabIndex = -1
   box.dataset.folder = folderKey(area.folder)
   const head = element('header', 'area-head')
   const title = element('h3')
@@ -137,9 +147,9 @@ function areaBox(area) {
   const usualKind = usualKindOf(area.kinds)
   const items = area.modules.map(index => {
     const module = data.modules[index]
-    const item = moduleItem(module, usualKind)
-    list.append(item)
-    return { module, item }
+    const view = moduleItem(module, usualKind)
+    list.append(view.item)
+    return { index, module, ...view }
   })
   const more = element('button', 'more')
   more.setAttribute('type', 'button')
@@ -178,7 +188,13 @@ function areaBox(area) {
     showTests = withTests
     return update()
   }
-  return { box, filter }
+  /** @param {HTMLElement} item a module of this box, listed past the first few when it has to be */
+  const reveal = item => {
+    if (!item.hidden) return
+    more.setAttribute('aria-expanded', 'true')
+    update()
+  }
+  return { index, box, filter, reveal, items }
 }
 
 /**
@@ -238,7 +254,7 @@ function packageSection(pkg, index) {
   const lines = pkg.rows.map(row => {
     const line = element('div', 'row')
     const areas = element('div', 'row-areas')
-    const boxes = row.map(area => areaBox(data.areas[area]))
+    const boxes = row.map(areaBox)
     areas.append(...boxes.map(({ box }) => box))
     line.append(element('p', 'row-label', `Layer ${data.areas[row[0]].layer}`), areas)
     rows.append(line)
@@ -278,6 +294,101 @@ function packageNav() {
   nav.hidden = false
 }
 
+/**
+ * The search field, a combobox whose listbox offers the best matches.
+ * @param {readonly SearchEntry[]} entries
+ * @param {() => boolean} showingTests
+ * @param {(target: Target) => void} go
+ */
+function searchField(entries, showingTests, go) {
+  const input = /** @type {HTMLInputElement} */ (byId('search'))
+  const list = byId('search-results')
+  /** @type {readonly SearchEntry[]} */
+  let results = []
+  let active = -1
+
+  /** @param {number} index */
+  const activate = index => {
+    active = index
+    ;[...list.children].forEach((option, position) =>
+      option.setAttribute('aria-selected', String(position === index))
+    )
+    if (index < 0) return input.removeAttribute('aria-activedescendant')
+    input.setAttribute('aria-activedescendant', `search-option-${index}`)
+    list.children[index].scrollIntoView({ block: 'nearest' })
+  }
+  const close = () => {
+    list.hidden = true
+    input.setAttribute('aria-expanded', 'false')
+    activate(-1)
+  }
+  /** @param {number} index */
+  const choose = index => {
+    const { text, target } = results[index]
+    input.value = text
+    close()
+    go(target)
+  }
+  /**
+   * @param {SearchEntry} entry
+   * @param {number} index
+   */
+  const option = (entry, index) => {
+    const node = element('li', 'result')
+    node.id = `search-option-${index}`
+    node.setAttribute('role', 'option')
+    const name = element('span', 'result-name')
+    name.append(...breakable(entry.text))
+    node.append(name, element('span', 'result-kind', entry.kind))
+    node.append(element('span', 'result-where', entry.where))
+    node.addEventListener('mousedown', event => event.preventDefault())
+    node.addEventListener('click', () => choose(index))
+    return node
+  }
+  const refresh = () => {
+    if (input.value.trim() === '') return close()
+    results = search(entries, input.value, showingTests())
+    list.replaceChildren(...results.map(option))
+    if (results.length === 0) {
+      const none = element('li', 'no-results', 'No matches')
+      none.setAttribute('role', 'option')
+      none.setAttribute('aria-disabled', 'true')
+      list.append(none)
+    }
+    list.hidden = false
+    input.setAttribute('aria-expanded', 'true')
+    activate(results.length > 0 ? 0 : -1)
+  }
+
+  input.addEventListener('input', refresh)
+  input.addEventListener('blur', close)
+  input.addEventListener('keydown', event => {
+    const open = !list.hidden
+    if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
+      event.preventDefault()
+      if (!open) return refresh()
+      const step = event.key === 'ArrowDown' ? 1 : -1
+      activate(Math.min(Math.max(active + step, 0), results.length - 1))
+    } else if (event.key === 'Enter' && open && active >= 0) {
+      event.preventDefault()
+      choose(active)
+    } else if (event.key === 'Escape') {
+      event.preventDefault()
+      if (open) close()
+      else input.value = ''
+    }
+  })
+  document.addEventListener('keydown', event => {
+    if (event.key !== '/' || event.ctrlKey || event.metaKey || event.altKey) return
+    const target = /** @type {HTMLElement} */ (event.target)
+    if (target.isContentEditable || target.matches('input, textarea, select')) return
+    event.preventDefault()
+    input.focus()
+    input.select()
+  })
+  return { refresh: () => !list.hidden && refresh() }
+}
+
 function draw() {
   byId('repository').textContent = data.repository
   legend()
@@ -285,6 +396,30 @@ function draw() {
   const sections = data.packages.map(packageSection)
   const boxes = sections.flatMap(({ lines }) => lines.flatMap(({ boxes }) => boxes))
   byId('map').append(...sections.map(({ section }) => section))
+  /** @type {AreaView[]} */
+  const areaViews = []
+  /** @type {AreaView['items']} */
+  const moduleViews = []
+  for (const view of boxes) {
+    areaViews[view.index] = view
+    for (const item of view.items) moduleViews[item.index] = item
+  }
+
+  /** @param {Target} target */
+  const go = target => {
+    if (target.kind === 'area') {
+      const { box } = areaViews[target.area]
+      box.scrollIntoView({ block: 'nearest' })
+      box.focus({ preventScroll: true })
+      return
+    }
+    const view = moduleViews[target.module]
+    areaViews[data.modules[target.module].area].reveal(view.item)
+    if (target.kind === 'symbol' && view.details !== undefined) view.details.open = true
+    const shown = target.kind === 'symbol' ? view.symbols[target.symbol] : view.item
+    shown.scrollIntoView({ block: 'center' })
+    view.focus.focus({ preventScroll: true })
+  }
 
   const toggle = byId('toggle-tests')
   /** @param {boolean} showTests */
@@ -310,7 +445,12 @@ function draw() {
       plural(symbols, 'exported symbol')
     ].join(' · ')
   }
-  toggle.addEventListener('click', () => show(toggle.getAttribute('aria-pressed') !== 'true'))
+  const showingTests = () => toggle.getAttribute('aria-pressed') === 'true'
+  const field = searchField(entriesOf(data), showingTests, go)
+  toggle.addEventListener('click', () => {
+    show(!showingTests())
+    field.refresh()
+  })
   show(false)
 }
 

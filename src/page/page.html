@@ -24,6 +24,27 @@
         id="counts"
         aria-live="polite"
       ></p>
+      <div class="search">
+        <label for="search">Search areas, modules and symbols <kbd>/</kbd></label>
+        <div class="search-field">
+          <input
+            id="search"
+            type="search"
+            role="combobox"
+            aria-expanded="false"
+            aria-controls="search-results"
+            aria-autocomplete="list"
+            autocomplete="off"
+            spellcheck="false"
+          />
+          <ul
+            id="search-results"
+            role="listbox"
+            aria-label="Search results"
+            hidden
+          ></ul>
+        </div>
+      </div>
       <nav
         id="packages"
         aria-label="Packages"

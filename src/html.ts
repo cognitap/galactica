@@ -19,11 +19,18 @@ const escapeHtml = (text: string) =>
 /** Every `<` escaped, so no `</script` or `<!--` in a signature or doc can end the data block early. */
 const embedded = (data: PageData) => JSON.stringify(data).replaceAll('<', '\\u003c')
 
+/** The page script with each import of a sibling script replaced by that script, so the page stays one file. */
+const pageScript = () =>
+  pageFile('page.js').replaceAll(
+    /^import \{[^}]*\} from '\.\/([\w-]+\.js)'\n/gm,
+    (_, name: string) => pageFile(name)
+  )
+
 export function htmlOf(graph: Graph): string {
   const slots: Readonly<Record<string, string>> = {
     title: escapeHtml(`${graph.repository.name} · Galactica`),
     style: pageFile('page.css'),
-    script: pageFile('page.js'),
+    script: pageScript(),
     data: embedded(pageData(graph))
   }
   return pageFile('page.html').replaceAll(/\{\{(\w+)\}\}/g, (_, slot: string) => slots[slot]!)
