@@ -1,0 +1,126 @@
+{
+  "format": 1,
+  "repository": { "name": "plain-relative" },
+  "packages": {
+    "plain-relative": { "dir": "." }
+  },
+  "modules": {
+    "src/main.ts": {
+      "path": "src/main.ts",
+      "symbols": [
+        {
+          "name": "main",
+          "kind": "function",
+          "line": 6,
+          "default": false,
+          "signature": "function main(): number"
+        }
+      ],
+      "edges": [
+        {
+          "to": { "kind": "module", "path": "src/setup.ts" },
+          "line": 1,
+          "form": "import",
+          "names": [],
+          "typeOnly": false,
+          "dynamic": false,
+          "via": []
+        },
+        {
+          "to": { "kind": "module", "path": "src/math.ts" },
+          "line": 2,
+          "form": "import",
+          "names": ["PI", "add"],
+          "typeOnly": false,
+          "dynamic": false,
+          "via": []
+        },
+        {
+          "to": { "kind": "module", "path": "src/shapes/index.ts" },
+          "line": 3,
+          "form": "import",
+          "names": ["Circle", "default"],
+          "typeOnly": false,
+          "dynamic": false,
+          "via": []
+        },
+        {
+          "to": { "kind": "unresolved", "specifier": "./gone" },
+          "line": 4,
+          "form": "import",
+          "names": ["gone"],
+          "typeOnly": false,
+          "dynamic": false,
+          "via": []
+        }
+      ]
+    },
+    "src/math.ts": {
+      "path": "src/math.ts",
+      "symbols": [
+        {
+          "name": "add",
+          "kind": "function",
+          "line": 2,
+          "default": false,
+          "signature": "function add(a: number, b: number): number",
+          "doc": "Adds two numbers."
+        },
+        {
+          "name": "PI",
+          "kind": "const",
+          "line": 6,
+          "default": false,
+          "signature": "const PI"
+        },
+        {
+          "name": "Rounding",
+          "kind": "enum",
+          "line": 8,
+          "default": false,
+          "signature": "enum Rounding"
+        }
+      ],
+      "edges": []
+    },
+    "src/setup.ts": {
+      "path": "src/setup.ts",
+      "symbols": [],
+      "edges": []
+    },
+    "src/shapes/index.ts": {
+      "path": "src/shapes/index.ts",
+      "symbols": [
+        {
+          "name": "Shape",
+          "kind": "interface",
+          "line": 1,
+          "default": false,
+          "signature": "interface Shape"
+        },
+        {
+          "name": "ShapeKind",
+          "kind": "type",
+          "line": 5,
+          "default": false,
+          "signature": "type ShapeKind"
+        },
+        {
+          "name": "Circle",
+          "kind": "class",
+          "line": 7,
+          "default": false,
+          "signature": "class Circle implements Shape"
+        },
+        {
+          "name": "default",
+          "kind": "function",
+          "line": 11,
+          "default": true,
+          "signature": "function (shape: Shape): number"
+        }
+      ],
+      "edges": []
+    }
+  }
+}

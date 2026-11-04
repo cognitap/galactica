@@ -1,0 +1,10 @@
+{
+  "compilerOptions": {
+    "module": "nodenext",
+    "moduleResolution": "nodenext",
+    "allowJs": true,
+    "strict": true,
+    "noEmit": true
+  },
+  "include": ["src"]
+}

@@ -7,5 +7,5 @@
   "singleAttributePerLine": true,
   "printWidth": 100,
   "tabWidth": 2,
-  "ignorePatterns": ["**/AGENTS.md"]
+  "ignorePatterns": ["**/AGENTS.md", "tests/fixtures/**"]
 }

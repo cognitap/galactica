@@ -1,0 +1,23 @@
+{
+  "kinds": {
+    "src/lib/format.test.ts": "test",
+    "src/lib/format.ts": "source",
+    "src/ui/Price.stories.tsx": "story",
+    "src/ui/Price.tsx": "source"
+  },
+  "areas": [
+    {
+      "path": "src/lib",
+      "package": "tests-and-stories",
+      "layer": 0,
+      "modules": ["src/lib/format.test.ts", "src/lib/format.ts"]
+    },
+    {
+      "path": "src/ui",
+      "package": "tests-and-stories",
+      "layer": 1,
+      "modules": ["src/ui/Price.stories.tsx", "src/ui/Price.tsx"]
+    }
+  ],
+  "cycles": []
+}

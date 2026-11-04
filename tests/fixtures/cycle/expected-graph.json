@@ -1,0 +1,31 @@
+{
+  "areas": [
+    {
+      "path": "src/app",
+      "package": "cycle",
+      "layer": 2,
+      "modules": ["src/app/main.ts"]
+    },
+    {
+      "path": "src/orders",
+      "package": "cycle",
+      "layer": 1,
+      "modules": ["src/orders/order.ts"]
+    },
+    {
+      "path": "src/shared",
+      "package": "cycle",
+      "layer": 0,
+      "modules": ["src/shared/id.ts"]
+    },
+    {
+      "path": "src/users",
+      "package": "cycle",
+      "layer": 1,
+      "modules": ["src/users/user.ts"]
+    }
+  ],
+  "cycles": [
+    ["src/orders/order.ts", "src/users/user.ts"]
+  ]
+}

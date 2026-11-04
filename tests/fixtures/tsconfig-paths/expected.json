@@ -1,0 +1,105 @@
+{
+  "format": 1,
+  "repository": { "name": "tsconfig-paths" },
+  "packages": {
+    "tsconfig-paths": { "dir": "." }
+  },
+  "modules": {
+    "src/config/index.ts": {
+      "path": "src/config/index.ts",
+      "symbols": [
+        {
+          "name": "settings",
+          "kind": "const",
+          "line": 1,
+          "default": false,
+          "signature": "const settings"
+        }
+      ],
+      "edges": []
+    },
+    "src/lib/format.ts": {
+      "path": "src/lib/format.ts",
+      "symbols": [
+        {
+          "name": "format",
+          "kind": "function",
+          "line": 1,
+          "default": false,
+          "signature": "function format(value: number): string"
+        }
+      ],
+      "edges": []
+    },
+    "src/lib/math.ts": {
+      "path": "src/lib/math.ts",
+      "symbols": [
+        {
+          "name": "sum",
+          "kind": "function",
+          "line": 1,
+          "default": false,
+          "signature": "function sum(values: readonly number[]): number"
+        }
+      ],
+      "edges": []
+    },
+    "src/main.ts": {
+      "path": "src/main.ts",
+      "symbols": [
+        {
+          "name": "schema",
+          "kind": "const",
+          "line": 6,
+          "default": false,
+          "signature": "const schema"
+        },
+        {
+          "name": "total",
+          "kind": "const",
+          "line": 7,
+          "default": false,
+          "signature": "const total: string"
+        }
+      ],
+      "edges": [
+        {
+          "to": { "kind": "external", "name": "zod" },
+          "line": 1,
+          "form": "import",
+          "names": ["z"],
+          "typeOnly": false,
+          "dynamic": false,
+          "via": []
+        },
+        {
+          "to": { "kind": "module", "path": "src/lib/math.ts" },
+          "line": 2,
+          "form": "import",
+          "names": ["sum"],
+          "typeOnly": false,
+          "dynamic": false,
+          "via": []
+        },
+        {
+          "to": { "kind": "module", "path": "src/lib/format.ts" },
+          "line": 3,
+          "form": "import",
+          "names": ["format"],
+          "typeOnly": false,
+          "dynamic": false,
+          "via": []
+        },
+        {
+          "to": { "kind": "module", "path": "src/config/index.ts" },
+          "line": 4,
+          "form": "import",
+          "names": ["settings"],
+          "typeOnly": false,
+          "dynamic": false,
+          "via": []
+        }
+      ]
+    }
+  }
+}
