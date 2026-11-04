@@ -16,10 +16,14 @@ Galactica analyzes a JavaScript or TypeScript repository into one internal model
 - `src/cli.ts`: command-line entry point.
 - `src/contract.ts`: the public `--json` output types and `SCHEMA_VERSION`. It imports nothing, which `tests/contract.test.ts` enforces.
 - `src/model.ts`: the cached `Model` of per-module facts, and the in-memory `Graph` derived from it.
+- `src/discovery.ts`: `discover` lists a repository's modules with their language, kind and tsconfig, and collects config warnings. `compilerOptionsOf` gives the options for one module.
+- `src/source-file.ts`: what a path is. `languageOf` and `kindOf` classify a file from its path alone.
+- `src/repository-files.ts`: which files a repository has. Uses `git ls-files` so `.gitignore` applies, and a directory walk outside a git work tree, which ignores `.gitignore`.
+- `src/compiler-settings.ts`: which tsconfig applies to a file, following `extends` and project references, and the defaults when none does.
 - `docs/json-output.md`: reference for the `--json` output. Update it with `src/contract.ts`.
 - `tests/`: `node:test` suites. CLI tests run the built `dist/`, and unit tests import `src/` directly.
 - `tests/fixtures/<case>/`: one small repository per hard analysis case in `repo/`, with its expected `Model` in `expected.json` and, where the case is about derived data, `expected-graph.json`. `tests/fixtures/README.md` states the conventions. Formatters never touch these files, because the expected files pin line numbers.
-- `tests/fixtures.ts`: lists the cases, reads the expected files and compares an analyzer's `Model` with `compareFixture`. `tests/fixtures.test.ts` checks each expected file against its repository.
+- `tests/fixtures.ts`: lists the cases, reads and writes the expected files, and holds the aspect table. Each aspect is one part of the expected files with the issue that implements it. `tests/fixtures.test.ts` checks each expected file against its repository, and compares each implemented aspect with the analyzer's output. `tests/update-fixtures.ts` rewrites the implemented aspects.
 
 ## Conventions
 
@@ -35,3 +39,5 @@ Galactica analyzes a JavaScript or TypeScript repository into one internal model
 ## Commands
 
 `pnpm check` runs format, lint, typecheck and tests. Run it before every commit.
+
+`pnpm fixtures:update` rewrites the implemented aspects of every expected file from the analyzer's output. Run it when a change to the output is intended, and review the diff under `tests/fixtures` as part of the change. When an issue implements an aspect, give the aspect a check in `tests/fixtures.ts` and remove the cases it finishes from `pendingIn`.
