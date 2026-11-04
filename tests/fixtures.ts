@@ -213,7 +213,8 @@ export const aspects: readonly Aspect[] = [
       svelte: 'DEV-690',
       vue: 'DEV-690'
     },
-    stated: always
+    stated: always,
+    check: moduleField('edges')
   },
   { name: 'areas', owner: 'DEV-673', stated: ({ graph }) => graph?.areas !== undefined },
   { name: 'cycles', owner: 'DEV-673', stated: ({ graph }) => graph?.cycles !== undefined }
