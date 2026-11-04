@@ -5,7 +5,7 @@ Each `expected.json` is the spec for the analyzer. It holds the `Model` from `sr
 ## Packages
 
 - Every fixture has a root `package.json`. `repository.name` is its `name`.
-- A single-package fixture has one package with `dir` `"."`. A workspace lists only the packages its manifest names.
+- A single-package fixture has one package with `dir` `"."`. A workspace lists the packages its manifest names, by their `package.json` `name`. The root is a package too, named by its `name` with `dir` `"."`, only when a module lies outside every workspace package.
 
 ## Symbols
 

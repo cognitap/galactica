@@ -3,7 +3,6 @@
  * run before any file is parsed.
  */
 
-import { readFileSync } from 'node:fs'
 import { basename, join, resolve } from 'node:path'
 import type ts from 'typescript'
 import { compilerSettings, defaultCompilerOptions, type Warning } from './compiler-settings.ts'
@@ -11,6 +10,7 @@ import type { Language, ModuleKind } from './contract.ts'
 import { parseRepoPath, type Model, type PackageName, type RepoPath } from './model.ts'
 import { repositoryFiles } from './repository-files.ts'
 import { kindOf, languageOf } from './source-file.ts'
+import { nameOf, packageOf, readJson, workspacePackages, workspacePatterns } from './workspace.ts'
 
 export type { Warning } from './compiler-settings.ts'
 
@@ -20,13 +20,17 @@ export interface DiscoveredModule {
   readonly kind: ModuleKind
   /** The tsconfig that applies, or null when none claims the module and the defaults apply. */
   readonly config: RepoPath | null
+  readonly package: PackageName
 }
 
 export interface Discovery {
   /** The absolute directory that module paths are relative to. */
   readonly root: string
   readonly repository: Model['repository']
-  /** The whole repository as one package, until workspaces are read. */
+  /**
+   * The workspace packages. The root is a package too when no workspace names
+   * any, or when a module lies outside every workspace package.
+   */
   readonly packages: Model['packages']
   /** Sorted by path. */
   readonly modules: readonly DiscoveredModule[]
@@ -40,22 +44,11 @@ function compare(a: string, b: string): number {
   return a < b ? -1 : a > b ? 1 : 0
 }
 
-function rootPackageName(root: string, warnings: Warning[]): string {
-  try {
-    const { name } = JSON.parse(readFileSync(join(root, 'package.json'), 'utf8'))
-    if (typeof name === 'string' && name !== '') return name
-  } catch (error) {
-    if ((error as NodeJS.ErrnoException).code !== 'ENOENT') {
-      warnings.push({ path: parseRepoPath('package.json'), message: String(error) })
-    }
-  }
-  return basename(root)
-}
-
 export function discover(rootDir: string): Discovery {
   const root = resolve(rootDir)
   const settings = compilerSettings(root)
-  const candidates = repositoryFiles(root).flatMap(path => {
+  const files = repositoryFiles(root)
+  const candidates = files.flatMap(path => {
     const language = languageOf(path)
     if (!language) return []
     const config = settings.configOf(join(root, path))
@@ -63,17 +56,32 @@ export function discover(rootDir: string): Discovery {
   })
 
   const outDirs = settings.configs().flatMap(({ outDir }) => (outDir ? [outDir] : []))
-  const modules = candidates
-    .filter(({ path }) => !outDirs.some(outDir => path.startsWith(`${outDir}/`)))
-    .sort((a, b) => compare(a.path, b.path))
-
   const warnings = [...settings.warnings()]
-  const name = rootPackageName(root, warnings)
+  const manifest = readJson(root, parseRepoPath('package.json'), warnings)
+  const name = nameOf(manifest) ?? (basename(root) as PackageName)
+  const patterns = workspacePatterns(root, manifest, warnings)
+  const members = patterns ? workspacePackages(root, files, patterns, warnings) : []
+  const memberDirs: Model['packages'] = Object.fromEntries(
+    members.map(member => [member.name, { dir: member.dir }])
+  )
+
+  const owned = candidates
+    .filter(({ path }) => !outDirs.some(outDir => path.startsWith(`${outDir}/`)))
+    .map(module => ({ ...module, package: packageOf(memberDirs, module.path) }))
+    .sort((a, b) => compare(a.path, b.path))
+  const rootIsPackage = members.length === 0 || owned.some(module => !module.package)
+  const packages: Model['packages'] = Object.fromEntries(
+    [...members, ...(rootIsPackage ? [{ name, dir: '.' as RepoPath }] : [])]
+      .sort((a, b) => compare(a.name, b.name))
+      .map(member => [member.name, { dir: member.dir }])
+  )
+  const modules = owned.map(module => ({ ...module, package: module.package ?? name }))
+
   const used = new Set(modules.map(module => module.config))
   return {
     root,
     repository: { name },
-    packages: { [name as PackageName]: { dir: '.' as RepoPath } },
+    packages,
     modules,
     configs: new Map(
       settings

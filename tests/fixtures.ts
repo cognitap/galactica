@@ -171,7 +171,6 @@ export const aspects: readonly Aspect[] = [
   {
     name: 'packages',
     owner: 'DEV-668',
-    pendingIn: { monorepo: 'DEV-689' },
     stated: always,
     check: check(
       ({ model }) => ({ repository: model.repository, packages: model.packages }),
@@ -223,7 +222,6 @@ export const aspects: readonly Aspect[] = [
     pendingIn: {
       astro: 'DEV-690',
       barrels: 'DEV-672',
-      monorepo: 'DEV-689',
       svelte: 'DEV-690',
       vue: 'DEV-690'
     },
