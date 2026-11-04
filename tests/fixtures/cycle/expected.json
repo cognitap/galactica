@@ -13,7 +13,7 @@
           "kind": "const",
           "line": 3,
           "default": false,
-          "signature": "const order"
+          "signature": "const order = placeOrder(...)"
         }
       ],
       "edges": [

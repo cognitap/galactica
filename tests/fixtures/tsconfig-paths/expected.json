@@ -13,7 +13,7 @@
           "kind": "const",
           "line": 1,
           "default": false,
-          "signature": "const settings"
+          "signature": "const settings = {...}"
         }
       ],
       "edges": []
@@ -52,7 +52,7 @@
           "kind": "const",
           "line": 6,
           "default": false,
-          "signature": "const schema"
+          "signature": "const schema = z.number(...)"
         },
         {
           "name": "total",

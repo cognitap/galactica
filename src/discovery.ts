@@ -23,6 +23,8 @@ export interface DiscoveredModule {
 }
 
 export interface Discovery {
+  /** The absolute directory that module paths are relative to. */
+  readonly root: string
   readonly repository: Model['repository']
   /** The whole repository as one package, until workspaces are read. */
   readonly packages: Model['packages']
@@ -69,6 +71,7 @@ export function discover(rootDir: string): Discovery {
   const name = rootPackageName(root, warnings)
   const used = new Set(modules.map(module => module.config))
   return {
+    root,
     repository: { name },
     packages: { [name as PackageName]: { dir: '.' as RepoPath } },
     modules,

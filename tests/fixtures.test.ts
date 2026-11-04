@@ -111,7 +111,7 @@ for (const name of cases) {
         assert.ok(symbolKinds.includes(symbol.kind), `${where} has unknown kind ${symbol.kind}`)
         assert.match(
           symbol.signature,
-          /^(async function|function|class|interface|type|enum|const|component)\b[^\n]*$/,
+          /^((async|declare|abstract) )*(function|class|interface|type|enum|const|let|var|component)\b[^\n]*$/,
           `${where} signature is not one declaration line`
         )
         if (symbol.doc !== undefined) assert.match(symbol.doc, /^[^\n]+$/, `${where} doc`)

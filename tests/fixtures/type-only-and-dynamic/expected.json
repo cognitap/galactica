@@ -95,7 +95,7 @@
           "kind": "type",
           "line": 1,
           "default": false,
-          "signature": "type Role"
+          "signature": "type Role = 'admin' | 'member'"
         },
         {
           "name": "roles",

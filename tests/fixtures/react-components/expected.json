@@ -92,7 +92,7 @@
           "kind": "component",
           "line": 7,
           "default": false,
-          "signature": "const MemoCard"
+          "signature": "const MemoCard = memo(Card)"
         },
         {
           "name": "useOpen",
@@ -122,7 +122,7 @@
           "kind": "component",
           "line": 3,
           "default": false,
-          "signature": "const Input"
+          "signature": "const Input = forwardRef<HTMLInputElement>((props, ref) =>)"
         }
       ],
       "edges": [

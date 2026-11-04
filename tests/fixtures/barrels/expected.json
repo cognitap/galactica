@@ -78,7 +78,7 @@
           "kind": "const",
           "line": 6,
           "default": false,
-          "signature": "const controls"
+          "signature": "const controls = [...]"
         }
       ],
       "edges": [
