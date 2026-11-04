@@ -13,7 +13,7 @@ Galactica analyzes a JavaScript or TypeScript repository into one internal model
 
 ## Structure
 
-- `src/cli.ts`: command-line entry point. It parses argv against the command table, analyzes the repository, runs the command and prints its JSON object or its text. For `html`, it writes the page from `src/html.ts` to a file and can open it. It holds no command logic.
+- `src/cli.ts`: command-line entry point. It parses argv against the command table, analyzes the repository, runs the command and prints its JSON object or its text. For `html`, it writes the page from `src/html.ts` to a file and can open it. For `init`, it installs the skill through `src/skill.ts`. It holds no command logic.
 - `src/commands.ts`: the command table. Each entry gives a command's argument, the options it takes, and the pure function from the `Graph` to its `--json` object. Adding a command is one entry here and one renderer in `src/render.ts`.
 - `src/render.ts`: the text form of each command, built only from its `--json` object, so text and JSON never disagree.
 - `src/subjects.ts`: what a command argument names. `resolveSubject` reads a module path, package name, package directory or area path, from the current directory and from the root, and `resolveModule` reads a module path only.
@@ -23,6 +23,8 @@ Galactica analyzes a JavaScript or TypeScript repository into one internal model
 - `src/page-data.ts`: what the page draws. `pageData` turns the `Graph` into the compact object the page embeds, with areas and modules referred to by index. Each module and area carries what `uses` and `deps` answer for it at depth 1, so the page never walks the imports itself. Its shape is private to the page.
 - `src/row-order.ts`: the order of the boxes within each row of the page. `orderRows` reduces crossings between rows with a barycenter sweep, in path order where nothing pulls.
 - `src/page/`: the page template, `page.css`, `page.js` and `search.js`, plain files that the build copies to `dist/page`. The scripts are type-checked against `src/page-data.ts` through JSDoc, and build the page with no framework. `search.js` lists what the search field finds and ranks the matches, with no DOM, so `tests/search.test.ts` imports it.
+- `src/skill.ts`: the agent skill `init` installs. `skillFile` puts the command into the template and records the Galactica version and a hash of the written file in its frontmatter `metadata`. `installSkill` writes it to `.agents/skills/galactica/` and `.claude/skills/galactica/`, and keeps a file whose hash no longer matches, since someone edited it.
+- `skills/galactica/SKILL.md`: the skill template, in the layout the skills CLI discovers, and shipped in the package. It names `npx @cognitap/galactica`, which `init --command` replaces. `tests/skill.test.ts` checks its frontmatter against the Agent Skills specification.
 - `src/contract.ts`: the public `--json` output types and `SCHEMA_VERSION`. It imports nothing, which `tests/contract.test.ts` enforces.
 - `src/model.ts`: the cached `Model` of per-module facts, and the in-memory `Graph` derived from it.
 - `src/discovery.ts`: `discover` lists a repository's packages, and its modules with their language, kind, tsconfig and package, and collects config warnings. `compilerOptionsOf` gives the options for one module.

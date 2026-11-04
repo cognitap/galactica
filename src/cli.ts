@@ -1,22 +1,34 @@
 #!/usr/bin/env node
 import { spawn } from 'node:child_process'
 import { readFileSync, statSync, writeFileSync } from 'node:fs'
-import { resolve } from 'node:path'
+import { join, relative, resolve } from 'node:path'
 import { parseArgs, type ParseArgsOptionsConfig } from 'node:util'
 import { analyzeRepository } from './analysis.ts'
-import { commandOptions, commandTable, type CommandOption, type Input } from './commands.ts'
+import { commandOptions, commandTable, type Input } from './commands.ts'
 import { SCHEMA_VERSION, type Command, type Failure } from './contract.ts'
 import { graphOf } from './graph.ts'
 import { htmlOf } from './html.ts'
 import { toRepoPath, type RepoPath } from './model.ts'
 import { render } from './render.ts'
+import { defaultCommand, installSkill, skillFile, skillTemplate } from './skill.ts'
 
 const htmlOptions = {
   out: { type: 'string', value: '<file>', summary: 'File html writes (default: galactica.html)' },
   open: { type: 'boolean', value: '', summary: 'Open the written file in the default browser' }
 } as const
 
-type HtmlOption = keyof typeof htmlOptions
+const initOptions = {
+  command: {
+    type: 'string',
+    value: '<cmd>',
+    summary: `Command the skill tells agents to run (default: ${defaultCommand})`
+  },
+  force: {
+    type: 'boolean',
+    value: '',
+    summary: 'Overwrite a skill file edited since init wrote it'
+  }
+} as const
 
 const options = {
   root: { type: 'string' },
@@ -24,14 +36,15 @@ const options = {
   help: { type: 'boolean', short: 'h' },
   version: { type: 'boolean', short: 'v' },
   ...commandOptions,
-  ...htmlOptions
+  ...htmlOptions,
+  ...initOptions
 } satisfies ParseArgsOptionsConfig
 
-const pad = (text: string, width: number) => text.padEnd(width)
-
-const flagOptions = { ...commandOptions, ...htmlOptions }
+const flagOptions = { ...commandOptions, ...htmlOptions, ...initOptions }
 type Flag = keyof typeof flagOptions
 const flags = Object.keys(flagOptions) as Flag[]
+const htmlFlags = Object.keys(htmlOptions) as Flag[]
+const initFlags = Object.keys(initOptions) as Flag[]
 
 const optionValue = (option: Flag) =>
   flagOptions[option].value === '' ? '' : ` ${flagOptions[option].value}`
@@ -39,31 +52,44 @@ const optionValue = (option: Flag) =>
 const flagList = (names: readonly Flag[]) =>
   names.map(option => ` [--${option}${optionValue(option)}]`).join('')
 
+type Row = readonly [string, string]
+
+/** Each row's first column padded to the widest, two spaces before the second. */
+const columns = (rows: readonly Row[]) => {
+  const width = Math.max(...rows.map(([left]) => left.length)) + 2
+  return rows.map(([left, right]) => `  ${left.padEnd(width)}${right}`).join('\n')
+}
+
 function usage(): string {
-  const commands = Object.entries(commandTable).map(([name, spec]) => {
+  const commands = Object.entries(commandTable).map(([name, spec]): Row => {
     const argument = spec.argument === undefined ? '' : ` <${spec.argument}>`
-    return `  ${pad(`${name}${argument}${flagList(spec.options)}`, 29)} ${spec.summary}`
+    return [`${name}${argument}${flagList(spec.options)}`, spec.summary]
   })
-  const html = `  ${pad(`html${flagList(Object.keys(htmlOptions) as HtmlOption[])}`, 29)} Write the map for people as one self-contained HTML file`
-  const flagLines = flags.map(
-    option => `  ${pad(`--${option}${optionValue(option)}`, 15)}${flagOptions[option].summary}`
-  )
+  const writers: readonly Row[] = [
+    [`html${flagList(htmlFlags)}`, 'Write the map for people as one self-contained HTML file'],
+    [`init${flagList(initFlags)}`, 'Install the agent skill for Codex, Cursor and Claude Code']
+  ]
+  const optionRows: readonly Row[] = [
+    ['--root <dir>', 'Repository to map (default: current directory)'],
+    ['--json', 'Print the JSON object documented in docs/json-output.md'],
+    ...flags.map((option): Row => [
+      `--${option}${optionValue(option)}`,
+      flagOptions[option].summary
+    ]),
+    ['-h, --help', 'Show this help'],
+    ['-v, --version', 'Show the version']
+  ]
   return `Usage: galactica <command> [options]
 
 Map a JavaScript or TypeScript repository.
 
 Commands:
-${commands.join('\n')}
-${html}
+${columns([...commands, ...writers])}
 
 A subject is a module path, a package name, a package directory or an area path.
 
 Options:
-  --root <dir>   Repository to map (default: current directory)
-  --json         Print the JSON object documented in docs/json-output.md
-${flagLines.join('\n')}
-  -h, --help     Show this help
-  -v, --version  Show the version`
+${columns(optionRows)}`
 }
 
 function readVersion(): string {
@@ -134,11 +160,37 @@ function inputOf(command: Command, argv: readonly string[], cwd: string) {
   return { root, json: values.json ?? false, input }
 }
 
-const htmlFailure = (message: string): Result => ({
+const failure = (message: string): Result => ({
   code: 1,
   stdout: '',
   stderr: `galactica: ${message}`
 })
+
+/** The flags and root of `html` or `init`, or a failure for an argument or another command's flag. */
+function writerInput(
+  name: 'html' | 'init',
+  own: readonly string[],
+  argv: readonly string[],
+  cwd: string
+) {
+  let parsed
+  try {
+    parsed = parseArgs({ args: [...argv], options, allowPositionals: true, strict: true })
+  } catch (error) {
+    return failure((error as Error).message)
+  }
+  const { values, positionals } = parsed
+  const foreign = [...flags, 'json' as const].find(
+    option => values[option] !== undefined && !own.includes(option)
+  )
+  if (foreign !== undefined) return failure(`${name} takes no --${foreign}`)
+  if (positionals.length > 1) {
+    return failure(`${name} takes no argument, got ${positionals.length - 1}`)
+  }
+  const root = rootOf(cwd, values.root)
+  if (root === undefined) return failure(`no directory at --root ${values.root}`)
+  return { values, root }
+}
 
 function openInBrowser(path: string): void {
   const command =
@@ -150,32 +202,46 @@ function openInBrowser(path: string): void {
 
 /** Writes the HTML page. It has no `--json` form, since its output is the file. */
 function html(argv: readonly string[], cwd: string): Result {
-  let parsed
-  try {
-    parsed = parseArgs({ args: [...argv], options, allowPositionals: true, strict: true })
-  } catch (error) {
-    return htmlFailure((error as Error).message)
-  }
-  const { values, positionals } = parsed
-  const foreign = [...(Object.keys(commandOptions) as CommandOption[]), 'json' as const].find(
-    option => values[option] !== undefined
-  )
-  if (foreign !== undefined) return htmlFailure(`html takes no --${foreign}`)
-  if (positionals.length > 1) {
-    return htmlFailure(`html takes no argument, got ${positionals.length - 1}`)
-  }
-  const root = rootOf(cwd, values.root)
-  if (root === undefined) return htmlFailure(`no directory at --root ${values.root}`)
+  const input = writerInput('html', htmlFlags, argv, cwd)
+  if ('code' in input) return input
+  const { values, root } = input
   const out = resolve(cwd, values.out ?? 'galactica.html')
   const page = htmlOf(graphOf(analyzeRepository(root).model))
   try {
     writeFileSync(out, page)
   } catch (error) {
-    return htmlFailure(`could not write ${out}: ${(error as Error).message}`)
+    return failure(`could not write ${out}: ${(error as Error).message}`)
   }
   if (values.open) openInBrowser(out)
   const size = Math.round(Buffer.byteLength(page) / 1024)
   return { code: 0, stdout: `wrote ${out} (${size.toLocaleString('en')} KB)`, stderr: '' }
+}
+
+/**
+ * Installs the agent skill. Agents run it unattended, so an edited file is
+ * reported rather than asked about, and it fails only when every file was kept.
+ */
+function init(argv: readonly string[], cwd: string): Result {
+  const input = writerInput('init', initFlags, argv, cwd)
+  if ('code' in input) return input
+  const { values, root } = input
+  const command = values.command ?? defaultCommand
+  if (command.trim() === '') return failure('--command must not be empty')
+  const file = skillFile({ template: skillTemplate(), command, version: readVersion() })
+  let installed
+  try {
+    installed = installSkill(root, file, values.force ?? false)
+  } catch (error) {
+    return failure(`could not install the skill: ${(error as Error).message}`)
+  }
+  const lines = installed.map(({ path, status }) => {
+    const shown = relative(cwd, join(root, path))
+    return status === 'kept'
+      ? `kept ${shown}: edited since galactica wrote it, --force overwrites it`
+      : `${status} ${shown}`
+  })
+  const allKept = installed.every(({ status }) => status === 'kept')
+  return { code: allKept ? 1 : 0, stdout: lines.join('\n'), stderr: '' }
 }
 
 export function run(argv: readonly string[], cwd: string): Result {
@@ -189,6 +255,7 @@ export function run(argv: readonly string[], cwd: string): Result {
   if (values.version) return { code: 0, stdout: readVersion(), stderr: '' }
   const [name] = positionals
   if (name === 'html') return html(argv, cwd)
+  if (name === 'init') return init(argv, cwd)
   if (!isCommand(name)) {
     const problem = name === undefined ? 'no command given' : `unknown command ${name}`
     return { code: 1, stdout: '', stderr: `galactica: ${problem}\n\n${usage()}` }

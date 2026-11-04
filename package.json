@@ -17,7 +17,8 @@
   "files": [
     "LICENSE",
     "CHANGELOG.md",
-    "dist"
+    "dist",
+    "skills"
   ],
   "type": "module",
   "scripts": {

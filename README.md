@@ -9,7 +9,7 @@ Galactica is inspired by [codemap](https://github.com/peterretief/codemap), whic
 
 ## Status
 
-The five agent commands and `html` work from a checkout. Galactica is not on npm yet, and `init` does not exist yet. Work is tracked in the Galactica project in Linear.
+The five agent commands, `html` and `init` work from a checkout. Galactica is not on npm yet. Work is tracked in the Galactica project in Linear.
 
 To run the commands, build Galactica once, then run `dist/cli.js` from the repository you want to map, or pass that repository with `--root`:
 
@@ -79,7 +79,15 @@ The search field finds areas, modules and exported symbols as you type. Press `/
 
 Select a box title, or the circle at the end of a module's row, to see what it uses and what uses it. The page marks its dependencies and its dependents and dims everything else, and a bar at the top gives the counts, the same that `deps` and `uses` give at depth 1, with every test that reaches it while tests are shown. Press Escape or Clear to end the selection. The selection is kept in the address, as `#module=src%2Fcn.ts` or `#area=src%2Fcomponents`, so a link opens the map on the same view.
 
-`galactica init` installs a skill in `.agents/skills/galactica/`, which agents that follow the Agent Skills standard read. The skill tells an agent to run `overview` when it starts in an unfamiliar repository, `where` instead of grep, and `uses` before it edits a file.
+`init` installs the agent skill in `.agents/skills/galactica/`, which Codex and Cursor read, and in `.claude/skills/galactica/`, which Claude Code reads. It writes those two files and nothing else, and prints each path with whether it was created, updated or unchanged. The skill tells an agent to run `overview` when it starts in an unfamiliar repository, `where` instead of grep, and `uses` before it edits a file, then the tests `uses` lists.
+
+The skill runs `npx @cognitap/galactica` by default. Until Galactica is on npm, pass the command for your checkout:
+
+```sh
+node /path/to/galactica/dist/cli.js init --command "node /path/to/galactica/dist/cli.js"
+```
+
+Running `init` again updates a skill file to the current version, unless someone edited it. Each file records a hash of what `init` wrote, so `init` keeps an edited file, says so, and replaces it only with `--force`. It exits with code 1 only when it kept every file. The skill is also at `skills/galactica/` in this repository, where the [skills CLI](https://github.com/vercel-labs/skills) finds it.
 
 Galactica keeps its analysis in a cache that git ignores, so it adds nothing to the repository except the optional skill. An optional `galactica.config.json` at the repository root overrides the defaults.
 
