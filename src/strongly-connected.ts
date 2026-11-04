@@ -8,6 +8,17 @@ import { compare } from './model.ts'
 
 export type Successors<T> = (node: T) => readonly T[]
 
+/** Successors from (from, to) pairs, each list sorted and without repeats. */
+export function adjacency<T extends string>(pairs: Iterable<readonly [T, T]>): Successors<T> {
+  const sets = new Map<T, Set<T>>()
+  for (const [from, to] of pairs) {
+    const set = sets.get(from) ?? new Set()
+    sets.set(from, set.add(to))
+  }
+  const lists = new Map([...sets].map(([node, set]) => [node, [...set].sort(compare)]))
+  return node => lists.get(node) ?? []
+}
+
 interface Frame<T> {
   readonly node: T
   readonly successors: readonly T[]

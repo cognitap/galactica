@@ -170,7 +170,13 @@ export interface ModuleNode {
 export interface Area {
   readonly path: AreaPath
   readonly package: PackageName
-  /** 0 depends on no other area in its package. Members of an area cycle share a layer. Computed from source and config modules only. */
+  /**
+   * 0 depends on no other area in its package. Members of an area cycle share
+   * a layer. Computed from the imports between source and config modules.
+   * Re-exports are left out, since an import through a barrel already points at
+   * the defining module. An area of only tests and stories sits one above the
+   * highest area it imports and moves no other area.
+   */
   readonly layer: number
   /** Sorted by path. */
   readonly modules: readonly RepoPath[]
@@ -183,6 +189,21 @@ export interface Incoming {
   readonly through: boolean
 }
 
+/** A module edge between two areas of one area cycle. */
+export interface ClosingEdge {
+  readonly from: RepoPath
+  readonly to: RepoPath
+  readonly line: number
+}
+
+/** Areas of one package that depend on each other, so they share a layer. */
+export interface AreaCycle {
+  /** Sorted. */
+  readonly areas: readonly AreaPath[]
+  /** Every edge from one area of the cycle to another, sorted by `from`, `to`, then line. Cutting edges here breaks the cycle. */
+  readonly edges: readonly ClosingEdge[]
+}
+
 export interface SymbolLocation {
   readonly module: RepoPath
   readonly symbol: SymbolFacts
@@ -193,15 +214,29 @@ export interface Graph {
   /** All module paths, sorted. */
   readonly paths: readonly RepoPath[]
   readonly modules: ReadonlyMap<RepoPath, ModuleNode>
+  /**
+   * In dependency order: by layer, then name. A package's layer comes from the
+   * edges between source and config modules of different packages, re-exports
+   * included, since a package that passes on another's names depends on it.
+   * Areas sorted by path.
+   */
   readonly packages: ReadonlyMap<
     PackageName,
-    { readonly dir: RepoPath; readonly areas: readonly AreaPath[] }
+    { readonly dir: RepoPath; readonly layer: number; readonly areas: readonly AreaPath[] }
   >
+  /** Sorted by path. */
   readonly areas: ReadonlyMap<AreaPath, Area>
+  /** Sorted by first area. */
+  readonly areaCycles: readonly AreaCycle[]
   /** Reverse edges per module. Feeds `uses` and the importer counts in `overview`. */
   readonly incoming: ReadonlyMap<RepoPath, readonly Incoming[]>
   /** Exported name to its definitions, sorted by module path, then line. Feeds `where`. */
   readonly symbols: ReadonlyMap<string, readonly SymbolLocation[]>
-  /** Strongly connected components of size above one among source modules, each sorted, the list sorted by first member. */
+  /**
+   * Strongly connected components of size above one among source and config
+   * modules, each sorted, the list sorted by first member. Type-only imports
+   * load nothing, so they are left out, and so are re-exports, since an import
+   * through a barrel already points at the defining module.
+   */
   readonly cycles: readonly (readonly RepoPath[])[]
 }
