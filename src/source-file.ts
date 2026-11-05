@@ -1,11 +1,13 @@
 /**
- * What a file is, from its path alone: whether it is a module, its language
- * and its kind. The graph derives `ModuleNode.kind` from `kindOf` too, so both
- * maps classify a file the same way.
+ * What a file is, from its path and the config alone: whether it is a module,
+ * its language and its kind. Discovery and the graph both take the kind from
+ * `kindOf`, so every command and the page classify a file the same way.
  */
 
+import { posix } from 'node:path'
+import { ConfigError } from './config.ts'
 import { languages, type Language, type ModuleKind } from './contract.ts'
-import type { RepoPath } from './model.ts'
+import type { Config, RepoPath } from './model.ts'
 
 const languageByExtension: ReadonlyMap<string, Language> = new Map(
   languages.map(language => [`.${language}`, language])
@@ -46,7 +48,23 @@ const kindRules: readonly {
   }
 ]
 
-export function kindOf(path: RepoPath): ModuleKind {
+/** The kind the config gives `path`, which may match the globs of one kind only. */
+function configuredKind(path: RepoPath, kinds: Config['kinds']): ModuleKind | undefined {
+  let found: { readonly kind: ModuleKind; readonly key: string } | undefined
+  for (const [kind, globs] of Object.entries(kinds) as [ModuleKind, readonly string[]][]) {
+    const index = globs.findIndex(glob => posix.matchesGlob(path, glob))
+    if (index < 0) continue
+    const key = `kinds.${kind}[${index}]`
+    if (found)
+      throw new ConfigError(key, `${path} also matches ${found.key}; a module has one kind`)
+    found = { kind, key }
+  }
+  return found?.kind
+}
+
+export function kindOf(path: RepoPath, config: Config): ModuleKind {
+  const configured = configuredKind(path, config.kinds)
+  if (configured !== undefined) return configured
   const name = nameOf(path)
   const directories = directoriesOf(path)
   const rule = kindRules.find(

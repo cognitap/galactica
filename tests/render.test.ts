@@ -3,7 +3,7 @@ import { test } from 'node:test'
 import { commandTable, type Input } from '../src/commands.ts'
 import { commands, type Failure } from '../src/contract.ts'
 import { graphOf } from '../src/graph.ts'
-import type { RepoPath } from '../src/model.ts'
+import { emptyConfig, type RepoPath } from '../src/model.ts'
 import { LIST_LIMIT, render } from '../src/render.ts'
 import { defines, edge, edgeTo, modelOf } from './models.ts'
 
@@ -18,7 +18,8 @@ const graph = graphOf(
       ]
     },
     'src/ui/Button.test.tsx': { edges: [edge('src/ui/Button.tsx')] }
-  })
+  }),
+  emptyConfig
 )
 
 const input = (argument: string, fields: Partial<Input> = {}): Input => ({
@@ -110,7 +111,7 @@ test('a long list stops after the limit and points at --json', () => {
       { edges: [edge('lib/cn.ts')] }
     ])
   )
-  const wide = graphOf(modelOf({ ...specs, 'lib/cn.ts': {} }))
+  const wide = graphOf(modelOf({ ...specs, 'lib/cn.ts': {} }), emptyConfig)
   const lines = render(commandTable.uses.run(wide, input('lib/cn.ts'))).split('\n')
   assert.equal(lines.length, 1 + LIST_LIMIT + 2)
   assert.equal(lines.at(-2), '… 3 more, use --json')

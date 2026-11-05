@@ -3,6 +3,7 @@ import { test, type TestContext } from 'node:test'
 import ts from 'typescript'
 import { discover } from '../src/discovery.ts'
 import { importResolver, type Resolution } from '../src/import-resolution.ts'
+import { emptyConfig } from '../src/model.ts'
 import { repository, type Files } from './temp-repository.ts'
 
 /** Where each specifier leads from `from`, resolved in the given mode. */
@@ -13,7 +14,7 @@ function resolved(
   specifiers: readonly string[],
   mode?: ts.ResolutionMode
 ): Readonly<Record<string, Resolution>> {
-  const discovery = discover(repository(t, files))
+  const discovery = discover(repository(t, files), emptyConfig)
   const module = discovery.modules.find(({ path }) => path === from)
   assert.ok(module, `${from} is no module`)
   const resolver = importResolver(discovery)
@@ -96,7 +97,7 @@ test('the module format decides the resolution mode, so require resolves as Comm
     'src/main.mjs': '',
     'src/math.js': ''
   }
-  const discovery = discover(repository(t, files))
+  const discovery = discover(repository(t, files), emptyConfig)
   const resolver = importResolver(discovery)
   const formats = Object.fromEntries(
     discovery.modules.map(module => [module.path, resolver.formatOf(module)])
@@ -224,7 +225,7 @@ test('a workspace package resolves to its source, and its failure is final', t =
     'packages/core/src/index.ts': '',
     'packages/core/src/hidden.ts': ''
   }
-  const discovery = discover(repository(t, files))
+  const discovery = discover(repository(t, files), emptyConfig)
   const resolver = importResolver(discovery)
   const main = discovery.modules.find(({ path }) => path === 'packages/app/src/main.ts')!
   assert.deepEqual(resolver.resolve(main, '@mono/core', undefined), {

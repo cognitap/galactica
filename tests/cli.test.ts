@@ -5,6 +5,7 @@ import { tmpdir } from 'node:os'
 import { join, relative } from 'node:path'
 import { after, test, type TestContext } from 'node:test'
 import { commands } from '../src/contract.ts'
+import { gitlab, invalidConfigs, validConfigs } from './config-examples.ts'
 import { fixtureRepo } from './fixtures.ts'
 import { git, gitRepository, repository } from './temp-repository.ts'
 
@@ -230,7 +231,6 @@ test('html --source-url none turns links off', t => {
 })
 
 test('html --source-url sets the template for any host', t => {
-  const gitlab = 'https://gitlab.example.com/group/repo/-/blob/{commit}/{path}#L{line}'
   const root = linkedRepository(t, 'https://gitlab.example.com/group/repo.git')
   assert.equal(pageSource(root).source, null)
   const { status, source } = pageSource(root, '--source-url', gitlab)
@@ -239,6 +239,21 @@ test('html --source-url sets the template for any host', t => {
     source.template,
     /^https:\/\/gitlab\.example\.com\/group\/repo\/-\/blob\/[0-9a-f]{40}\/\{path\}#L\{line\}$/
   )
+})
+
+test('html takes sourceUrl from galactica.config.json, and --source-url wins over it', t => {
+  const root = linkedRepository(t, 'https://github.com/acme/app')
+  writeFileSync(join(root, 'galactica.config.json'), JSON.stringify(validConfigs.full))
+  assert.match(pageSource(root).source.template, /^https:\/\/gitlab\.example\.com\/group\/repo\//)
+  assert.equal(pageSource(root, '--source-url', 'none').source, null)
+  const other = 'https://git.example.com/{commit}/{path}'
+  assert.match(
+    pageSource(root, '--source-url', other).source.template,
+    /^https:\/\/git\.example\.com\//
+  )
+
+  writeFileSync(join(root, 'galactica.config.json'), JSON.stringify(validConfigs.sourceUrlNone))
+  assert.equal(pageSource(root).source, null)
 })
 
 test('html --source-url without {path}, or not on http(s), fails and writes no page', t => {
@@ -261,6 +276,44 @@ test('html --source-url without {path}, or not on http(s), fails and writes no p
     assert.match(stderr, problem)
     assert.equal(existsSync(join(root, 'bad.html')), false)
   }
+})
+
+test('commands take kinds and areas from galactica.config.json', t => {
+  const root = repository(t, {
+    'package.json': { name: 'acme' },
+    'galactica.config.json': validConfigs.storybookAndComponents,
+    '.storybook/examples/KbdExamples.tsx': '',
+    'src/components/Kbd/Kbd.tsx': 'export const Kbd = 1',
+    'src/components/Kbd/Kbd.stories.tsx': ''
+  })
+  assert.match(
+    galactica(root, 'outline', '.storybook/examples/KbdExamples.tsx').stdout,
+    /^\.storybook\/examples\/KbdExamples\.tsx \(story, area \.storybook\/examples, package acme\)/
+  )
+  assert.match(
+    galactica(root, 'outline', 'src/components/Kbd/Kbd.tsx').stdout,
+    /^src\/components\/Kbd\/Kbd\.tsx \(source, area src\/components, package acme\)/
+  )
+})
+
+test('an invalid galactica.config.json fails every command with one line naming the key', t => {
+  const unknownKind = invalidConfigs.find(({ message }) => message.startsWith('kinds.storyy'))!
+  const root = repository(t, {
+    'package.json': {},
+    'src/a.ts': '',
+    'galactica.config.json': unknownKind.config
+  })
+  const message = `galactica.config.json: ${unknownKind.message}`
+  for (const args of [['overview'], ['html', '--out', join(root, 'map.html')]]) {
+    const { status, stdout, stderr } = galactica(root, ...args)
+    assert.equal(status, 1, args[0])
+    assert.equal(stdout, '', args[0])
+    assert.equal(stderr, `galactica: ${message}\n`, args[0])
+  }
+  assert.equal(existsSync(join(root, 'map.html')), false)
+  const json = galactica(root, 'where', 'a', '--json')
+  assert.equal(json.status, 1)
+  assert.deepEqual(JSON.parse(json.stdout).error, { code: 'usage', message })
 })
 
 test('html has no links outside a git repository', t => {

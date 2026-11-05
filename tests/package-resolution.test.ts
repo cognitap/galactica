@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict'
 import { test, type TestContext } from 'node:test'
 import { discover } from '../src/discovery.ts'
+import { emptyConfig } from '../src/model.ts'
 import { splitSpecifier, workspaceResolver } from '../src/package-resolution.ts'
 import { repository, type Files } from './temp-repository.ts'
 
@@ -13,7 +14,7 @@ function workspace(t: TestContext, manifest: object, files: Files) {
       Object.entries(files).map(([path, text]) => [`packages/pkg/${path}`, text])
     )
   })
-  return workspaceResolver(discover(root))
+  return workspaceResolver(discover(root, emptyConfig))
 }
 
 /** Each specifier's resolution, as the module path or `unresolved: <reason>`. */
@@ -70,7 +71,7 @@ test('a subpath map resolves each subpath, scoped names included', t => {
     'packages/api/index.ts': '',
     'packages/api/src/client.ts': ''
   })
-  const resolver = workspaceResolver(discover(root))
+  const resolver = workspaceResolver(discover(root, emptyConfig))
   assert.deepEqual(resolver.resolve('@acme/api'), { kind: 'module', path: 'packages/api/index.ts' })
   assert.deepEqual(resolver.resolve('@acme/api/client'), {
     kind: 'module',
@@ -290,7 +291,7 @@ test('a build config that owns no module maps its outDir back to source', t => {
     'src/motion/index.ts': '',
     'tests/package.test.ts': ''
   })
-  const discovery = discover(root)
+  const discovery = discover(root, emptyConfig)
   assert.deepEqual(
     new Set(discovery.modules.map(module => module.config)),
     new Set(['tsconfig.json'])
@@ -364,13 +365,19 @@ test('the root package resolves its own name only when it has exports', t => {
     'package.json': { name: '@acme/self', exports: { './utils': './src/utils.ts' } },
     'src/utils.ts': ''
   })
-  assert.deepEqual(workspaceResolver(discover(exporting)).resolve('@acme/self/utils'), {
-    kind: 'module',
-    path: 'src/utils.ts'
-  })
+  assert.deepEqual(
+    workspaceResolver(discover(exporting, emptyConfig)).resolve('@acme/self/utils'),
+    {
+      kind: 'module',
+      path: 'src/utils.ts'
+    }
+  )
   const plain = repository(t, { 'package.json': { name: 'plain' }, 'src/utils.ts': '' })
-  assert.equal(workspaceResolver(discover(plain)).resolve('plain/src/utils.ts'), undefined)
+  assert.equal(
+    workspaceResolver(discover(plain, emptyConfig)).resolve('plain/src/utils.ts'),
+    undefined
+  )
   const unnamed = repository(t, { 'index.ts': '' })
-  const [fallbackName] = Object.keys(discover(unnamed).packages)
-  assert.equal(workspaceResolver(discover(unnamed)).resolve(fallbackName!), undefined)
+  const [fallbackName] = Object.keys(discover(unnamed, emptyConfig).packages)
+  assert.equal(workspaceResolver(discover(unnamed, emptyConfig)).resolve(fallbackName!), undefined)
 })

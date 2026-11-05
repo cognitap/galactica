@@ -2,7 +2,14 @@ import assert from 'node:assert/strict'
 import { test } from 'node:test'
 import { moduleCycles } from '../src/cycles.ts'
 import { layerAreas, orderPackages, type Placed } from '../src/layers.ts'
-import type { AreaPath, Edge, Model, PackageName, RepoPath } from '../src/model.ts'
+import {
+  emptyConfig,
+  type AreaPath,
+  type Edge,
+  type Model,
+  type PackageName,
+  type RepoPath
+} from '../src/model.ts'
 import { kindOf } from '../src/source-file.ts'
 
 const edge = (to: string, fields: Partial<Edge> = {}): Edge => ({
@@ -30,7 +37,7 @@ function nodesOf(specs: Readonly<Record<string, Spec>>): ReadonlyMap<RepoPath, P
         facts: { path: path as RepoPath, hash: 'h', symbols: [], edges: spec.edges ?? [] },
         package: (spec.package ?? 'acme') as PackageName,
         area: spec.area as AreaPath,
-        kind: kindOf(path as RepoPath)
+        kind: kindOf(path as RepoPath, emptyConfig)
       }
     ])
   )

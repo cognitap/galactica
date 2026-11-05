@@ -5,6 +5,7 @@ import { test } from 'node:test'
 import { languages, moduleKinds, symbolKinds } from '../src/contract.ts'
 import { analyzeRepository } from '../src/analysis.ts'
 import {
+  emptyConfig,
   MODEL_FORMAT,
   parseRepoPath,
   type Model,
@@ -211,7 +212,9 @@ for (const name of cases) {
     if ('pending' in status) {
       test(title, { todo: `pending until ${status.pending}` })
     } else {
-      test(title, () => status.compare(files, (model ??= analyzeRepository(repo).model)))
+      test(title, () =>
+        status.compare(files, (model ??= analyzeRepository(repo, emptyConfig).model))
+      )
     }
   }
 }
@@ -219,7 +222,7 @@ for (const name of cases) {
 test('an implemented aspect fails on any difference and updates to the analyzer output', () => {
   const name = 'plain-relative'
   const files = readExpected(name)
-  const { model } = analyzeRepository(fixtureRepo(name))
+  const { model } = analyzeRepository(fixtureRepo(name), emptyConfig)
   const extra = 'src/extra.ts' as RepoPath
   const changed = {
     ...files,

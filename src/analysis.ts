@@ -30,6 +30,7 @@ import { resolutionModeOf } from './imports.ts'
 import {
   compareEdges,
   MODEL_FORMAT,
+  type Config,
   type Edge,
   type Model,
   type ModuleFacts,
@@ -140,9 +141,13 @@ export interface Options {
 }
 
 /** The repository's model, with a summary of what the analysis could not resolve or map. */
-export function analyzeRepository(rootDir: string, { cache }: Options = {}): Analysis {
+export function analyzeRepository(
+  rootDir: string,
+  config: Config,
+  { cache }: Options = {}
+): Analysis {
   const clock: Clock = { discovery: 0, parse: 0, resolution: 0, barrels: 0 }
-  const discovery = timed(clock, 'discovery', () => discover(rootDir))
+  const discovery = timed(clock, 'discovery', () => discover(rootDir, config))
   const store = cache === undefined ? undefined : { directory: cache, stamp: currentStamp() }
   const cached: Cache = store ? readCache(store.directory, store.stamp) : new Map()
   const counts: Record<Source, number> = { reused: 0, reread: 0, parsed: 0 }

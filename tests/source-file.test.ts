@@ -1,10 +1,10 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
 import { languages } from '../src/contract.ts'
-import { parseRepoPath } from '../src/model.ts'
+import { emptyConfig, parseRepoPath } from '../src/model.ts'
 import { kindOf, languageOf } from '../src/source-file.ts'
 
-const kind = (path: string) => kindOf(parseRepoPath(path))
+const kind = (path: string) => kindOf(parseRepoPath(path), emptyConfig)
 const language = (path: string) => languageOf(parseRepoPath(path))
 
 test('every contract language is the language of files with that extension', () => {

@@ -101,7 +101,42 @@ Running `init` again updates a skill file to the current version, unless someone
 
 Galactica keeps the symbols and imports of each file in a cache, so it adds nothing to the repository except the optional skill. The cache is `node_modules/.cache/galactica/cache.json` when the repository has a `node_modules` folder. Otherwise it is in the user cache folder, under `galactica/` and a hash of the repository path: `~/Library/Caches` on macOS, `$XDG_CACHE_HOME` or `~/.cache` on Linux, and `%LOCALAPPDATA%` on Windows. A file whose size and modification time are unchanged is not read again, and a file whose content is unchanged is not parsed again. A Vue or Svelte file is parsed again when the version of its compiler changes, or the compiler is installed or removed. Everything that depends on more than one file, such as where an import leads, is worked out again on every run, so the cache never gives a stale answer. Deleting the cache is always safe. `--no-cache` analyzes every file and neither reads nor writes the cache.
 
-An optional `galactica.config.json` at the repository root overrides the defaults.
+## Configuration
+
+Galactica needs no config. To override a default, add `galactica.config.json` to the repository root, the directory that `--root` names. Every option is optional:
+
+```json
+{
+  "$schema": "./node_modules/@cognitap/galactica/schema/galactica.config.schema.json",
+  "include": ["src/**", "scripts/**"],
+  "exclude": ["src/generated/**"],
+  "kinds": { "story": [".storybook/examples/**"] },
+  "areas": { "src/components/**": "src/components" },
+  "sourceUrl": "https://gitlab.example.com/group/repo/-/blob/{commit}/{path}#L{line}"
+}
+```
+
+- `include` lists globs. Galactica maps a module only when its path matches one of them. Without `include`, it maps every module.
+- `exclude` lists globs of modules to leave out, including modules that `include` matches.
+- `kinds` maps a kind, `source`, `test`, `story` or `config`, to globs. A module that matches them has that kind, whatever its name and folder say. A module can match the globs of one kind only.
+- `areas` maps a glob to an area path. A module that matches the glob is in that area instead of its folder's area. When a module matches several globs, the first in the file decides. The area path must be inside the module's package. Layers, cycles and the page treat these areas like any other.
+- `sourceUrl` is the link template that `html --source-url` takes, `none` included. `--source-url` wins over it.
+
+A glob matches the path from the repository root, with forward slashes, as Node.js `path.matchesGlob` does. `*` matches within one folder and `**` matches any number of folders, but neither matches a name that starts with a dot, so `**/*.tsx` misses `.storybook/preview.tsx` and `.storybook/**` finds it. `include` and `exclude` only narrow the files Galactica already reads. They never add a file that git ignores or a file in `node_modules`, `dist` or another build folder. An import of a module that the config leaves out gets no edge.
+
+Radiant keeps demo components in `.storybook/examples/`. By default, a module in a folder whose name starts with a dot is a `config` module, so these 54 modules count as code and shape the layers: `src/recipes`, whose stories import them, sits in layer 9. This config makes them stories, and `src/recipes` drops to layer 6:
+
+```json
+{ "kinds": { "story": [".storybook/examples/**"] } }
+```
+
+`$schema` points an editor at `schema/galactica.config.schema.json`, which ships in the package, for completion and checks. Galactica ignores it. When the config is not valid, every command exits with code 1 and prints one line that names the key:
+
+```text
+galactica: galactica.config.json: kinds.storyy: unknown kind; expected source, test, story or config
+```
+
+A change to the config needs no cache action. The cache holds only what each file gives on its own, so no entry depends on the config. A module that the config leaves out is not read, and a later run parses it again when the config brings it back.
 
 ## What it reads
 

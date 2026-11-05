@@ -1,0 +1,69 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/cognitap/galactica/blob/main/schema/galactica.config.schema.json",
+  "title": "galactica.config.json",
+  "description": "Overrides for Galactica. Every option is optional.",
+  "type": "object",
+  "additionalProperties": false,
+  "$defs": {
+    "relativePath": {
+      "type": "string",
+      "description": "A repository-relative path or glob: forward slashes, no leading / or ./, no drive letter, and no .. segment.",
+      "pattern": "^(?!/|\\./|[A-Za-z]:)(?!(?:[\\s\\S]*/)?\\.\\.(?:/|$))[^\\\\]+$"
+    },
+    "globs": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/relativePath"
+      }
+    }
+  },
+  "properties": {
+    "$schema": {
+      "type": "string"
+    },
+    "include": {
+      "description": "A module is kept when it matches one of these globs. Without include, every module is kept.",
+      "$ref": "#/$defs/globs",
+      "minItems": 1
+    },
+    "exclude": {
+      "description": "A module matching one of these globs is left out.",
+      "$ref": "#/$defs/globs"
+    },
+    "kinds": {
+      "description": "Globs for each module kind. A module they match takes that kind before the built-in rules. A module may match only one kind.",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "source": {
+          "$ref": "#/$defs/globs"
+        },
+        "test": {
+          "$ref": "#/$defs/globs"
+        },
+        "story": {
+          "$ref": "#/$defs/globs"
+        },
+        "config": {
+          "$ref": "#/$defs/globs"
+        }
+      }
+    },
+    "areas": {
+      "description": "Glob to the area path a matching module joins, inside the module's package. The first matching glob wins.",
+      "type": "object",
+      "propertyNames": {
+        "$ref": "#/$defs/relativePath"
+      },
+      "additionalProperties": {
+        "$ref": "#/$defs/relativePath"
+      }
+    },
+    "sourceUrl": {
+      "description": "Where html links source, with {commit}, {path} and {line}, or \"none\" to turn links off. --source-url wins over it.",
+      "type": "string",
+      "pattern": "^(?:none|[Hh][Tt][Tt][Pp][Ss]?://[\\s\\S]*\\{path\\}[\\s\\S]*)$"
+    }
+  }
+}

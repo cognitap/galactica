@@ -13,7 +13,10 @@ import { join, relative } from 'node:path'
 import { test, type TestContext } from 'node:test'
 import { analyzeRepository } from '../src/analysis.ts'
 import { cacheDirectory, currentStamp, readCache } from '../src/cache.ts'
-import type { RepoPath } from '../src/model.ts'
+import { loadConfig } from '../src/config.ts'
+import { graphOf } from '../src/graph.ts'
+import { emptyConfig, type RepoPath } from '../src/model.ts'
+import { validConfigs } from './config-examples.ts'
 import { fixtureCases, fixtureRepo } from './fixtures.ts'
 import { repository, type Files } from './temp-repository.ts'
 
@@ -21,7 +24,7 @@ const sha256 = (text: string) => createHash('sha256').update(text).digest('hex')
 
 test('each module carries the sha256 of its contents', t => {
   const root = repository(t, { 'src/a.ts': 'export const a = 1\n', 'src/App.vue': '<template/>' })
-  const { modules } = analyzeRepository(root).model
+  const { modules } = analyzeRepository(root, emptyConfig).model
   assert.equal(modules['src/a.ts' as RepoPath]?.hash, sha256('export const a = 1\n'))
   assert.equal(modules['src/App.vue' as RepoPath]?.hash, sha256('<template/>'))
 })
@@ -40,7 +43,7 @@ test('symbols and edges come from the module, edges sorted by line, then target'
     'src/c.ts': 'export const c = 3',
     'src/styles.css': ''
   })
-  const main = analyzeRepository(root).model.modules['src/main.ts' as RepoPath]!
+  const main = analyzeRepository(root, emptyConfig).model.modules['src/main.ts' as RepoPath]!
   assert.deepEqual(
     main.symbols.map(symbol => symbol.name),
     ['main']
@@ -98,7 +101,7 @@ test('each import resolves in the mode TypeScript gives its syntax and file', t 
     'src/lib/index.js': "const { a } = require('../a')",
     'src/a.ts': 'export const a = 1'
   })
-  const { modules } = analyzeRepository(root).model
+  const { modules } = analyzeRepository(root, emptyConfig).model
   const targets = (path: string) =>
     modules[path as RepoPath]!.edges.map(({ to, line }) => ({ to, line }))
   assert.deepEqual(targets('src/main.ts'), [
@@ -133,7 +136,7 @@ test('an import of a name a module imports and exports leads to the module that 
     'src/ns.ts': 'export const n = 1',
     'src/types.ts': 'export type T = string'
   })
-  const main = analyzeRepository(root).model.modules['src/main.ts' as RepoPath]!
+  const main = analyzeRepository(root, emptyConfig).model.modules['src/main.ts' as RepoPath]!
   assert.deepEqual(
     main.edges.map(({ to, line, names, typeOnly, via }) => ({
       to: to.kind === 'module' ? to.path : to,
@@ -177,7 +180,7 @@ test('the summary counts unresolved edges and skipped imports, and collects warn
     'packages/core/package.json': { name: 'core', exports: { '.': './index.ts' } },
     'packages/core/index.ts': ''
   })
-  const { summary, model } = analyzeRepository(root)
+  const { summary, model } = analyzeRepository(root, emptyConfig)
   assert.equal(summary.unresolved, 2)
   assert.deepEqual(summary.skipped, { '.css': 2, '.d.ts': 1, '.json': 1 })
   assert.deepEqual(summary.warnings, [
@@ -205,8 +208,8 @@ const cachedFiles: Files = {
 function cachedRepository(t: TestContext, files: Files = cachedFiles) {
   const root = repository(t, files)
   const cache = join(repository(t, {}), 'cache')
-  const run = () => analyzeRepository(root, { cache })
-  const cold = () => analyzeRepository(root).model
+  const run = () => analyzeRepository(root, emptyConfig, { cache })
+  const cold = () => analyzeRepository(root, emptyConfig).model
   return { root, cache, run, cold }
 }
 
@@ -223,15 +226,32 @@ test('a warm run gives the model of a cold run, without reading a module', t => 
   assert.equal(JSON.stringify(warm.model), JSON.stringify(cold()))
 })
 
+test('a config change takes effect on a warm run, which parses no module', t => {
+  const { root, run, cache } = cachedRepository(t)
+  run()
+  writeFileSync(join(root, 'galactica.config.json'), JSON.stringify(validConfigs.warmChange))
+  const config = loadConfig(root)
+  const warm = analyzeRepository(root, config, { cache })
+  assert.deepEqual(warm.summary.modules, counts(4, 0, 0))
+  assert.equal(warm.model.modules['src/legacy.cjs' as RepoPath], undefined)
+  const graph = graphOf(warm.model, config)
+  assert.equal(graph.modules.get('src/b.ts' as RepoPath)?.kind, 'test')
+  assert.equal(graph.modules.get('src/a.ts' as RepoPath)?.area, 'src/core')
+})
+
 test('every fixture gives the same model warm as cold', t => {
   for (const name of fixtureCases()) {
     const root = fixtureRepo(name)
     const cache = join(repository(t, {}), 'cache')
-    const cold = analyzeRepository(root, { cache }).model
-    const warm = analyzeRepository(root, { cache })
+    const cold = analyzeRepository(root, emptyConfig, { cache }).model
+    const warm = analyzeRepository(root, emptyConfig, { cache })
     assert.equal(warm.summary.modules.parsed, 0, name)
     assert.equal(JSON.stringify(warm.model), JSON.stringify(cold), name)
-    assert.equal(JSON.stringify(analyzeRepository(root).model), JSON.stringify(cold), name)
+    assert.equal(
+      JSON.stringify(analyzeRepository(root, emptyConfig).model),
+      JSON.stringify(cold),
+      name
+    )
   }
 })
 
@@ -323,9 +343,9 @@ function filesUnder(root: string): readonly string[] {
 test('the analysis writes nothing but the cache file, and nothing at all without a cache', t => {
   const root = repository(t, { ...cachedFiles, 'node_modules/left-pad/index.js': '' })
   const before = filesUnder(root)
-  analyzeRepository(root)
+  analyzeRepository(root, emptyConfig)
   assert.deepEqual(filesUnder(root), before)
-  analyzeRepository(root, { cache: cacheDirectory(root) })
+  analyzeRepository(root, emptyConfig, { cache: cacheDirectory(root) })
   assert.deepEqual(
     filesUnder(root),
     [...before, join('node_modules', '.cache', 'galactica', 'cache.json')].sort()

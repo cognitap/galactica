@@ -10,6 +10,7 @@ import { layerAreas, orderPackages } from './layers.ts'
 import {
   compare,
   compareEdges,
+  type Config,
   type Graph,
   type Incoming,
   type Model,
@@ -19,14 +20,14 @@ import {
 } from './model.ts'
 import { kindOf, languageOf } from './source-file.ts'
 
-function nodesOf(model: Model, paths: readonly RepoPath[]): Graph['modules'] {
-  const placements = areasOf(model)
+function nodesOf(model: Model, config: Config, paths: readonly RepoPath[]): Graph['modules'] {
+  const placements = areasOf(model, config)
   return new Map(
     paths.map((path): [RepoPath, ModuleNode] => {
       const language = languageOf(path)
       if (language === undefined) throw new Error(`${path} is no module`)
       const facts = model.modules[path]
-      return [path, { facts, ...placements.get(path)!, kind: kindOf(path), language }]
+      return [path, { facts, ...placements.get(path)!, kind: kindOf(path, config), language }]
     })
   )
 }
@@ -71,9 +72,9 @@ function symbolIndex(modules: Graph['modules']): Graph['symbols'] {
   )
 }
 
-export function graphOf(model: Model): Graph {
+export function graphOf(model: Model, config: Config): Graph {
   const paths = (Object.keys(model.modules) as RepoPath[]).sort(compare)
-  const modules = nodesOf(model, paths)
+  const modules = nodesOf(model, config, paths)
   const { areas, areaCycles } = layerAreas(modules)
   return {
     repository: model.repository,

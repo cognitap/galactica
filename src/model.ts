@@ -151,12 +151,26 @@ export function removeModule(model: Model, path: RepoPath): Model {
   return { ...model, modules: sortedModules(entries as [RepoPath, ModuleFacts][]) }
 }
 
-/** The overrides from `galactica.config.json`, parsed at the boundary. Every field is optional. */
+/** The overrides from `galactica.config.json`, parsed once per run by `loadConfig`. */
 export interface Config {
-  /** Glob to area name, for grouping that does not follow folders. */
-  readonly areas?: Readonly<Record<string, string>>
-  readonly kinds?: Readonly<Partial<Record<ModuleKind, readonly string[]>>>
+  /** A module is kept when it matches one of these globs. Absent keeps every module. */
+  readonly include?: readonly string[]
+  /** A module matching one of these globs is left out. */
+  readonly exclude: readonly string[]
+  /** Globs for each kind. A module they match takes that kind before the rules of `kindOf`. */
+  readonly kinds: Readonly<Partial<Record<ModuleKind, readonly string[]>>>
+  /** In file order, since the first glob a module matches decides its area. */
+  readonly areas: readonly AreaRule[]
+  /** The link template for `html`, or "none". */
+  readonly sourceUrl?: string
 }
+
+export interface AreaRule {
+  readonly glob: string
+  readonly area: AreaPath
+}
+
+export const emptyConfig: Config = { exclude: [], kinds: {}, areas: [] }
 
 /** A module joined with everything derived about it. */
 export interface ModuleNode {
