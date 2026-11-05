@@ -267,6 +267,64 @@ test('without rootDir, build output maps back to the config directory', t => {
   )
 })
 
+test('a build config that owns no module maps its outDir back to source', t => {
+  const root = repository(t, {
+    'package.json': {
+      name: '@acme/lib',
+      exports: {
+        '.': { types: './dist/library/index.d.ts', default: './dist/library/index.js' },
+        './motion': {
+          types: './dist/library/motion/index.d.ts',
+          default: './dist/library/motion/index.js'
+        },
+        './gone': './dist/library/gone.js'
+      }
+    },
+    'tsconfig.json': { compilerOptions: { noEmit: true }, include: ['src', 'tests'] },
+    'tsconfig.build.json': {
+      extends: './tsconfig.json',
+      compilerOptions: { noEmit: false, outDir: './dist/library', rootDir: './src' },
+      include: ['src']
+    },
+    'src/index.ts': '',
+    'src/motion/index.ts': '',
+    'tests/package.test.ts': ''
+  })
+  const discovery = discover(root)
+  assert.deepEqual(
+    new Set(discovery.modules.map(module => module.config)),
+    new Set(['tsconfig.json'])
+  )
+  const resolver = workspaceResolver(discovery)
+  assert.deepEqual(
+    ['@acme/lib', '@acme/lib/motion', '@acme/lib/gone'].map(specifier =>
+      resolver.resolve(specifier)
+    ),
+    [
+      { kind: 'module', path: 'src/index.ts' },
+      { kind: 'module', path: 'src/motion/index.ts' },
+      { kind: 'unresolved', reason: 'build-output' }
+    ]
+  )
+})
+
+test('of builds whose outDirs both hold a target, the first that reaches a module wins', t => {
+  assert.deepEqual(
+    resolutions(
+      t,
+      { exports: { '.': './dist/library/index.js', './tool': './dist/scripts/tool.js' } },
+      {
+        'tsconfig.json': { compilerOptions: { outDir: 'dist', rootDir: '.' } },
+        'tsconfig.build.json': { compilerOptions: { outDir: 'dist/library', rootDir: 'src' } },
+        'src/index.ts': '',
+        'scripts/tool.ts': ''
+      },
+      ['pkg', 'pkg/tool']
+    ),
+    { pkg: 'packages/pkg/src/index.ts', 'pkg/tool': 'packages/pkg/scripts/tool.ts' }
+  )
+})
+
 test('a target that reaches no module is missing', t => {
   assert.deepEqual(
     resolutions(

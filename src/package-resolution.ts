@@ -4,7 +4,7 @@
  * none, and from a build output path back to the source TypeScript compiled.
  */
 
-import { dirname, isAbsolute, join, posix, relative, sep } from 'node:path'
+import { isAbsolute, join, posix, relative, sep } from 'node:path'
 import type { Discovery } from './discovery.ts'
 import type { Warning } from './compiler-settings.ts'
 import { parseRepoPath, toRepoPath, type PackageName, type RepoPath } from './model.ts'
@@ -130,11 +130,6 @@ function exportsEntry(
   return best && { target: map[best.key], star: best.star }
 }
 
-interface Build {
-  readonly outDir: string
-  readonly rootDir: string
-}
-
 function isInside(dir: string, path: string): boolean {
   const rel = relative(dir, path)
   return !isAbsolute(rel) && rel !== '..' && !rel.startsWith(`..${sep}`)
@@ -156,11 +151,6 @@ export function splitSpecifier(
  */
 export function workspaceResolver(discovery: Discovery): WorkspaceResolver {
   const modules: ReadonlySet<string> = new Set(discovery.modules.map(module => module.path))
-  const builds: readonly Build[] = [...discovery.configs.values()].flatMap(({ options }) => {
-    const { outDir, configFilePath } = options
-    if (!outDir || typeof configFilePath !== 'string') return []
-    return [{ outDir, rootDir: options.rootDir ?? dirname(configFilePath) }]
-  })
   const manifests = new Map(
     Object.entries(discovery.packages).flatMap(([name, { dir }]) => {
       const path = parseRepoPath(`${dir}/package.json`)
@@ -177,14 +167,18 @@ export function workspaceResolver(discovery: Discovery): WorkspaceResolver {
   const asModule = (path: string): RepoPath | undefined =>
     candidates(path).find(candidate => modules.has(candidate)) as RepoPath | undefined
 
+  /** A path can lie under the outDirs of several configs, so the first whose source is a module wins. */
   function fromBuild(path: string): WorkspaceResolution {
     const absolute = join(discovery.root, path)
-    const build = builds.find(({ outDir }) => isInside(outDir, absolute))
-    if (!build) return unresolved('missing')
-    const source = join(build.rootDir, relative(build.outDir, absolute))
-    if (!isInside(discovery.root, source)) return unresolved('build-output')
-    const found = asModule(toRepoPath(discovery.root, source))
-    return found ? { kind: 'module', path: found } : unresolved('build-output')
+    const matching = discovery.builds.filter(({ outDir }) => isInside(outDir, absolute))
+    if (matching.length === 0) return unresolved('missing')
+    for (const { outDir, rootDir } of matching) {
+      const source = join(rootDir, relative(outDir, absolute))
+      if (!isInside(discovery.root, source)) continue
+      const found = asModule(toRepoPath(discovery.root, source))
+      if (found) return { kind: 'module', path: found }
+    }
+    return unresolved('build-output')
   }
 
   function locateIn(dir: RepoPath) {

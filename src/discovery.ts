@@ -3,11 +3,16 @@
  * run before any file is parsed.
  */
 
-import { basename, join, resolve } from 'node:path'
+import { basename, dirname, join, resolve } from 'node:path'
 import type ts from 'typescript'
-import { compilerSettings, defaultCompilerOptions, type Warning } from './compiler-settings.ts'
+import {
+  compilerSettings,
+  defaultCompilerOptions,
+  type Build,
+  type Warning
+} from './compiler-settings.ts'
 import type { Language, ModuleKind } from './contract.ts'
-import { parseRepoPath, type Model, type PackageName, type RepoPath } from './model.ts'
+import { parseRepoPath, toRepoPath, type Model, type PackageName, type RepoPath } from './model.ts'
 import { repositoryFiles } from './repository-files.ts'
 import { kindOf, languageOf } from './source-file.ts'
 import { nameOf, packageOf, readJson, workspacePackages, workspacePatterns } from './workspace.ts'
@@ -36,6 +41,11 @@ export interface Discovery {
   readonly modules: readonly DiscoveredModule[]
   /** Every config a module uses, by path. */
   readonly configs: ReadonlyMap<RepoPath, ts.ParsedCommandLine>
+  /**
+   * The builds of every config read, the `tsconfig*.json` files in each package
+   * directory included, as a package's build config often owns no module.
+   */
+  readonly builds: readonly Build[]
   /** Sorted by path, then message. */
   readonly warnings: readonly Warning[]
 }
@@ -55,12 +65,20 @@ export function discover(rootDir: string): Discovery {
     return [{ path, language, kind: kindOf(path), config: config?.path ?? null }]
   })
 
-  const outDirs = settings.configs().flatMap(({ outDir }) => (outDir ? [outDir] : []))
-  const warnings = [...settings.warnings()]
+  const warnings: Warning[] = []
   const manifest = readJson(root, parseRepoPath('package.json'), warnings)
   const name = nameOf(manifest) ?? (basename(root) as PackageName)
   const patterns = workspacePatterns(root, manifest, warnings)
   const members = patterns ? workspacePackages(root, files, patterns, warnings) : []
+  const packageDirs = new Set<string>(['.', ...members.map(member => member.dir)])
+  for (const path of files) {
+    if (/^tsconfig.*\.json$/.test(basename(path)) && packageDirs.has(dirname(path))) {
+      settings.configAt(join(root, path))
+    }
+  }
+  const builds = settings.configs().flatMap(({ build }) => (build ? [build] : []))
+  const outDirs = builds.map(({ outDir }) => toRepoPath(root, outDir))
+  warnings.push(...settings.warnings())
   const memberDirs: Model['packages'] = Object.fromEntries(
     members.map(member => [member.name, { dir: member.dir }])
   )
@@ -89,6 +107,7 @@ export function discover(rootDir: string): Discovery {
         .filter(({ path }) => used.has(path))
         .map(({ path, parsed }) => [path, parsed])
     ),
+    builds,
     warnings: warnings.sort((a, b) => compare(a.path, b.path) || compare(a.message, b.message))
   }
 }
