@@ -233,7 +233,8 @@ test('html --out writes the page and prints its path and size', t => {
   const first = galactica(plain, 'html', '--out', out)
   assert.equal(first.status, 0)
   assert.equal(first.stderr, '')
-  assert.match(first.stdout, new RegExp(`^wrote ${out.replaceAll('.', '\\.')} \\(\\d+ KB\\)\\n$`))
+  const shown = relative(plain, out).replaceAll('.', '\\.')
+  assert.match(first.stdout, new RegExp(`^wrote ${shown} \\(\\d+ KB\\)\\n$`))
   const page = readFileSync(out, 'utf8')
   assert.match(page, /^<!doctype html>/)
   assert.match(page, /"repository":"plain-relative"/)
@@ -242,11 +243,15 @@ test('html --out writes the page and prints its path and size', t => {
   assert.equal(readFileSync(out, 'utf8'), page)
 })
 
-test('html writes galactica.html in the current directory by default', t => {
-  const cwd = repository(t, {})
-  const { status } = galactica(cwd, 'html', '--root', plain)
-  assert.equal(status, 0)
-  assert.ok(existsSync(join(cwd, 'galactica.html')))
+test('html writes galactica.html in the current directory by default, and names it from there', t => {
+  const outputs = [repository(t, {}), repository(t, {})].map(cwd => {
+    const { status, stdout } = galactica(cwd, 'html', '--root', plain)
+    assert.equal(status, 0)
+    assert.ok(existsSync(join(cwd, 'galactica.html')))
+    return stdout
+  })
+  assert.match(outputs[0]!, /^wrote galactica\.html \(\d+ KB\)\n$/)
+  assert.equal(outputs[1], outputs[0])
 })
 
 test('html takes no argument and no flag of another command, and other commands take no html flag', () => {

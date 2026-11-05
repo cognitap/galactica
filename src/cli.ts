@@ -260,7 +260,8 @@ async function html(argv: readonly string[], cwd: string): Promise<Result> {
   }
   if (values.open) openInBrowser(out)
   const size = Math.round(Buffer.byteLength(page) / 1024)
-  return { code: 0, stdout: `wrote ${out} (${size.toLocaleString('en')} KB)`, stderr: '' }
+  const shown = relative(cwd, out)
+  return { code: 0, stdout: `wrote ${shown} (${size.toLocaleString('en')} KB)`, stderr: '' }
 }
 
 /**
