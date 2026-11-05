@@ -79,6 +79,7 @@ const cache: Cache = new Map([
   ]
 ])
 
+const { version } = JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8'))
 const cacheText = (directory: string) => readFileSync(join(directory, 'cache.json'), 'utf8')
 
 test('the cache lives under node_modules/.cache/galactica when the root has node_modules', t => {
@@ -189,7 +190,7 @@ test('a cache that cannot be written is skipped without an error, and leaves not
 
 test('the current stamp names this Galactica and TypeScript', () => {
   const { galactica, build, typescript } = currentStamp()
-  assert.equal(galactica, '0.0.0')
+  assert.equal(galactica, version)
   assert.match(build, /^[0-9a-f]{64}$/)
   assert.match(typescript, /^\d+\.\d+\.\d+/)
 })

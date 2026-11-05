@@ -11,6 +11,7 @@ import { git, gitRepository, repository } from './temp-repository.ts'
 
 const cli = new URL('../dist/bin.js', import.meta.url).pathname
 const program = new URL('../dist/cli.js', import.meta.url).pathname
+const { version } = JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8'))
 
 /** A home of its own, so a repository without node_modules keeps its cache out of the user's. */
 const home = mkdtempSync(join(tmpdir(), 'galactica-home-'))
@@ -90,7 +91,7 @@ test('prints usage with --help, listing every command', () => {
 })
 
 test('prints the package version with --version', () => {
-  assert.equal(galactica(plain, '--version').stdout.trim(), '0.0.0')
+  assert.equal(galactica(plain, '--version').stdout.trim(), version)
 })
 
 test('a command prints text by default and its JSON object with --json', () => {
@@ -380,7 +381,7 @@ test('init installs the skill with the given command, and a second run changes n
   const files = skillPaths.map(path => readFileSync(join(root, path), 'utf8'))
   assert.equal(files[0], files[1])
   assert.match(files[0]!, /^name: galactica$/m)
-  assert.match(files[0]!, /^ {2}galactica-version: "0\.0\.0"$/m)
+  assert.ok(files[0]!.includes(`\n  galactica-version: "${version}"\n`))
   assert.match(files[0]!, /`node \/opt\/galactica\/dist\/cli\.js uses <file>`/)
   assert.deepEqual(readdirSync(root, { recursive: true }).toSorted(), [
     '.agents',
