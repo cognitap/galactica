@@ -302,14 +302,14 @@ test('html --source-url without {path}, or not on http(s), fails and writes no p
 test('commands take kinds and areas from galactica.config.json', t => {
   const root = repository(t, {
     'package.json': { name: 'acme' },
-    'galactica.config.json': validConfigs.storybookAndComponents,
-    '.storybook/examples/KbdExamples.tsx': '',
+    'galactica.config.json': validConfigs.themeAndComponents,
+    'docs/.vitepress/theme/index.ts': '',
     'src/components/Kbd/Kbd.tsx': 'export const Kbd = 1',
     'src/components/Kbd/Kbd.stories.tsx': ''
   })
   assert.match(
-    galactica(root, 'outline', '.storybook/examples/KbdExamples.tsx').stdout,
-    /^\.storybook\/examples\/KbdExamples\.tsx \(story, area \.storybook\/examples, package acme\)/
+    galactica(root, 'outline', 'docs/.vitepress/theme/index.ts').stdout,
+    /^docs\/\.vitepress\/theme\/index\.ts \(source, area docs\/\.vitepress\/theme, package acme\)/
   )
   assert.match(
     galactica(root, 'outline', 'src/components/Kbd/Kbd.tsx').stdout,

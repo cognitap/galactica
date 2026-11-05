@@ -1,11 +1,19 @@
 {
   "kinds": {
+    ".storybook/examples/PriceExamples.tsx": "story",
+    ".storybook/main.ts": "config",
     "src/lib/format.test.ts": "test",
     "src/lib/format.ts": "source",
     "src/ui/Price.stories.tsx": "story",
     "src/ui/Price.tsx": "source"
   },
   "areas": [
+    {
+      "path": ".storybook",
+      "package": "tests-and-stories",
+      "layer": 0,
+      "modules": [".storybook/examples/PriceExamples.tsx", ".storybook/main.ts"]
+    },
     {
       "path": "src/lib",
       "package": "tests-and-stories",

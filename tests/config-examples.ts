@@ -13,11 +13,11 @@ export const validConfigs = {
     $schema: './node_modules/@cognitap/galactica/schema/galactica.config.schema.json',
     include: ['src/**', 'scripts/**'],
     exclude: ['src/generated/**'],
-    kinds: { story: ['.storybook/examples/**'] },
+    kinds: { source: ['docs/.vitepress/theme/**'] },
     areas: { 'src/components/**': 'src/components' },
     sourceUrl: gitlab
   },
-  storybookExamples: { kinds: { story: ['.storybook/examples/**'] } },
+  vitepressTheme: { kinds: { source: ['docs/.vitepress/theme/**'] } },
   selection: { include: ['src/**', 'scripts/**'], exclude: ['src/generated/**'] },
   everything: { include: ['**'] },
   warmChange: {
@@ -34,8 +34,8 @@ export const validConfigs = {
   areaOutsidePackage: { areas: { 'packages/ui/**': 'src' } },
   areaInNestedPackage: { areas: { 'scripts/**': 'packages/ui' } },
   layeredAreas: { areas: { 'src/lib/**': 'src/core' } },
-  storybookAndComponents: {
-    kinds: { story: ['.storybook/examples/**'] },
+  themeAndComponents: {
+    kinds: { source: ['docs/.vitepress/theme/**'] },
     areas: { 'src/components/**': 'src/components' }
   },
   kindClash: { kinds: { story: ['**/*.example.tsx'], test: ['src/**'] } },
