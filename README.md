@@ -21,7 +21,7 @@ Galactica is experimental while its version is `0.x`: a minor version can change
 
 ## Usage
 
-Run each command from the repository you want to map, or pass that repository with `--root`. The first command in a repository analyzes every file and keeps what each file gives on its own in a cache. A later command parses only the files that changed since. On Radiant, about 500 modules, the first command takes about 0.8 seconds and a later one about 0.3 seconds.
+Run each command from the repository you want to map, or pass that repository with `--root`. The first command in a repository analyzes every file and keeps what each file gives on its own in a cache. A later command parses only the files that changed since. On Radiant, about 500 modules, the first command takes about 0.8 seconds and a later one about 0.1 seconds.
 
 The examples below write `galactica` for `npx @cognitap/galactica`.
 
@@ -55,7 +55,7 @@ These options apply across commands:
 
 ```text
 $ galactica uses src/components/Kbd/Kbd.tsx
-src/components/Kbd/Kbd.tsx (module): 7 dependents within depth 1, 6 tests
+src/components/Kbd/Kbd.tsx (module): 7 dependents within depth 1, 21 tests
 1  .storybook/examples/CommandExamples.tsx  Kbd, KbdGroup
 1  .storybook/examples/InputGroupExamples.tsx  Kbd, KbdGroup
 1  .storybook/examples/KbdExamples.tsx  Kbd, KbdGroup, KbdProps
@@ -66,9 +66,24 @@ src/components/Kbd/Kbd.tsx (module): 7 dependents within depth 1, 6 tests
 tests:
 1  tests/browser/InputGroup.test.tsx  Kbd
 1  tests/browser/Kbd.test.tsx  Kbd, KbdGroup
+1  tests/package/input-group.test.ts  Kbd, KbdGroup
+1  tests/package/kbd-types.tsx  Kbd, KbdGroup, KbdGroupProps, KbdProps
+1  tests/package/kbd.test.ts  Kbd, KbdGroup
 2  tests/browser/Command.test.tsx
 2  tests/browser/DataSlot.test.tsx
 2  tests/browser/DisclosureTriggerState.test.tsx
+2  tests/package/charts.test.ts
+2  tests/package/command-types.tsx
+2  tests/package/command.test.ts
+2  tests/package/context-menu.test.ts
+2  tests/package/empty-state.test.ts
+2  tests/package/menu-features.test.ts
+2  tests/package/menubar.test.ts
+2  tests/package/multi-select-tags-input.test.ts
+2  tests/package/otp-field.test.ts
+2  tests/package/package.test.ts
+2  tests/package/theme-definition.test.ts
+2  tests/package/types.tsx
 3  tests/browser/EmptyState.test.tsx
 ```
 
@@ -160,6 +175,8 @@ A change to the config needs no cache action. The cache holds only what each fil
 - JavaScript and TypeScript, including JSX and CommonJS.
 - Vue, Svelte and Astro files. Each one exports its component, named after the file. Galactica reads the imports and exports of a Vue file's `<script>` and `<script setup>`, and of a Svelte file's instance and module scripts, with Galactica's own `vue/compiler-sfc` and `svelte/compiler`, which it installs as optional dependencies. It reads Vue 2 components and Svelte 4 syntax too, since it reads only the script blocks. Only `<script>` and a Svelte module script can export. A file whose compiler is missing, because Galactica was installed with `--omit=optional`, or fails on it, keeps its component and has no imports. Galactica reads an Astro file's frontmatter as text, with no compiler, and not the `<script>` tags in its body.
 - Monorepos, with each workspace package as the top level of the map.
+
+Nuxt and SvelteKit generate the tsconfig files that a project's own `tsconfig.json` extends, `.nuxt/tsconfig*.json` and `.svelte-kit/tsconfig.json`, and git ignores them. Until `nuxi prepare` or `svelte-kit sync` has run in the clone, Galactica cannot read the aliases those files declare, such as Nuxt's `#imports` or SvelteKit's `$lib`, so imports through them reach no module, and `overview` counts a warning for each config it cannot read. On elk, a Nuxt app, 40 imports stay unresolved. Nuxt also imports components and composables with no import statement, so those dependencies have no edge, and 51 of elk's 61 root areas sit in layer 0. Galactica runs neither command, since both run code from the repository. Run it yourself first when you trust that code.
 
 Galactica never runs code from the repository it maps, so it is safe to run on a repository you just cloned or downloaded. It loads no module from the repository's `node_modules`. It runs git with `core.fsmonitor`, optional index writes and the filter drivers of the repository's own config turned off, so a `.git` folder that came with a download cannot make git run a program.
 
