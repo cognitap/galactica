@@ -41,3 +41,47 @@ jobs:
 
       - name: Format, lint, typecheck and test
         run: pnpm check
+
+  bench:
+    name: Benchmark
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Set up pinned pnpm
+        uses: pnpm/action-setup@v6.1.0
+        with:
+          run_install: false
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v7.0.0
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+          cache-dependency-path: pnpm-lock.yaml
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Generate a synthetic repository of 3,000 modules
+        run: node scripts/synthetic-repo.ts "$RUNNER_TEMP/synthetic" --modules 3000
+
+      - name: Benchmark against the speed targets
+        # Reports the numbers without failing the job until the warm target is met.
+        continue-on-error: true
+        shell: bash
+        run: pnpm --silent bench "$RUNNER_TEMP/synthetic" --check | tee "$RUNNER_TEMP/bench.txt"
+
+      - name: Write the results to the job summary
+        if: always()
+        shell: bash
+        run: |
+          {
+            echo '```text'
+            cat "$RUNNER_TEMP/bench.txt"
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"

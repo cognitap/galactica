@@ -27,6 +27,7 @@
     "build": "rimraf dist && tsc -p tsconfig.build.json && node --input-type=module -e \"import { cpSync } from 'node:fs'; cpSync('src/page', 'dist/page', { recursive: true })\"",
     "typecheck": "tsc --noEmit",
     "test": "pnpm build && node --test tests/*.test.ts",
+    "bench": "pnpm --silent build && node scripts/bench.ts",
     "fixtures:update": "node tests/update-fixtures.ts",
     "lint": "oxlint --deny-warnings",
     "format": "oxfmt",

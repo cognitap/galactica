@@ -143,3 +143,23 @@ A change to the config needs no cache action. The cache holds only what each fil
 - JavaScript and TypeScript, including JSX and CommonJS.
 - Vue, Svelte and Astro files. Each one exports its component, named after the file. Galactica reads the imports and exports of a Vue file's `<script>` and `<script setup>`, and of a Svelte file's instance and module scripts, with the compiler the repository already installs: `vue/compiler-sfc` or `svelte/compiler`, from the package that has the file, or else from the repository root. Only `<script>` and a Svelte module script can export. A file whose compiler is missing, or fails on it, keeps its component and has no imports. Galactica reads an Astro file's frontmatter as text, with no compiler, and not the `<script>` tags in its body.
 - Monorepos, with each workspace package as the top level of the map.
+
+## Performance
+
+The targets are a first run under 10 seconds on a repository of about 3,000 modules, and any command with a warm cache under half a second. `pnpm bench` measures both:
+
+```sh
+node scripts/synthetic-repo.ts /tmp/synthetic --modules 3000
+pnpm bench /tmp/synthetic
+```
+
+It runs the built CLI as a child process for `overview` and for `uses` of the source module with the most importers, first with the cache deleted and then with the cache warm. It prints the median and range of 5 runs, and the time of each phase. `--runs` sets the number of runs, `--uses` the module, `--json` prints the result as JSON, and `--check` exits with code 1 when a median misses its target. `scripts/synthetic-repo.ts` writes a pnpm workspace shaped like Radiant, and the same options always give the same files. The Benchmark job in CI runs `pnpm bench --check` on 3,000 synthetic modules and writes the table to the job summary.
+
+On an Apple M1 Pro with Node.js 26, a first run meets its target and a warm run does not yet. These are the medians of `overview` over two sets of 5 runs, and `uses` is within 0.2 seconds of them:
+
+| Repository                                              | Modules | First run    | Warm   |
+| ------------------------------------------------------- | ------- | ------------ | ------ |
+| Synthetic, `--modules 3000`                             | 3,000   | 2.4 s        | 0.87 s |
+| [tldraw](https://github.com/tldraw/tldraw) at `27b47cb` | 2,932   | 3.6 to 3.8 s | 1.6 s  |
+
+A first run here starts with the files already in the operating system's file cache. A warm run spends most of its time in discovery, which parses every `tsconfig.json`, and in import resolution. Both run on every command.
