@@ -1,7 +1,8 @@
 /**
  * Where an import specifier leads from a module: a module of the repository,
- * an external package, or nowhere. Workspace packages resolve to their source
- * first, and TypeScript's own module resolution decides the rest.
+ * an external package, or nowhere. A `paths` alias wins, as it does for
+ * TypeScript. Workspace packages resolve to their source next, and
+ * TypeScript's own module resolution decides the rest.
  */
 
 import { isBuiltin } from 'node:module'
@@ -166,12 +167,13 @@ export function importResolver(
       return ts.getImpliedNodeFormatForFile(join(root, module.path), packageJsons, host, options)
     },
     resolve(module, specifier, mode) {
-      const member = workspace.resolve(specifier)
+      const options = compilerOptionsOf(discovery, module)
+      const aliased = options.paths !== undefined && pathsMatch(options.paths, specifier)
+      const member = aliased ? undefined : workspace.resolve(specifier)
       if (member) return member.kind === 'module' ? member : { kind: 'unresolved', specifier }
       if (isBuiltin(specifier)) {
         return { kind: 'external', name: `node:${specifier.replace(/^node:/, '').split('/')[0]}` }
       }
-      const options = compilerOptionsOf(discovery, module)
       const { resolvedModule } = ts.resolveModuleName(
         specifier,
         join(root, module.path),

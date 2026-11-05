@@ -1,0 +1,9 @@
+{
+  "name": "@acme/tool",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./dist/index.js",
+    "./runner": "./dist/runner.js"
+  }
+}

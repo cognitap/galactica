@@ -32,6 +32,7 @@ const cases = [
   'react-components',
   'tests-and-stories',
   'package-self-reference',
+  'paths-over-package',
   'commonjs',
   'monorepo',
   'vue',
