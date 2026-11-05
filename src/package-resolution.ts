@@ -32,8 +32,20 @@ const reasons: Readonly<Record<UnresolvedReason, string>> = {
   'build-output': 'the target is build output with no source module'
 }
 
-/** Most preferred first, whatever order a package.json lists them in. */
-const conditions = ['source', 'types', 'import', 'module', 'require', 'node', 'default'] as const
+/**
+ * Most preferred first, whatever order a package.json lists them in. Any other
+ * condition, such as a repository's own condition for its source, comes after
+ * these in the order listed.
+ */
+const conditions: readonly string[] = [
+  'source',
+  'types',
+  'import',
+  'module',
+  'require',
+  'node',
+  'default'
+]
 
 /** The package.json fields that name the entry point of a package without `exports`. */
 const entryFields = ['types', 'typings', 'module', 'main'] as const
@@ -101,9 +113,10 @@ function resolveTarget(
   const options: readonly unknown[] = Array.isArray(target)
     ? target
     : isRecord(target)
-      ? conditions
-          .filter(condition => Object.hasOwn(target, condition))
-          .map(condition => target[condition])
+      ? [
+          ...conditions.filter(condition => Object.hasOwn(target, condition)),
+          ...Object.keys(target).filter(condition => !conditions.includes(condition))
+        ].map(condition => target[condition])
       : []
   return firstModule(options, option => resolveTarget(option, star, locate))
 }

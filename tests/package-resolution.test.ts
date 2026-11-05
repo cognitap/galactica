@@ -89,23 +89,32 @@ test('a subpath map resolves each subpath, scoped names included', t => {
   })
 })
 
-test('conditions resolve in the order source, types, import, module, require, node, default', t => {
+test('conditions resolve in the order source, types, import, module, require, node, default, then as listed', t => {
   const exports = {
     './a': { default: './dist/a.js', require: './src/a.cts', source: './src/a.ts' },
     './b': { default: './src/other.ts', node: { require: './src/b.cts', import: './src/b.ts' } },
-    './c': { browser: './src/browser.ts' }
+    './c': { browser: './src/browser.ts', '@acme/source': './src/c.ts' },
+    './d': { '@acme/source': './src/a.cts', default: './src/other.ts' }
   }
   assert.deepEqual(
     resolutions(
       t,
       { exports },
-      { 'src/a.ts': '', 'src/a.cts': '', 'src/b.ts': '', 'src/b.cts': '', 'src/other.ts': '' },
-      ['pkg/a', 'pkg/b', 'pkg/c']
+      {
+        'src/a.ts': '',
+        'src/a.cts': '',
+        'src/b.ts': '',
+        'src/b.cts': '',
+        'src/c.ts': '',
+        'src/other.ts': ''
+      },
+      ['pkg/a', 'pkg/b', 'pkg/c', 'pkg/d']
     ),
     {
       'pkg/a': 'packages/pkg/src/a.ts',
       'pkg/b': 'packages/pkg/src/b.ts',
-      'pkg/c': 'unresolved: no-export'
+      'pkg/c': 'packages/pkg/src/c.ts',
+      'pkg/d': 'packages/pkg/src/other.ts'
     }
   )
 })
