@@ -9,11 +9,10 @@
 import { readFileSync } from 'node:fs'
 import { createRequire } from 'node:module'
 import { join } from 'node:path'
-import ts from 'typescript'
 import type { Warning } from './compiler-settings.ts'
 import type { Language } from './contract.ts'
 import { parseRepoPath, type RepoPath } from './model.ts'
-import { isScriptLanguage, type ScriptLanguage } from './syntax.ts'
+import { isScriptLanguage, type ScriptLanguage } from './source-file.ts'
 
 export type FrameworkLanguage = Exclude<Language, ScriptLanguage>
 
@@ -228,6 +227,3 @@ export function unreadWarnings(unread: readonly Unread[]): readonly Warning[] {
     return { path: parseRepoPath(`${dir}/package.json`), message: `${cause}; ${files} no imports` }
   })
 }
-
-/** A framework file compiles to an ES module, so its imports resolve as a TypeScript ES module's do. */
-export const frameworkScript = { language: 'ts', format: ts.ModuleKind.ESNext } as const

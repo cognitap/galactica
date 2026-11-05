@@ -153,13 +153,13 @@ node scripts/synthetic-repo.ts /tmp/synthetic --modules 3000
 pnpm bench /tmp/synthetic
 ```
 
-It runs the built CLI as a child process for `overview` and for `uses` of the source module with the most importers, first with the cache deleted and then with the cache warm. It prints the median and range of 5 runs, and the time of each phase. `--runs` sets the number of runs, `--uses` the module, `--json` prints the result as JSON, and `--check` exits with code 1 when a median misses its target. `scripts/synthetic-repo.ts` writes a pnpm workspace shaped like Radiant, and the same options always give the same files. The Benchmark job in CI runs `pnpm bench --check` on 3,000 synthetic modules and writes the table to the job summary.
+It runs the built CLI as a child process for `overview` and for `uses` of the source module with the most importers, first with the cache deleted and then with the cache warm. It prints the median and range of 5 runs, and the time of each phase. `--runs` sets the number of runs, `--uses` the module, `--json` prints the result as JSON, and `--check` exits with code 1 when a median misses its target. `scripts/synthetic-repo.ts` writes a pnpm workspace shaped like Radiant, and the same options always give the same files. The Benchmark job in CI runs `pnpm bench --check` on 3,000 synthetic modules, writes the table to the job summary and fails when a median misses its target.
 
-On an Apple M1 Pro with Node.js 26, a first run meets its target and a warm run does not yet. These are the medians of `overview` over two sets of 5 runs, and `uses` is within 0.2 seconds of them:
+On an Apple M1 Pro with Node.js 26, both targets hold. These are the medians of `overview` over 5 runs, and `uses` is within 0.1 seconds of them:
 
-| Repository                                              | Modules | First run    | Warm   |
-| ------------------------------------------------------- | ------- | ------------ | ------ |
-| Synthetic, `--modules 3000`                             | 3,000   | 2.4 s        | 0.87 s |
-| [tldraw](https://github.com/tldraw/tldraw) at `27b47cb` | 2,932   | 3.6 to 3.8 s | 1.6 s  |
+| Repository                                              | Modules | First run | Warm   |
+| ------------------------------------------------------- | ------- | --------- | ------ |
+| Synthetic, `--modules 3000`                             | 3,000   | 2.5 s     | 0.17 s |
+| [tldraw](https://github.com/tldraw/tldraw) at `27b47cb` | 2,932   | 3.2 s     | 0.20 s |
 
-A first run here starts with the files already in the operating system's file cache. A warm run spends most of its time in discovery, which parses every `tsconfig.json`, and in import resolution. Both run on every command.
+A first run here starts with the files already in the operating system's file cache, and spends most of its time parsing modules. A warm run answers from the cached model: it stats every file and directory the last full analysis depended on, compares git's file listing, and reuses the model when nothing changed, without loading TypeScript. Of its 0.2 seconds, Node.js startup takes about 30 ms, the checks and the model 60 to 90 ms, and the graph 40 to 60 ms. A command after a change runs the full analysis again, apart from the parse of unchanged modules, and discovery and import resolution dominate it.

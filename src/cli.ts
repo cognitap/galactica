@@ -3,7 +3,6 @@ import { spawn } from 'node:child_process'
 import { readFileSync, statSync, writeFileSync } from 'node:fs'
 import { join, relative, resolve } from 'node:path'
 import { parseArgs, type ParseArgsOptionsConfig } from 'node:util'
-import { analyzeRepository } from './analysis.ts'
 import { cacheDirectory } from './cache.ts'
 import { commandOptions, commandTable, type Input } from './commands.ts'
 import { ConfigError, loadConfig } from './config.ts'
@@ -12,6 +11,7 @@ import { pageSourceOf } from './git-source.ts'
 import { graphOf } from './graph.ts'
 import { htmlOf } from './html.ts'
 import { toRepoPath, type Config, type Graph, type RepoPath } from './model.ts'
+import { analyze } from './model-cache.ts'
 import { render } from './render.ts'
 import { templateProblem } from './source-links.ts'
 import { defaultCommand, installSkill, skillFile, skillTemplate } from './skill.ts'
@@ -133,14 +133,14 @@ function insideRoot(root: string, cwd: string): RepoPath | undefined {
 }
 
 /** The config and graph of the repository at `root`, or what is wrong with its config. */
-function analyzed(
+async function analyzed(
   root: string,
   noCache: boolean | undefined
-): { readonly config: Config; readonly graph: Graph } | { readonly problem: string } {
+): Promise<{ readonly config: Config; readonly graph: Graph } | { readonly problem: string }> {
   try {
     const config = loadConfig(root)
     const options = noCache ? {} : { cache: cacheDirectory(root) }
-    return { config, graph: graphOf(analyzeRepository(root, config, options).model, config) }
+    return { config, graph: graphOf((await analyze(root, config, options)).model, config) }
   } catch (error) {
     if (error instanceof ConfigError) return { problem: error.message }
     throw error
@@ -188,13 +188,13 @@ function inputOf(command: Command, argv: readonly string[], cwd: string) {
 }
 
 /** The command's output, or a usage failure for a problem with the config. */
-function answer(
+async function answer(
   command: Command,
   root: string,
   noCache: boolean | undefined,
   input: Input
-): Output | Failure {
-  const repository = analyzed(root, noCache)
+): Promise<Output | Failure> {
+  const repository = await analyzed(root, noCache)
   if ('problem' in repository) return usageFailure(command, repository.problem)
   return commandTable[command].run(repository.graph, input)
 }
@@ -240,14 +240,14 @@ function openInBrowser(path: string): void {
 }
 
 /** Writes the HTML page. It has no `--json` form, since its output is the file. */
-function html(argv: readonly string[], cwd: string): Result {
+async function html(argv: readonly string[], cwd: string): Promise<Result> {
   const input = writerInput('html', htmlFlags, argv, cwd)
   if ('code' in input) return input
   const { values, root } = input
   const flag = values['source-url']
   const problem = flag === undefined || flag === 'none' ? undefined : templateProblem(flag)
   if (problem !== undefined) return failure(`--source-url: ${problem}`)
-  const repository = analyzed(root, values['no-cache'])
+  const repository = await analyzed(root, values['no-cache'])
   if ('problem' in repository) return failure(repository.problem)
   const template = flag ?? repository.config.sourceUrl
   const out = resolve(cwd, values.out ?? 'galactica.html')
@@ -290,7 +290,7 @@ function init(argv: readonly string[], cwd: string): Result {
   return { code: allKept ? 1 : 0, stdout: lines.join('\n'), stderr: '' }
 }
 
-export function run(argv: readonly string[], cwd: string): Result {
+export async function run(argv: readonly string[], cwd: string): Promise<Result> {
   const { values, positionals } = parseArgs({
     args: [...argv],
     options,
@@ -309,7 +309,7 @@ export function run(argv: readonly string[], cwd: string): Result {
   const parsed = inputOf(name, argv, cwd)
   const json = 'error' in parsed ? argv.includes('--json') : parsed.json
   const output =
-    'error' in parsed ? parsed : answer(name, parsed.root, parsed.noCache, parsed.input)
+    'error' in parsed ? parsed : await answer(name, parsed.root, parsed.noCache, parsed.input)
   const failed = 'error' in output
   if (json) return { code: failed ? 1 : 0, stdout: JSON.stringify(output, null, 2), stderr: '' }
   return failed
@@ -318,7 +318,7 @@ export function run(argv: readonly string[], cwd: string): Result {
 }
 
 if (import.meta.main) {
-  const result = run(process.argv.slice(2), process.cwd())
+  const result = await run(process.argv.slice(2), process.cwd())
   if (result.stdout !== '') console.log(result.stdout)
   if (result.stderr !== '') console.error(result.stderr)
   process.exitCode = result.code

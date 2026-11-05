@@ -5,8 +5,10 @@
  */
 
 import { isAbsolute, join, posix, relative, sep } from 'node:path'
+import ts from 'typescript'
 import type { Discovery } from './discovery.ts'
 import type { Warning } from './compiler-settings.ts'
+import { plainInputs, type Inputs } from './inputs.ts'
 import { parseRepoPath, toRepoPath, type PackageName, type RepoPath } from './model.ts'
 import { nameOf, readJson } from './workspace.ts'
 
@@ -149,12 +151,15 @@ export function splitSpecifier(
  * TypeScript allow self-reference only then. Reads each package.json once,
  * when the resolver is made.
  */
-export function workspaceResolver(discovery: Discovery): WorkspaceResolver {
+export function workspaceResolver(
+  discovery: Discovery,
+  inputs: Inputs = plainInputs(discovery.root, ts.sys)
+): WorkspaceResolver {
   const modules: ReadonlySet<string> = new Set(discovery.modules.map(module => module.path))
   const manifests = new Map(
     Object.entries(discovery.packages).flatMap(([name, { dir }]) => {
       const path = parseRepoPath(`${dir}/package.json`)
-      const manifest = readJson(discovery.root, path, [])
+      const manifest = readJson(inputs, discovery.root, path, [])
       const reachable = dir !== '.' || (isRecord(manifest) && manifest.exports !== undefined)
       return reachable && nameOf(manifest) === name
         ? [[name as PackageName, { dir, path, manifest }] as const]

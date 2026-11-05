@@ -3,7 +3,8 @@ import { test } from 'node:test'
 import ts from 'typescript'
 import { importsOf, resolutionModeOf } from '../src/imports.ts'
 import { parseRepoPath } from '../src/model.ts'
-import { parseScript, type ScriptLanguage } from '../src/syntax.ts'
+import type { ScriptLanguage } from '../src/source-file.ts'
+import { parseScript } from '../src/syntax.ts'
 
 const parse = (lines: readonly string[], kind = ts.ScriptKind.TS) =>
   ts.createSourceFile('a.ts', lines.join('\n'), ts.ScriptTarget.Latest, true, kind)

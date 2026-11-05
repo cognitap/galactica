@@ -10,7 +10,8 @@ import { scriptBlocksOf, type FrameworkLanguage, type ScriptBlock } from './fram
 import { importsOf, type Import } from './imports.ts'
 import { compare, type RepoPath, type SymbolFacts } from './model.ts'
 import { symbolsOf } from './symbols.ts'
-import { isScriptLanguage, parseScript } from './syntax.ts'
+import { isScriptLanguage } from './source-file.ts'
+import { parseScript } from './syntax.ts'
 
 export interface Extraction {
   readonly symbols: readonly SymbolFacts[]

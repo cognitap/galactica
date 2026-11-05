@@ -10,22 +10,17 @@
  * every time.
  */
 
-import { readFileSync, statSync } from 'node:fs'
-import { join } from 'node:path'
+import { readFileSync } from 'node:fs'
+import { join, resolve } from 'node:path'
 import { performance } from 'node:perf_hooks'
-import type ts from 'typescript'
+import ts from 'typescript'
 import { resolveBarrels } from './barrels.ts'
 import { compilerOptionsOf, discover, type DiscoveredModule, type Warning } from './discovery.ts'
 import { currentStamp, readCache, writeCache, type Cache, type CacheEntry } from './cache.ts'
 import { extract, hashOf } from './extraction.ts'
-import {
-  compilerResolver,
-  frameworkScript,
-  unreadWarnings,
-  type Compiler,
-  type Unread
-} from './frameworks.ts'
+import { unreadWarnings, type Compiler, type Unread } from './frameworks.ts'
 import { importResolver, type ImportResolver } from './import-resolution.ts'
+import { plainInputs, type Inputs } from './inputs.ts'
 import { resolutionModeOf } from './imports.ts'
 import {
   compareEdges,
@@ -36,7 +31,7 @@ import {
   type ModuleFacts,
   type RepoPath
 } from './model.ts'
-import { isScriptLanguage } from './syntax.ts'
+import { isScriptLanguage } from './source-file.ts'
 
 /** What a caller reports about a run. It stays out of the `Model`. */
 export interface Summary {
@@ -53,6 +48,8 @@ export interface Summary {
   readonly modules: { readonly reused: number; readonly reread: number; readonly parsed: number }
   /** Wall time of each phase, in milliseconds. */
   readonly durations: {
+    /** The TypeScript import, when the run loaded it. */
+    readonly typescript: number
     readonly discovery: number
     readonly parse: number
     readonly resolution: number
@@ -70,6 +67,9 @@ function compare(a: string, b: string): number {
 }
 
 const extensionOf = (path: string) => /(\.d)?\.[^./]+$/.exec(path)?.[0] ?? '(none)'
+
+/** A framework file compiles to an ES module, so its imports resolve as a TypeScript ES module's do. */
+const frameworkScript = { language: 'ts', format: ts.ModuleKind.ESNext } as const
 
 type Clock = Record<keyof Summary['durations'], number>
 
@@ -121,10 +121,11 @@ function entryOf(
   { path, language }: DiscoveredModule,
   cached: CacheEntry | undefined,
   compiler: Compiler | undefined,
-  clock: Clock
+  clock: Clock,
+  inputs: Inputs
 ): readonly [CacheEntry, Source] {
   const file = join(root, path)
-  const { mtimeMs, size } = statSync(file)
+  const { mtimeMs, size } = inputs.stat(file)
   const old = cached?.compiler === compiler?.stamp ? cached : undefined
   if (old && old.mtimeMs === mtimeMs && old.size === size) return [old, 'reused']
   const bytes = readFileSync(file)
@@ -138,27 +139,35 @@ function entryOf(
 export interface Options {
   /** The folder of the cache. Without one, every module is parsed and nothing is written. */
   readonly cache?: string
+  /** What the analysis reads, recorded or not. The machine as it is by default. */
+  readonly inputs?: Inputs
 }
 
 /** The repository's model, with a summary of what the analysis could not resolve or map. */
 export function analyzeRepository(
   rootDir: string,
   config: Config,
-  { cache }: Options = {}
+  { cache, inputs = plainInputs(resolve(rootDir), ts.sys) }: Options = {}
 ): Analysis {
-  const clock: Clock = { discovery: 0, parse: 0, resolution: 0, barrels: 0 }
-  const discovery = timed(clock, 'discovery', () => discover(rootDir, config))
+  const clock: Clock = { typescript: 0, discovery: 0, parse: 0, resolution: 0, barrels: 0 }
+  const discovery = timed(clock, 'discovery', () => discover(rootDir, config, inputs))
   const store = cache === undefined ? undefined : { directory: cache, stamp: currentStamp() }
   const cached: Cache = store ? readCache(store.directory, store.stamp) : new Map()
   const counts: Record<Source, number> = { reused: 0, reread: 0, parsed: 0 }
   const entries = new Map<RepoPath, CacheEntry>()
-  const compilerOf = compilerResolver(discovery.root)
   const unread: Unread[] = []
   for (const module of discovery.modules) {
     const { path, language } = module
     const dir = discovery.packages[module.package]!.dir
-    const compiler = compilerOf(language, dir)
-    const [entry, source] = entryOf(discovery.root, module, cached.get(path), compiler, clock)
+    const compiler = inputs.compilerOf(language, dir)
+    const [entry, source] = entryOf(
+      discovery.root,
+      module,
+      cached.get(path),
+      compiler,
+      clock,
+      inputs
+    )
     entries.set(path, entry)
     counts[source]++
     const { failure } = entry
@@ -168,7 +177,7 @@ export function analyzeRepository(
   }
   const changed = counts.reread + counts.parsed > 0 || cached.size !== entries.size
   if (store && changed) writeCache(store.directory, store.stamp, entries)
-  const resolver = importResolver(discovery)
+  const resolver = importResolver(discovery, inputs)
   const analyzed = timed(clock, 'resolution', () =>
     discovery.modules.map(module =>
       resolveModule(

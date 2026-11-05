@@ -2,7 +2,8 @@ import assert from 'node:assert/strict'
 import { test } from 'node:test'
 import { parseRepoPath } from '../src/model.ts'
 import { symbolsOf } from '../src/symbols.ts'
-import { parseScript, type ScriptLanguage } from '../src/syntax.ts'
+import type { ScriptLanguage } from '../src/source-file.ts'
+import { parseScript } from '../src/syntax.ts'
 
 const symbols = (lines: readonly string[], language: ScriptLanguage = 'ts') =>
   symbolsOf(parseScript(parseRepoPath(`src/a.${language}`), language, lines.join('\n')))

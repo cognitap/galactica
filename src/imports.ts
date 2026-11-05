@@ -6,7 +6,8 @@
 
 import ts from 'typescript'
 import { parseRepoPath, type Edge } from './model.ts'
-import { parseScript, type ScriptLanguage } from './syntax.ts'
+import type { ScriptLanguage } from './source-file.ts'
+import { parseScript } from './syntax.ts'
 
 /** How an import is written, which TypeScript reads its resolution mode from. */
 export type ImportSyntax = 'declaration' | 'import-equals' | 'require' | 'import-call'

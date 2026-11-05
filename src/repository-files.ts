@@ -8,6 +8,7 @@
 import { spawnSync } from 'node:child_process'
 import { existsSync, readdirSync, realpathSync } from 'node:fs'
 import { join, relative } from 'node:path'
+import type { Inputs } from './inputs.ts'
 import { parseRepoPath, type RepoPath } from './model.ts'
 
 /** Build output and installed packages. Skipped at any depth, even when git tracks them. */
@@ -79,31 +80,42 @@ function listedByGit(root: string): boolean {
   return inside === '' || git(root, ['check-ignore', '--quiet', '.']).status === 1
 }
 
-function gitFiles(root: string): readonly string[] | undefined {
+/** What `git ls-files` prints for `root`, NUL-separated, or undefined when git does not list it. */
+export function gitListing(root: string): string | undefined {
   if (!listedByGit(root)) return undefined
   const result = git(root, ['ls-files', '-z', '--cached', '--others', '--exclude-standard'])
-  if (result.status !== 0) return undefined
+  return result.status === 0 ? result.stdout : undefined
+}
+
+function gitFiles(root: string, listing: string): readonly string[] {
   // --cached lists files deleted from the work tree until the deletion is staged.
-  return [...new Set(result.stdout.split('\0'))].filter(
+  return [...new Set(listing.split('\0'))].filter(
     path => path !== '' && existsSync(join(root, path))
   )
 }
 
-function walkedFiles(root: string, dir = ''): readonly string[] {
-  return readdirSync(join(root, dir), { withFileTypes: true }).flatMap(entry => {
+type Listing = Pick<Inputs, 'gitListing' | 'readdir'>
+
+function walkedFiles(root: string, listing: Listing, dir = ''): readonly string[] {
+  return listing.readdir(join(root, dir)).flatMap(entry => {
     const path = dir === '' ? entry.name : `${dir}/${entry.name}`
     if (entry.isDirectory()) {
       return entry.name === '.git' || skippedDirectories.has(entry.name)
         ? []
-        : walkedFiles(root, path)
+        : walkedFiles(root, listing, path)
     }
     return entry.isFile() ? [path] : []
   })
 }
 
+const fromDisk: Listing = {
+  gitListing,
+  readdir: path => readdirSync(path, { withFileTypes: true })
+}
+
 /** Every file under `root` outside the skipped directories, unsorted. */
-export function repositoryFiles(root: string): readonly RepoPath[] {
-  return (gitFiles(root) ?? walkedFiles(root))
-    .filter(path => !inSkippedDirectory(path))
-    .map(parseRepoPath)
+export function repositoryFiles(root: string, listing: Listing = fromDisk): readonly RepoPath[] {
+  const listed = listing.gitListing(root)
+  const files = listed === undefined ? walkedFiles(root, listing) : gitFiles(root, listed)
+  return files.filter(path => !inSkippedDirectory(path)).map(parseRepoPath)
 }

@@ -4,11 +4,8 @@
  */
 
 import ts from 'typescript'
-import type { Language } from './contract.ts'
 import type { RepoPath } from './model.ts'
-
-/** The languages TypeScript parses directly. Framework files need their own compiler. */
-export type ScriptLanguage = Exclude<Language, 'vue' | 'svelte' | 'astro'>
+import type { ScriptLanguage } from './source-file.ts'
 
 const scriptKinds: Readonly<Record<ScriptLanguage, ts.ScriptKind>> = {
   ts: ts.ScriptKind.TS,
@@ -19,10 +16,6 @@ const scriptKinds: Readonly<Record<ScriptLanguage, ts.ScriptKind>> = {
   mjs: ts.ScriptKind.JS,
   cjs: ts.ScriptKind.JS,
   jsx: ts.ScriptKind.JSX
-}
-
-export function isScriptLanguage(language: Language): language is ScriptLanguage {
-  return Object.hasOwn(scriptKinds, language)
 }
 
 /**
