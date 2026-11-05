@@ -143,6 +143,26 @@ h1 {
   text-decoration: underline;
 }
 
+.kind-filter {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem 0.75rem;
+  font-size: 0.9rem;
+  color: var(--muted);
+}
+
+#kind-filter {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.kind-count {
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+
 .toggle {
   font: inherit;
   font-size: 0.9rem;
@@ -256,6 +276,12 @@ kbd {
   font-size: 0.75rem;
 }
 
+.result-hidden {
+  grid-column: 1 / -1;
+  color: var(--warn);
+  font-size: 0.75rem;
+}
+
 .no-results {
   padding: 0.35rem 0.5rem;
   color: var(--muted);
@@ -338,18 +364,24 @@ kbd {
   font-weight: 600;
 }
 
-.more {
+.area-toggle {
   font: inherit;
-  font-size: 0.8rem;
   color: var(--accent);
   background: none;
   border: 0;
-  padding: 0.25rem 0;
-  margin-top: 0.15rem;
+  padding: 0;
   cursor: pointer;
 }
 
-.more:hover {
+.area-toggle::before {
+  content: '▸ ';
+}
+
+.area-toggle[aria-expanded='true']::before {
+  content: '▾ ';
+}
+
+.area-toggle:hover {
   text-decoration: underline;
 }
 

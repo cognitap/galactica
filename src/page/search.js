@@ -1,4 +1,5 @@
 /** @typedef {import('../page-data.ts').PageData} PageData */
+/** @typedef {import('../contract.ts').ModuleKind} ModuleKind */
 
 /**
  * @typedef {{ readonly kind: 'area', readonly area: number }
@@ -12,7 +13,7 @@
  * @property {string} tail the last segment of the path, or the symbol name
  * @property {string} kind "area", "module" or the symbol's kind
  * @property {string} where the package of an area, the area of a module, the module of a symbol
- * @property {boolean} code false when only tests and stories show it
+ * @property {readonly ModuleKind[]} kinds the kinds of module that show it: the module's own, or every kind an area holds
  * @property {Target} target
  */
 
@@ -36,13 +37,15 @@ export function entriesOf(data) {
         tail: tailOf(area.path),
         kind: 'area',
         where: data.packages[area.package].name,
-        code: area.kinds.source + area.kinds.config > 0,
+        kinds: /** @type {ModuleKind[]} */ (Object.keys(area.kinds)).filter(
+          kind => area.kinds[kind] > 0
+        ),
         target: { kind: 'area', area: index }
       }
     })
   })
   data.modules.forEach((module, index) => {
-    const code = module.kind === 'source' || module.kind === 'config'
+    const kinds = [module.kind]
     placed.push({
       path: module.path,
       order: 0,
@@ -51,7 +54,7 @@ export function entriesOf(data) {
         tail: tailOf(module.path),
         kind: 'module',
         where: data.areas[module.area].path,
-        code,
+        kinds,
         target: { kind: 'module', module: index }
       }
     })
@@ -64,7 +67,7 @@ export function entriesOf(data) {
           tail: symbol.name,
           kind: symbol.default ? `default ${symbol.kind}` : symbol.kind,
           where: module.path,
-          code,
+          kinds,
           target: { kind: 'symbol', module: index, symbol: position }
         }
       })
@@ -91,25 +94,36 @@ function tierOf(entry, wanted) {
 }
 
 /**
- * The entries that match `query` whatever its case, best first, then in path order.
+ * The kinds that hide `entry` from the map, none when one of its kinds is shown.
+ * @param {SearchEntry} entry
+ * @param {ReadonlySet<ModuleKind>} shown the kinds the map shows
+ * @returns {readonly ModuleKind[]}
+ */
+export const hiddenBy = (entry, shown) =>
+  entry.kinds.some(kind => shown.has(kind)) ? [] : entry.kinds
+
+/**
+ * The entries that match `query` whatever its case, best first, then those the
+ * map shows before those it hides, then in path order. Hidden entries are
+ * still found, so a search never misses what the filter leaves out.
  * @param {readonly SearchEntry[]} entries in path order, as `entriesOf` gives them
  * @param {string} query
- * @param {boolean} showTests whether entries that only tests and stories show are offered
+ * @param {ReadonlySet<ModuleKind>} shown the kinds the map shows
  * @param {number} [limit]
  * @returns {readonly SearchEntry[]}
  */
-export function search(entries, query, showTests, limit = 12) {
+export function search(entries, query, shown, limit = 12) {
   const wanted = query.trim().toLowerCase()
   if (wanted === '') return []
-  /** @type {{ entry: SearchEntry, tier: number, order: number }[]} */
+  /** @type {{ entry: SearchEntry, tier: number, hidden: number, order: number }[]} */
   const matches = []
   entries.forEach((entry, order) => {
-    if (!showTests && !entry.code) return
     const tier = tierOf(entry, wanted)
-    if (tier !== undefined) matches.push({ entry, tier, order })
+    if (tier === undefined) return
+    matches.push({ entry, tier, hidden: hiddenBy(entry, shown).length > 0 ? 1 : 0, order })
   })
   return matches
-    .sort((a, b) => a.tier - b.tier || a.order - b.order)
+    .sort((a, b) => a.tier - b.tier || a.hidden - b.hidden || a.order - b.order)
     .slice(0, limit)
     .map(({ entry }) => entry)
 }

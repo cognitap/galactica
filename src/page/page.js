@@ -1,10 +1,11 @@
 import { hrefOf, noteOf } from './links.js'
-import { entriesOf, search } from './search.js'
+import { entriesOf, hiddenBy, search } from './search.js'
 
 /** @typedef {import('../page-data.ts').PageData} PageData */
 /** @typedef {import('../page-data.ts').PageArea} PageArea */
 /** @typedef {import('../page-data.ts').PageModule} PageModule */
 /** @typedef {import('../page-data.ts').PagePackage} PagePackage */
+/** @typedef {import('../contract.ts').ModuleKind} ModuleKind */
 /** @typedef {import('./search.js').SearchEntry} SearchEntry */
 /** @typedef {import('./search.js').Target} Target */
 /** @typedef {{ readonly kind: 'area' | 'module', readonly index: number }} Selection */
@@ -44,10 +45,23 @@ const plural = (count, one, many = `${one}s`) => `${formatted(count)} ${count ==
 /** @param {number} folder */
 const folderKey = folder => (folder < PALETTE ? String(folder) : 'other')
 
-/** @param {PageModule} module */
-const isCode = module => module.kind === 'source' || module.kind === 'config'
+/**
+ * An area with more shown modules than this starts collapsed. Eight rows read
+ * at a glance, and on the largest maps they keep most areas open while the few
+ * big ones, which hold most of the modules, start closed.
+ */
+const COLLAPSE_PAST = 8
 
-const LISTED = 8
+/** The kinds the filter offers, in its order, and what a count of each is called. */
+const KINDS = /** @type {const} */ ({
+  source: { label: 'Source', one: 'source module', many: 'source modules' },
+  config: { label: 'Config', one: 'config module', many: 'config modules' },
+  test: { label: 'Tests', one: 'test', many: 'tests' },
+  story: { label: 'Stories', one: 'story', many: 'stories' }
+})
+
+/** Tests and stories only use the code, so the map opens on the code. */
+const SHOWN_AT_FIRST = /** @type {ReadonlySet<ModuleKind>} */ (new Set(['source', 'config']))
 
 /**
  * Text that a narrow box may break only after a slash or before a dot, so a
@@ -205,11 +219,16 @@ const usualKindOf = kinds =>
     kinds[kind] > kinds[usual] ? kind : usual
   )
 
+/** @typedef {{ readonly index: number } & ReturnType<typeof moduleItem>} ModuleView */
+
 /**
- * An area box, and what the toggle and its "Show more" button update.
+ * An area box. Past `COLLAPSE_PAST` shown modules it starts collapsed, and a
+ * module's row is drawn only when its box first lists it.
  * @param {number} index
+ * @param {(view: ModuleView) => void} drawn called with each row when it is drawn
+ * @param {() => void} expanded called when the reader expands the box
  */
-function areaBox(index) {
+function areaBox(index, drawn, expanded) {
   const area = data.areas[index]
   const box = element('article', 'area')
   box.dataset.folder = folderKey(area.folder)
@@ -219,60 +238,73 @@ function areaBox(index) {
   select.append(...areaTitle(area.label))
   title.append(select)
   const tag = relationTag()
-  const meta = element('p', 'area-meta')
-  head.append(title, tag, meta)
   const list = element('ul', 'modules')
-  const usualKind = usualKindOf(area.kinds)
-  const items = area.modules.map(index => {
-    const module = data.modules[index]
-    const view = moduleItem(module, usualKind)
-    list.append(view.item)
-    return { index, module, ...view }
-  })
-  const more = element('button', 'more')
-  more.setAttribute('type', 'button')
-  more.setAttribute('aria-expanded', 'false')
-  box.append(head, list, more)
+  list.id = `area-${index}-modules`
+  const toggle = element('button', 'area-toggle')
+  toggle.setAttribute('type', 'button')
+  toggle.setAttribute('aria-controls', list.id)
+  const count = element('span')
+  const symbols = element('span')
+  const meta = element('p', 'area-meta')
+  meta.append(toggle, count, symbols)
+  if (area.cycle) meta.append(element('span', 'cycle-mark', 'cycle'))
+  head.append(title, tag, meta)
+  box.append(head, list)
 
-  let showTests = false
-  const update = () => {
-    const expanded = more.getAttribute('aria-expanded') === 'true'
-    let shown = 0
-    let exported = 0
-    for (const { module, item } of items) {
-      const kept = showTests || isCode(module)
-      item.hidden = !kept || (!expanded && shown >= LISTED)
-      if (!kept) continue
-      shown += 1
-      exported += module.symbols.length
+  const usualKind = usualKindOf(area.kinds)
+  /** @type {Map<number, ModuleView>} */
+  const views = new Map()
+  /** @param {number} module */
+  const viewOf = module => {
+    let view = views.get(module)
+    if (view === undefined) {
+      view = { index: module, ...moduleItem(data.modules[module], usualKind) }
+      views.set(module, view)
+      drawn(view)
     }
-    more.hidden = shown <= LISTED
-    more.textContent = expanded ? 'Show fewer' : `Show ${shown - LISTED} more`
-    box.hidden = shown === 0
-    box.style.setProperty('--weight', String(Math.sqrt(exported)))
-    meta.replaceChildren(
-      element('span', '', plural(shown, 'module')),
-      element('span', '', plural(exported, 'symbol'))
-    )
-    if (area.cycle) meta.append(element('span', 'cycle-mark', 'cycle'))
-    return { shown, exported }
+    return view
   }
-  more.addEventListener('click', () => {
-    more.setAttribute('aria-expanded', String(more.getAttribute('aria-expanded') !== 'true'))
+  /** @type {ReadonlySet<ModuleKind>} */
+  let kinds = new Set()
+  /**
+   * The reader's choice, or undefined while the box follows the threshold.
+   * @type {boolean | undefined}
+   */
+  let chosen
+  const listed = () => area.modules.filter(module => kinds.has(data.modules[module].kind))
+  const update = () => {
+    const shown = listed()
+    const exported = shown.reduce((sum, module) => sum + data.modules[module].symbols.length, 0)
+    const collapsible = shown.length > COLLAPSE_PAST
+    const open = !collapsible || (chosen ?? false)
+    toggle.hidden = !collapsible
+    count.hidden = collapsible
+    toggle.setAttribute('aria-expanded', String(open))
+    toggle.textContent = plural(shown.length, 'module')
+    count.textContent = toggle.textContent
+    symbols.textContent = plural(exported, 'symbol')
+    list.replaceChildren(...(open ? shown.map(module => viewOf(module).item) : []))
+    list.hidden = !open
+    box.hidden = shown.length === 0
+    box.style.setProperty('--weight', String(Math.sqrt(exported)))
+    return { shown: shown.length, exported }
+  }
+  toggle.addEventListener('click', () => {
+    chosen = toggle.getAttribute('aria-expanded') !== 'true'
     update()
+    if (chosen) expanded()
   })
-  /** @param {boolean} withTests */
-  const filter = withTests => {
-    showTests = withTests
+  /** @param {ReadonlySet<ModuleKind>} shown */
+  const filter = shown => {
+    kinds = shown
     return update()
   }
-  /** @param {HTMLElement} item a module of this box, listed past the first few when it has to be */
-  const reveal = item => {
-    if (!item.hidden) return
-    more.setAttribute('aria-expanded', 'true')
+  /** Lists every shown module of the box, so a row the reader asked for is drawn. */
+  const reveal = () => {
+    chosen = true
     update()
   }
-  return { index, box, select, tag, filter, reveal, items }
+  return { index, box, select, tag, filter, reveal }
 }
 
 /**
@@ -316,8 +348,9 @@ function cyclesSection(pkg) {
 /**
  * @param {PagePackage} pkg
  * @param {number} index
+ * @param {(area: number) => AreaView} boxOf
  */
-function packageSection(pkg, index) {
+function packageSection(pkg, index, boxOf) {
   const section = element('section', 'package')
   section.id = `package-${index}`
   const head = element('header', 'package-head')
@@ -332,13 +365,13 @@ function packageSection(pkg, index) {
   const lines = pkg.rows.map(row => {
     const line = element('div', 'row')
     const areas = element('div', 'row-areas')
-    const boxes = row.map(areaBox)
+    const boxes = row.map(boxOf)
     areas.append(...boxes.map(({ box }) => box))
     line.append(element('p', 'row-label', `Layer ${data.areas[row[0]].layer}`), areas)
     rows.append(line)
     return { line, boxes }
   })
-  const empty = element('p', 'empty', 'Only tests and stories. Show them to see this package.')
+  const empty = element('p', 'empty', 'Every module here is of a kind the filter hides.')
   section.append(head, rows, empty)
   if (pkg.areaCycles.length > 0 || pkg.moduleCycles.length > 0) section.append(cyclesSection(pkg))
   return { section, lines, empty }
@@ -372,13 +405,17 @@ function packageNav() {
   nav.hidden = false
 }
 
+/** @param {readonly ModuleKind[]} kinds */
+const kindNames = kinds => kinds.map(kind => KINDS[kind].many).join(' and ')
+
 /**
- * The search field, a combobox whose listbox offers the best matches.
+ * The search field, a combobox whose listbox offers the best matches, those the
+ * filter hides included and marked.
  * @param {readonly SearchEntry[]} entries
- * @param {() => boolean} showingTests
+ * @param {() => ReadonlySet<ModuleKind>} shownKinds
  * @param {(target: Target) => void} go
  */
-function searchField(entries, showingTests, go) {
+function searchField(entries, shownKinds, go) {
   const input = /** @type {HTMLInputElement} */ (byId('search'))
   const list = byId('search-results')
   /** @type {readonly SearchEntry[]} */
@@ -419,13 +456,17 @@ function searchField(entries, showingTests, go) {
     name.append(...breakable(entry.text))
     node.append(name, element('span', 'result-kind', entry.kind))
     node.append(element('span', 'result-where', entry.where))
+    const hidden = hiddenBy(entry, shownKinds())
+    if (hidden.length > 0) {
+      node.append(element('span', 'result-hidden', `${kindNames(hidden)} hidden by the filter`))
+    }
     node.addEventListener('mousedown', event => event.preventDefault())
     node.addEventListener('click', () => choose(index))
     return node
   }
   const refresh = () => {
     if (input.value.trim() === '') return close()
-    results = search(entries, input.value, showingTests())
+    results = search(entries, input.value, shownKinds())
     list.replaceChildren(...results.map(option))
     if (results.length === 0) {
       const none = element('li', 'no-results', 'No matches')
@@ -476,11 +517,12 @@ const RELATIONS = /** @type {const} */ ({
 const subjectOf = ({ kind, index }) => (kind === 'area' ? data.areas[index] : data.modules[index])
 
 /**
- * What the selection bar says: the counts `uses` and `deps` give, and what the toggle hides.
+ * What the selection bar says: the counts `uses` and `deps` give, and how many
+ * of the modules they relate to the filter hides, by kind.
  * @param {Selection} selection
- * @param {boolean} showTests
+ * @param {ReadonlySet<ModuleKind>} shown
  */
-function summaryOf(selection, showTests) {
+function summaryOf(selection, shown) {
   const subject = subjectOf(selection)
   const parts = [
     element('span', 'selection-kind', selection.kind),
@@ -488,27 +530,31 @@ function summaryOf(selection, showTests) {
     element('span', 'count-uses', `uses ${formatted(subject.uses.length)}`),
     element('span', 'count-used-by', `used by ${formatted(subject.usedBy.length)}`)
   ]
-  if (showTests) {
+  if (shown.has('test')) {
     parts.push(element('span', 'count-used-by', plural(subject.usedByTests.length, 'test')))
-    return parts
   }
-  const hidden = new Set(subject.usedByTests)
-  for (const index of [...subject.uses, ...subject.usedBy]) {
-    if (!isCode(data.modules[index])) hidden.add(index)
+  const related = new Set([...subject.uses, ...subject.usedBy, ...subject.usedByTests])
+  /** @type {Map<ModuleKind, number>} */
+  const hidden = new Map()
+  for (const index of related) {
+    const { kind } = data.modules[index]
+    if (!shown.has(kind)) hidden.set(kind, (hidden.get(kind) ?? 0) + 1)
   }
   if (hidden.size > 0) {
-    parts.push(
-      element('span', 'count-hidden', `${formatted(hidden.size)} hidden with tests and stories`)
-    )
+    const counts = /** @type {ModuleKind[]} */ (Object.keys(KINDS))
+      .filter(kind => hidden.has(kind))
+      .map(kind => plural(hidden.get(kind) ?? 0, KINDS[kind].one, KINDS[kind].many))
+    parts.push(element('span', 'count-hidden', `${counts.join(' and ')} hidden by the filter`))
   }
   return parts
 }
 
 /**
  * Marks the selection, what it uses and what uses it, by toggling classes on
- * the boxes and rows already drawn, so a selection redraws nothing.
+ * the boxes and rows already drawn, so a selection redraws nothing. A box
+ * counts its related modules whether or not their rows are drawn.
  * @param {readonly AreaView[]} areaViews
- * @param {AreaView['items']} moduleViews
+ * @param {ReadonlyMap<number, ModuleView>} moduleViews the rows drawn so far
  */
 function highlighter(areaViews, moduleViews) {
   /** @type {(() => void)[]} */
@@ -540,9 +586,9 @@ function highlighter(areaViews, moduleViews) {
 
   /**
    * @param {Selection | undefined} selection
-   * @param {boolean} showTests whether tests and stories that relate to it are marked
+   * @param {ReadonlySet<ModuleKind>} shown the kinds whose related modules are marked
    */
-  return (selection, showTests) => {
+  return (selection, shown) => {
     for (const step of undo) step()
     undo = []
     document.body.classList.toggle('has-selection', selection !== undefined)
@@ -557,7 +603,7 @@ function highlighter(areaViews, moduleViews) {
      */
     const relate = (indexes, relation) => {
       for (const index of indexes) {
-        if (showTests || isCode(data.modules[index])) {
+        if (shown.has(data.modules[index].kind)) {
           modules.set(index, (modules.get(index) ?? new Set()).add(relation))
         }
       }
@@ -569,12 +615,14 @@ function highlighter(areaViews, moduleViews) {
     /** @type {Map<number, Record<Relation, number>>} */
     const areas = new Map()
     for (const [index, relations] of modules) {
-      const { item, tag } = moduleViews[index]
-      add(
-        item,
-        [...relations].map(relation => `is-${relation}`)
-      )
-      label(tag, [...relations].map(relation => RELATIONS[relation].one).join(' · '))
+      const view = moduleViews.get(index)
+      if (view !== undefined) {
+        add(
+          view.item,
+          [...relations].map(relation => `is-${relation}`)
+        )
+        label(view.tag, [...relations].map(relation => RELATIONS[relation].one).join(' · '))
+      }
       const area = data.modules[index].area
       const counts = areas.get(area) ?? { uses: 0, 'used-by': 0 }
       for (const relation of relations) counts[relation] += 1
@@ -603,10 +651,11 @@ function highlighter(areaViews, moduleViews) {
       add(box, ['is-selected'])
       press(select)
     } else {
-      const { item, select } = moduleViews[selection.index]
-      add(item, ['is-selected'])
       add(areaViews[data.modules[selection.index].area].box, ['has-selected'])
-      press(select)
+      const view = moduleViews.get(selection.index)
+      if (view === undefined) return
+      add(view.item, ['is-selected'])
+      press(view.select)
     }
   }
 }
@@ -637,6 +686,50 @@ function selectionOf(fragment) {
   return index < 0 ? undefined : { kind, index }
 }
 
+/**
+ * The kind filter: one toggle button for each kind the map has.
+ * @param {(kind: ModuleKind) => void} flip
+ */
+function kindFilter(flip) {
+  /** @type {Map<ModuleKind, number>} */
+  const counts = new Map()
+  for (const { kind } of data.modules) counts.set(kind, (counts.get(kind) ?? 0) + 1)
+  const group = byId('kind-filter')
+  const buttons = /** @type {ModuleKind[]} */ (Object.keys(KINDS))
+    .filter(kind => counts.has(kind))
+    .map(kind => {
+      const button = element('button', 'toggle', KINDS[kind].label)
+      button.setAttribute('type', 'button')
+      button.append(' ', element('span', 'kind-count', formatted(counts.get(kind) ?? 0)))
+      button.addEventListener('click', () => flip(kind))
+      return { kind, button }
+    })
+  group.append(...buttons.map(({ button }) => button))
+  /** @param {ReadonlySet<ModuleKind>} shown */
+  return shown => {
+    for (const { kind, button } of buttons) {
+      button.setAttribute('aria-pressed', String(shown.has(kind)))
+    }
+  }
+}
+
+/**
+ * The kinds that must be shown for `target` to be on the map: its module's
+ * kind, or every kind an area holds when none of them is shown.
+ * @param {Target} target
+ * @param {ReadonlySet<ModuleKind>} shown
+ * @returns {readonly ModuleKind[]}
+ */
+function kindsFor(target, shown) {
+  const held =
+    target.kind === 'area'
+      ? /** @type {ModuleKind[]} */ (Object.keys(KINDS)).filter(
+          kind => data.areas[target.area].kinds[kind] > 0
+        )
+      : [data.modules[target.module].kind]
+  return held.some(kind => shown.has(kind)) ? [] : held
+}
+
 function draw() {
   byId('repository').textContent = data.repository
   const note = data.source === null ? undefined : noteOf(data.source)
@@ -646,27 +739,21 @@ function draw() {
   }
   legend()
   packageNav()
-  const sections = data.packages.map(packageSection)
-  const boxes = sections.flatMap(({ lines }) => lines.flatMap(({ boxes }) => boxes))
-  byId('map').append(...sections.map(({ section }) => section))
-  /** @type {AreaView[]} */
-  const areaViews = []
-  /** @type {AreaView['items']} */
-  const moduleViews = []
-  for (const view of boxes) {
-    areaViews[view.index] = view
-    for (const item of view.items) moduleViews[item.index] = item
-  }
 
-  const light = highlighter(areaViews, moduleViews)
-  const bar = byId('selection')
   /** @type {Selection | undefined} */
   let selection
+  let shown = SHOWN_AT_FIRST
+  /** @type {AreaView[]} */
+  const areaViews = []
+  /** @type {Map<number, ModuleView>} */
+  const moduleViews = new Map()
+  const light = highlighter(areaViews, moduleViews)
+  const bar = byId('selection')
   const describe = () => {
-    light(selection, showingTests())
+    light(selection, shown)
     bar.hidden = selection === undefined
     if (selection !== undefined)
-      byId('selection-summary').replaceChildren(...summaryOf(selection, showingTests()))
+      byId('selection-summary').replaceChildren(...summaryOf(selection, shown))
   }
   /** @param {Selection | undefined} next */
   const select = next => {
@@ -677,16 +764,24 @@ function draw() {
   /** @param {Selection} next */
   const toggleSelection = next =>
     select(selection?.kind === next.kind && selection.index === next.index ? undefined : next)
-  for (const view of areaViews) {
-    view.select.addEventListener('click', () =>
-      toggleSelection({ kind: 'area', index: view.index })
-    )
-  }
-  for (const view of moduleViews) {
+
+  /** @param {ModuleView} view */
+  const drawn = view => {
+    moduleViews.set(view.index, view)
     view.select.addEventListener('click', () =>
       toggleSelection({ kind: 'module', index: view.index })
     )
   }
+  /** @param {number} index */
+  const boxOf = index => {
+    const view = areaBox(index, drawn, describe)
+    view.select.addEventListener('click', () => toggleSelection({ kind: 'area', index }))
+    areaViews[index] = view
+    return view
+  }
+  const sections = data.packages.map((pkg, index) => packageSection(pkg, index, boxOf))
+  byId('map').append(...sections.map(({ section }) => section))
+
   byId('clear-selection').addEventListener('click', () => select(undefined))
   document.addEventListener('keydown', event => {
     if (event.key === 'Escape' && selection !== undefined && event.target !== byId('search')) {
@@ -694,37 +789,17 @@ function draw() {
     }
   })
 
-  /** @param {Target} target */
-  const go = target => {
-    if (target.kind === 'area') {
-      select({ kind: 'area', index: target.area })
-      const { box, select: button } = areaViews[target.area]
-      box.scrollIntoView({ block: 'nearest' })
-      button.focus({ preventScroll: true })
-      return
-    }
-    select({ kind: 'module', index: target.module })
-    const view = moduleViews[target.module]
-    areaViews[data.modules[target.module].area].reveal(view.item)
-    const shown =
-      target.kind === 'symbol' && view.symbolAt !== undefined
-        ? view.symbolAt(target.symbol)
-        : view.item
-    shown.scrollIntoView({ block: 'center' })
-    view.select.focus({ preventScroll: true })
-  }
-
-  const toggle = byId('toggle-tests')
-  /** @param {boolean} showTests */
-  const show = showTests => {
-    toggle.setAttribute('aria-pressed', String(showTests))
+  /** @param {ReadonlySet<ModuleKind>} kinds */
+  const show = kinds => {
+    shown = kinds
+    pressed(shown)
     let areas = 0
     let modules = 0
     let symbols = 0
-    for (const { filter } of boxes) {
-      const { shown, exported } = filter(showTests)
-      areas += shown === 0 ? 0 : 1
-      modules += shown
+    for (const { filter } of areaViews) {
+      const { shown: listed, exported } = filter(shown)
+      areas += listed === 0 ? 0 : 1
+      modules += listed
       symbols += exported
     }
     for (const { lines, empty } of sections) {
@@ -738,24 +813,49 @@ function draw() {
       plural(symbols, 'exported symbol')
     ].join(' · ')
   }
-  const showingTests = () => toggle.getAttribute('aria-pressed') === 'true'
-  const field = searchField(entriesOf(data), showingTests, go)
-  toggle.addEventListener('click', () => {
-    show(!showingTests())
+
+  /**
+   * Selects what the search or the address names, first showing its kinds
+   * and listing its box's modules when the map hides it.
+   * @param {Target} target
+   */
+  const go = target => {
+    const missing = kindsFor(target, shown)
+    if (missing.length > 0) {
+      show(new Set([...shown, ...missing]))
+      field.refresh()
+    }
+    if (target.kind === 'area') {
+      select({ kind: 'area', index: target.area })
+      const { box, select: button } = areaViews[target.area]
+      box.scrollIntoView({ block: 'nearest' })
+      button.focus({ preventScroll: true })
+      return
+    }
+    areaViews[data.modules[target.module].area].reveal()
+    select({ kind: 'module', index: target.module })
+    const view = /** @type {ModuleView} */ (moduleViews.get(target.module))
+    const place =
+      target.kind === 'symbol' && view.symbolAt !== undefined
+        ? view.symbolAt(target.symbol)
+        : view.item
+    place.scrollIntoView({ block: 'center' })
+    view.select.focus({ preventScroll: true })
+  }
+
+  const field = searchField(entriesOf(data), () => shown, go)
+  const pressed = kindFilter(kind => {
+    const next = new Set(shown)
+    if (!next.delete(kind)) next.add(kind)
+    show(next)
     field.refresh()
     describe()
   })
-  show(false)
+  show(shown)
 
-  /** Applies a fragment that names a selection, showing tests and stories when it is one. */
   const follow = () => {
     const named = selectionOf(location.hash)
     if (named === undefined) return
-    const hidden =
-      named.kind === 'area'
-        ? data.areas[named.index].kinds.source + data.areas[named.index].kinds.config === 0
-        : !isCode(data.modules[named.index])
-    if (hidden && !showingTests()) show(true)
     go(
       named.kind === 'area'
         ? { kind: 'area', area: named.index }
