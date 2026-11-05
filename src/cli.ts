@@ -3,13 +3,13 @@ import { readFileSync, statSync, writeFileSync } from 'node:fs'
 import { join, relative, resolve } from 'node:path'
 import { parseArgs, type ParseArgsOptionsConfig } from 'node:util'
 import { cacheDirectory } from './cache.ts'
-import { commandOptions, commandTable, type Input } from './commands.ts'
+import { commandOptions, commandTable, type Input, type Repository } from './commands.ts'
 import { ConfigError, loadConfig } from './config.ts'
 import { SCHEMA_VERSION, type Command, type Failure, type Output } from './contract.ts'
 import { pageSourceOf } from './git-source.ts'
 import { graphOf } from './graph.ts'
 import { htmlOf } from './html.ts'
-import { toRepoPath, type Config, type Graph, type RepoPath } from './model.ts'
+import { toRepoPath, type Config, type RepoPath } from './model.ts'
 import { analyze } from './model-cache.ts'
 import { render } from './render.ts'
 import { templateProblem } from './source-links.ts'
@@ -131,15 +131,16 @@ function insideRoot(root: string, cwd: string): RepoPath | undefined {
   }
 }
 
-/** The config and graph of the repository at `root`, or what is wrong with its config. */
+/** The config, graph and warnings of the repository at `root`, or what is wrong with its config. */
 async function analyzed(
   root: string,
   noCache: boolean | undefined
-): Promise<{ readonly config: Config; readonly graph: Graph } | { readonly problem: string }> {
+): Promise<(Repository & { readonly config: Config }) | { readonly problem: string }> {
   try {
     const config = loadConfig(root)
     const options = noCache ? {} : { cache: cacheDirectory(root) }
-    return { config, graph: graphOf((await analyze(root, config, options)).model, config) }
+    const { model, summary } = await analyze(root, config, options)
+    return { config, graph: graphOf(model, config), warnings: summary.warnings }
   } catch (error) {
     if (error instanceof ConfigError) return { problem: error.message }
     throw error
@@ -195,7 +196,7 @@ async function answer(
 ): Promise<Output | Failure> {
   const repository = await analyzed(root, noCache)
   if ('problem' in repository) return usageFailure(command, repository.problem)
-  return commandTable[command].run(repository.graph, input)
+  return commandTable[command].run(repository, input)
 }
 
 const failure = (message: string): Result => ({

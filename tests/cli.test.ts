@@ -137,6 +137,39 @@ test('subjects resolve by package name and directory in a monorepo, from any dir
   )
 })
 
+test('overview counts the warnings, and its JSON lists them the same from every directory', t => {
+  const root = repository(t, {
+    'package.json': { name: 'root', workspaces: ['packages/*'] },
+    'packages/b/package.json': { name: 'shared' },
+    'packages/b/index.ts': '',
+    'packages/a/package.json': { name: 'shared' },
+    'packages/a/index.ts': '',
+    'packages/c/package.json': { private: true },
+    'packages/c/tsconfig.json': { extends: './missing.json' },
+    'packages/c/index.ts': ''
+  })
+  const warnings = [
+    {
+      path: 'packages/b/package.json',
+      message: 'shared is also the name of packages/a, which keeps it'
+    },
+    { path: 'packages/c/package.json', message: 'a workspace package without a name is skipped' },
+    { path: 'packages/c/tsconfig.json', message: "Cannot read file 'packages/c/missing.json'." }
+  ]
+  const text = galactica(root, 'overview', '--no-cache')
+  assert.equal(text.status, 0)
+  assert.match(text.stdout, /^3 warnings, galactica overview --json lists them$/m)
+
+  const outputs = [
+    galactica(root, 'overview', '--json'),
+    galactica(root, 'overview', '--json'),
+    galactica(join(root, 'packages/c'), 'overview', '--json', '--root', '../..'),
+    galactica(tmpdir(), 'overview', '--json', '--root', root, '--no-cache')
+  ].map(({ stdout }) => stdout)
+  assert.deepEqual(JSON.parse(outputs[0]!).warnings, warnings)
+  for (const output of outputs.slice(1)) assert.equal(output, outputs[0])
+})
+
 test('an unknown name is an empty answer with exit code 0', () => {
   const { status, stdout } = galactica(monorepo, 'where', 'gret', '--json')
   assert.equal(status, 0)

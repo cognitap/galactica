@@ -22,6 +22,8 @@ const graph = graphOf(
   emptyConfig
 )
 
+const repository = { graph, warnings: [] }
+
 const input = (argument: string, fields: Partial<Input> = {}): Input => ({
   argument,
   depth: 1,
@@ -31,13 +33,13 @@ const input = (argument: string, fields: Partial<Input> = {}): Input => ({
 })
 
 const text = (command: keyof typeof commandTable, argument = '', fields: Partial<Input> = {}) =>
-  render(commandTable[command].run(graph, input(argument, fields)))
+  render(commandTable[command].run(repository, input(argument, fields)))
 
 test('the command table and the renderer cover every command of the contract', () => {
   assert.deepEqual(Object.keys(commandTable), [...commands])
   for (const command of commands) {
     const argument = commandTable[command].argument === undefined ? '' : 'src/cn.ts'
-    const output = commandTable[command].run(graph, input(argument))
+    const output = commandTable[command].run(repository, input(argument))
     assert.equal(output.command, command)
     assert.notEqual(render(output), '')
   }
@@ -63,6 +65,20 @@ test('overview text lists modules with no importers only with --all', () => {
   const lines = text('overview', '', { all: true }).split('\n')
   assert.ok(lines.includes('src/ui/Button.tsx  0 importers  Button'))
   assert.ok(!lines.some(line => line.startsWith('src/ui/Button.test.tsx')))
+})
+
+test('overview text counts the warnings in one line that points at --json', () => {
+  const warnings = [
+    { path: 'packages/a/package.json', message: 'a workspace package without a name is skipped' },
+    { path: 'tsconfig.json', message: "File '.nuxt/tsconfig.json' not found." }
+  ]
+  const output = commandTable.overview.run({ graph, warnings }, input(''))
+  const lines = render(output).split('\n')
+  assert.deepEqual(lines.slice(-3, -1), [
+    '0 import cycles, 0 unresolved imports',
+    '2 warnings, galactica overview --json lists them'
+  ])
+  assert.ok(!lines.some(line => line.includes('tsconfig.json')))
 })
 
 test('where and outline print one clickable path:line per symbol', () => {
@@ -112,7 +128,9 @@ test('a long list stops after the limit and points at --json', () => {
     ])
   )
   const wide = graphOf(modelOf({ ...specs, 'lib/cn.ts': {} }), emptyConfig)
-  const lines = render(commandTable.uses.run(wide, input('lib/cn.ts'))).split('\n')
+  const lines = render(
+    commandTable.uses.run({ graph: wide, warnings: [] }, input('lib/cn.ts'))
+  ).split('\n')
   assert.equal(lines.length, 1 + LIST_LIMIT + 2)
   assert.equal(lines.at(-2), '… 3 more, use --json')
 })
@@ -124,6 +142,6 @@ test('a failure renders as its one-line message', () => {
     error: { code: 'not-found', message: 'no module, package or area named x' }
   }
   assert.equal(render(failure), 'galactica: no module, package or area named x')
-  const output = commandTable.outline.run(graph, input('src/nope.ts'))
+  const output = commandTable.outline.run(repository, input('src/nope.ts'))
   assert.equal(render(output), 'galactica: no module named src/nope.ts')
 })

@@ -32,7 +32,7 @@ const monorepo = graphOf(
 )
 
 test('overview lists packages by name and areas by layer, then path', () => {
-  const result = overview(monorepo, false)
+  const result = overview(monorepo, false, [])
   assert.deepEqual(
     result.packages.map(({ name, dir, modules, areas }) => [
       name,
@@ -58,7 +58,7 @@ test('overview lists packages by name and areas by layer, then path', () => {
 })
 
 test('top ranks modules by distinct importers that are no tests or stories, barrels aside', () => {
-  const [, ui] = overview(monorepo, false).packages
+  const [, ui] = overview(monorepo, false, []).packages
   assert.deepEqual(ui.areas[0].top, [
     { path: 'packages/ui/src/cn.ts', importers: 4, exports: ['cn', 'cx'] },
     { path: 'packages/ui/src/index.ts', importers: 0, exports: [] }
@@ -83,11 +83,11 @@ test('top leaves out tests and stories, and is empty for an area of only those',
     emptyConfig
   )
   for (const all of [false, true]) {
-    const areas = overview(graph, all).packages[0].areas
+    const areas = overview(graph, all, []).packages[0].areas
     const tops = Object.fromEntries(areas.map(area => [area.path, area.top.map(m => m.path)]))
     assert.deepEqual(tops, { src: ['src/cn.ts'], 'src/specs': [] })
   }
-  assert.equal(overview(graph, false).packages[0].areas[1].modules, 2)
+  assert.equal(overview(graph, false, []).packages[0].areas[1].modules, 2)
 })
 
 test('top holds five modules per area, or all of them with --all', () => {
@@ -95,8 +95,8 @@ test('top holds five modules per area, or all of them with --all', () => {
     ['a', 'b', 'c', 'd', 'e', 'f', 'g'].map(name => [`src/${name}.ts`, {}])
   )
   const graph = graphOf(modelOf(specs), emptyConfig)
-  assert.equal(overview(graph, false).packages[0].areas[0].top.length, 5)
-  assert.equal(overview(graph, true).packages[0].areas[0].top.length, 7)
+  assert.equal(overview(graph, false, []).packages[0].areas[0].top.length, 5)
+  assert.equal(overview(graph, true, []).packages[0].areas[0].top.length, 7)
 })
 
 test('overview counts module cycles', () => {
@@ -107,5 +107,5 @@ test('overview counts module cycles', () => {
     }),
     emptyConfig
   )
-  assert.equal(overview(graph, false).cycles, 1)
+  assert.equal(overview(graph, false, []).cycles, 1)
 })

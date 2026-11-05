@@ -4,7 +4,7 @@
  * against this table, so adding a command is one entry here and one renderer.
  */
 
-import type { Command, Failure, Output } from './contract.ts'
+import type { Command, Failure, Output, Warning } from './contract.ts'
 import type { Graph, RepoPath } from './model.ts'
 import { overview } from './overview.ts'
 import { deps, outline, uses, where } from './queries.ts'
@@ -16,6 +16,13 @@ export interface Input {
   readonly all: boolean
   /** The current directory relative to the root, undefined when it lies outside. */
   readonly cwd: RepoPath | undefined
+}
+
+/** What a command answers from: the graph, and the warnings of the analysis that built it. */
+export interface Repository {
+  readonly graph: Graph
+  /** Sorted by path, then message. */
+  readonly warnings: readonly Warning[]
 }
 
 /** The options only some commands take. */
@@ -35,37 +42,37 @@ export interface CommandSpec {
   readonly argument?: string
   readonly options: readonly CommandOption[]
   readonly summary: string
-  readonly run: (graph: Graph, input: Input) => Output | Failure
+  readonly run: (repository: Repository, input: Input) => Output | Failure
 }
 
 export const commandTable: { readonly [C in Command]: CommandSpec } = {
   overview: {
     options: ['all'],
     summary: 'Packages, their areas by layer, and the most imported modules',
-    run: (graph, { all }) => overview(graph, all)
+    run: ({ graph, warnings }, { all }) => overview(graph, all, warnings)
   },
   where: {
     argument: 'name',
     options: [],
     summary: 'Where an exported symbol is defined',
-    run: (graph, { argument }) => where(graph, argument)
+    run: ({ graph }, { argument }) => where(graph, argument)
   },
   outline: {
     argument: 'file',
     options: [],
     summary: 'The exported symbols of one module',
-    run: (graph, { argument, cwd }) => outline(graph, argument, cwd)
+    run: ({ graph }, { argument, cwd }) => outline(graph, argument, cwd)
   },
   uses: {
     argument: 'subject',
     options: ['depth'],
     summary: 'What depends on the subject, and every test that does',
-    run: (graph, { argument, cwd, depth }) => uses(graph, argument, cwd, depth)
+    run: ({ graph }, { argument, cwd, depth }) => uses(graph, argument, cwd, depth)
   },
   deps: {
     argument: 'subject',
     options: ['depth'],
     summary: 'What the subject depends on, in the workspace and outside it',
-    run: (graph, { argument, cwd, depth }) => deps(graph, argument, cwd, depth)
+    run: ({ graph }, { argument, cwd, depth }) => deps(graph, argument, cwd, depth)
   }
 }

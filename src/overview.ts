@@ -3,7 +3,7 @@
  * most imported source and config modules of each area.
  */
 
-import { SCHEMA_VERSION, type Overview } from './contract.ts'
+import { SCHEMA_VERSION, type Overview, type Warning } from './contract.ts'
 import { compare, type Graph, type RepoPath } from './model.ts'
 import { isSourceOrConfig } from './source-file.ts'
 
@@ -22,7 +22,7 @@ function importersOf(graph: Graph, path: RepoPath): number {
   return new Set(importers.map(({ from }) => from)).size
 }
 
-export function overview(graph: Graph, all: boolean): Overview {
+export function overview(graph: Graph, all: boolean, warnings: readonly Warning[]): Overview {
   const packages = [...graph.packages]
     .sort(([a], [b]) => compare(a, b))
     .map(([name, { dir, areas }]) => {
@@ -59,6 +59,7 @@ export function overview(graph: Graph, all: boolean): Overview {
     all,
     packages,
     cycles: graph.cycles.length,
-    unresolved: edges.filter(edge => edge.to.kind === 'unresolved').length
+    unresolved: edges.filter(edge => edge.to.kind === 'unresolved').length,
+    warnings
   }
 }

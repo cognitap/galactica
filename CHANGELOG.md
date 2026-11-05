@@ -4,6 +4,8 @@
 
 ## Unreleased
 
+- `overview` prints how many warnings the analysis has, such as a workspace package without a name, and its `--json` lists them in a new `warnings` field. Each warning is one line, with paths from the repository root.
+
 ## 0.1.0
 
 The first release. Galactica is experimental during `0.x`: a minor version can change the command output, the config or the skill.
