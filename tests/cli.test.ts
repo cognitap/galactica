@@ -5,7 +5,7 @@ import { tmpdir } from 'node:os'
 import { join, relative } from 'node:path'
 import { after, test, type TestContext } from 'node:test'
 import { commands } from '../src/contract.ts'
-import { gitlab, validConfigs } from './config-examples.ts'
+import { gitlab, invalidConfigs, validConfigs } from './config-examples.ts'
 import { fixtureRepo } from './fixtures.ts'
 import { git, gitRepository, repository } from './temp-repository.ts'
 
@@ -297,13 +297,13 @@ test('commands take kinds and areas from galactica.config.json', t => {
 })
 
 test('an invalid galactica.config.json fails every command with one line naming the key', t => {
+  const unknownKind = invalidConfigs.find(({ message }) => message.startsWith('kinds.storyy'))!
   const root = repository(t, {
     'package.json': {},
     'src/a.ts': '',
-    'galactica.config.json': { kinds: { storyy: ['.storybook/**'] } }
+    'galactica.config.json': unknownKind.config
   })
-  const message =
-    'galactica.config.json: kinds.storyy: unknown kind; expected source, test, story or config'
+  const message = `galactica.config.json: ${unknownKind.message}`
   for (const args of [['overview'], ['html', '--out', join(root, 'map.html')]]) {
     const { status, stdout, stderr } = galactica(root, ...args)
     assert.equal(status, 1, args[0])

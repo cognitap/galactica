@@ -10,7 +10,7 @@ import { moduleKinds, type ModuleKind } from './contract.ts'
 import { emptyConfig, parseRepoPath, type AreaPath, type Config } from './model.ts'
 import { templateProblem } from './source-links.ts'
 
-export const CONFIG_FILE = 'galactica.config.json'
+const CONFIG_FILE = 'galactica.config.json'
 
 export class ConfigError extends Error {
   constructor(key: string | undefined, problem: string) {

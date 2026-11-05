@@ -56,8 +56,19 @@ test('a file that is no JSON fails naming the file', t => {
   )
 })
 
+const readmeConfigs = [
+  ...readFileSync(new URL('../README.md', import.meta.url), 'utf8').matchAll(/```json\n([^]*?)```/g)
+].map(([, block]) => JSON.parse(block!) as object)
+
+test('the README shows the full config and the Radiant one', () => {
+  assert.deepEqual(readmeConfigs, [validConfigs.full, validConfigs.storybookExamples])
+})
+
 test('the schema accepts exactly the configs loadConfig accepts', t => {
-  for (const [name, config] of Object.entries(validConfigs)) {
+  for (const [name, config] of [
+    ...Object.entries(validConfigs),
+    ...readmeConfigs.map((config, index) => [`README example ${index + 1}`, config] as const)
+  ]) {
     assert.deepEqual(schemaErrors(schema, config), [], name)
     loadConfig(repository(t, { 'galactica.config.json': config }))
   }
