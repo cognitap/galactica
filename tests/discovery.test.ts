@@ -85,6 +85,16 @@ test('a config outDir is skipped as build output', t => {
   assert.deepEqual(paths(discover(root)), ['src/main.ts'])
 })
 
+test('the outDir of a package build config that owns no module is skipped too', t => {
+  const root = gitRepository(t, {
+    'tsconfig.json': { include: ['src'] },
+    'tsconfig.build.json': { compilerOptions: { outDir: 'emitted', allowJs: true } },
+    'src/main.ts': '',
+    'emitted/main.js': ''
+  })
+  assert.deepEqual(paths(discover(root)), ['src/main.ts'])
+})
+
 test('an outDir that holds the config itself marks no build output', t => {
   const root = repository(t, {
     'tsconfig.json': { compilerOptions: { outDir: '.' } },

@@ -125,7 +125,11 @@ test('export default of any other expression is a const named default, at the ex
       }
     ]
   )
-  assert.deepEqual(pick(['import App from "./App"', 'export default App']), [
+})
+
+test('an imported name exported as the default is no symbol, since it is a re-export', () => {
+  assert.deepEqual(pick(['import App from "./App"', 'export default App']), [])
+  assert.deepEqual(pick(['import x = require("./x")', 'export = x']), [
     { name: 'default', kind: 'const', line: 2, default: true }
   ])
 })
