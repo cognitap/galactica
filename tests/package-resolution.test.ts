@@ -41,6 +41,16 @@ test('a specifier splits into its package name and subpath', () => {
   assert.deepEqual(splitSpecifier('@scope/pkg/api'), { name: '@scope/pkg', subpath: './api' })
   assert.equal(splitSpecifier('./relative'), undefined)
   assert.equal(splitSpecifier('@scope'), undefined)
+  assert.deepEqual(splitSpecifier('JSONStream'), { name: 'JSONStream', subpath: '.' })
+  for (const notPackage of [
+    '$lib/utils',
+    '$app/stores',
+    '_private',
+    '.hidden',
+    '@sc ope/pkg',
+    'a b'
+  ])
+    assert.equal(splitSpecifier(notPackage), undefined, notPackage)
 })
 
 test('a specifier that names no workspace package is left to TypeScript', t => {

@@ -137,11 +137,16 @@ function isInside(dir: string, path: string): boolean {
   return !isAbsolute(rel) && rel !== '..' && !rel.startsWith(`..${sep}`)
 }
 
-/** Splits a bare specifier into its package name, scoped or not, and its subpath, "." for none. */
+/**
+ * Splits a bare specifier into its package name, scoped or not, and its
+ * subpath, "." for none. A name npm could not publish, such as SvelteKit's
+ * `$lib` alias, is no package: npm names are URL-safe and start with neither
+ * `.` nor `_`, and older ones may hold capitals.
+ */
 export function splitSpecifier(
   specifier: string
 ): { readonly name: string; readonly subpath: string } | undefined {
-  const match = /^((?:@[^/@]+\/)?[^/@.][^/]*)(\/.*)?$/.exec(specifier)
+  const match = /^((?:@[\w~-][\w.~-]*\/)?(?![._])[\w~-][\w.~-]*)(\/.*)?$/.exec(specifier)
   return match ? { name: match[1]!, subpath: `.${match[2] ?? ''}` } : undefined
 }
 
