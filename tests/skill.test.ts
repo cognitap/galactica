@@ -3,8 +3,11 @@ import { readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { test } from 'node:test'
 import {
+  agentFiles,
   defaultCommand,
   installSkill,
+  ruleFile,
+  rulePath,
   skillFile,
   skillPaths,
   skillTemplate,
@@ -87,8 +90,9 @@ test('the validator catches what the specification forbids', () => {
 const source: SkillSource = { template, command: 'node /opt/$&/cli.js', version: '1.2.3' }
 const file = skillFile(source)
 const read = (root: string, path: string) => readFileSync(join(root, path), 'utf8')
+const asSkills = (text: string) => skillPaths.map(path => ({ path, text }))
 const statuses = (root: string, written: string, force = false) =>
-  installSkill(root, written, force).map(({ status }) => status)
+  installSkill(root, asSkills(written), force).map(({ status }) => status)
 
 test('the template names the default command, which the installed file replaces', () => {
   assert.ok(template.includes(`${defaultCommand} overview`))
@@ -116,7 +120,7 @@ test('a file Galactica wrote is updated to a changed template or command', t => 
   const root = repository(t, {})
   installSkill(
     root,
-    skillFile({ ...source, template: template.replace('# Galactica', '# Old') }),
+    asSkills(skillFile({ ...source, template: template.replace('# Galactica', '# Old') })),
     false
   )
   assert.deepEqual(statuses(root, file), ['updated', 'updated'])
@@ -127,7 +131,7 @@ test('a file Galactica wrote is updated to a changed template or command', t => 
 
 test('an edited file is kept unless forced', t => {
   const root = repository(t, {})
-  installSkill(root, file, false)
+  installSkill(root, asSkills(file), false)
   const [agents, claude] = skillPaths
   const edited = read(root, claude).replace(
     '## Other commands',
@@ -147,4 +151,32 @@ test('a skill of the same name that Galactica did not write is kept', t => {
   const root = repository(t, Object.fromEntries(skillPaths.map(path => [path, own])))
   assert.deepEqual(statuses(root, file), ['kept', 'kept'])
   for (const path of skillPaths) assert.equal(read(root, path), own)
+})
+
+test('the Cursor rule is requested by the skill description and points to the skill', () => {
+  const rule = ruleFile(source)
+  const description = /^description: (.*)$/m.exec(template)![1]!
+  assert.match(
+    rule,
+    /^---\ndescription: .*\nalwaysApply: false\nmetadata:\n {2}galactica-version: "1\.2\.3"\n {2}galactica-hash: "[0-9a-f]{64}"\n---\n/
+  )
+  assert.ok(rule.includes(`description: ${description}\n`))
+  assert.ok(rule.includes(`Read \`${skillPaths[0]}\` and follow it.`))
+})
+
+test('init writes the skill for each agent and the Cursor rule, each kept when edited', t => {
+  const root = repository(t, {})
+  const files = agentFiles(source)
+  assert.deepEqual(
+    files.map(({ path }) => path),
+    [...skillPaths, rulePath]
+  )
+  installSkill(root, files, false)
+  writeFileSync(join(root, rulePath), 'Our rule.\n')
+  const next = agentFiles({ ...source, version: '1.3.0' })
+  assert.deepEqual(
+    installSkill(root, next, false).map(({ status }) => status),
+    ['updated', 'updated', 'kept']
+  )
+  assert.equal(read(root, rulePath), 'Our rule.\n')
 })

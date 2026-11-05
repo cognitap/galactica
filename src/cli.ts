@@ -14,7 +14,7 @@ import { toRepoPath, type Config, type Graph, type RepoPath } from './model.ts'
 import { analyze } from './model-cache.ts'
 import { render } from './render.ts'
 import { templateProblem } from './source-links.ts'
-import { defaultCommand, installSkill, skillFile, skillTemplate } from './skill.ts'
+import { agentFiles, defaultCommand, installSkill, skillTemplate } from './skill.ts'
 
 const htmlOptions = {
   out: { type: 'string', value: '<file>', summary: 'File html writes (default: galactica.html)' },
@@ -273,10 +273,10 @@ function init(argv: readonly string[], cwd: string): Result {
   const { values, root } = input
   const command = values.command ?? defaultCommand
   if (command.trim() === '') return failure('--command must not be empty')
-  const file = skillFile({ template: skillTemplate(), command, version: readVersion() })
+  const files = agentFiles({ template: skillTemplate(), command, version: readVersion() })
   let installed
   try {
-    installed = installSkill(root, file, values.force ?? false)
+    installed = installSkill(root, files, values.force ?? false)
   } catch (error) {
     return failure(`could not install the skill: ${(error as Error).message}`)
   }
