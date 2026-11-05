@@ -18,6 +18,7 @@ import { resolveBarrels } from './barrels.ts'
 import { compilerOptionsOf, discover, type DiscoveredModule, type Warning } from './discovery.ts'
 import { currentStamp, readCache, writeCache, type Cache, type CacheEntry } from './cache.ts'
 import { extract, hashOf } from './extraction.ts'
+import { frameworkScript } from './frameworks.ts'
 import { importResolver, type ImportResolver } from './import-resolution.ts'
 import { resolutionModeOf } from './imports.ts'
 import {
@@ -84,9 +85,10 @@ function resolveModule(
   options: ts.CompilerOptions,
   resolver: ImportResolver
 ): Analyzed {
-  const { path, language } = module
-  if (!isScriptLanguage(language)) return { facts: { path, hash, symbols, edges: [] }, skipped: [] }
-  const format = resolver.formatOf(module)
+  const { path } = module
+  const { language, format } = isScriptLanguage(module.language)
+    ? { language: module.language, format: resolver.formatOf(module) }
+    : frameworkScript
   const edges: Edge[] = []
   const skipped: string[] = []
   for (const { specifier, syntax, resolutionMode, ...taken } of imports) {
