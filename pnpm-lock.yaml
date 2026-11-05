@@ -165,6 +165,10 @@ settings:
 importers:
 
   .:
+    dependencies:
+      typescript:
+        specifier: 6.0.3
+        version: 6.0.3
     devDependencies:
       '@types/node':
         specifier: 26.6.5
@@ -190,9 +194,6 @@ importers:
       svelte:
         specifier: 5.57.3
         version: 5.57.3
-      typescript:
-        specifier: 6.0.3
-        version: 6.0.3
       vue:
         specifier: 3.5.44
         version: 3.5.44(typescript@6.0.3)
