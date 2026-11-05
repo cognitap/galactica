@@ -1,1 +1,1 @@
-Reading `src/Counter.svelte` needs the Svelte compiler, which DEV-690 loads from the target repository's `node_modules`. This fixture installs nothing.
+Reading `src/Counter.svelte` needs `svelte/compiler`. The fixture installs nothing, so Galactica resolves it from the root of this fixture and finds the `svelte` that Galactica itself has as a devDependency.

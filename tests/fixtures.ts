@@ -201,18 +201,12 @@ export const aspects: readonly Aspect[] = [
   {
     name: 'symbols',
     owner: 'DEV-669',
-    pendingIn: { astro: 'DEV-690', svelte: 'DEV-690', vue: 'DEV-690' },
     stated: always,
     check: moduleField('symbols')
   },
   {
     name: 'edges',
     owner: 'DEV-671',
-    pendingIn: {
-      astro: 'DEV-690',
-      svelte: 'DEV-690',
-      vue: 'DEV-690'
-    },
     stated: always,
     check: moduleField('edges')
   },
