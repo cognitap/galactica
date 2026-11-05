@@ -31,13 +31,15 @@ function element(tag, className, text) {
   return node
 }
 
+/** One formatter for every count, since `toLocaleString` builds a new one on each call. */
+const formatted = new Intl.NumberFormat('en').format
+
 /**
  * @param {number} count
  * @param {string} one
  * @param {string} [many]
  */
-const plural = (count, one, many = `${one}s`) =>
-  `${count.toLocaleString('en')} ${count === 1 ? one : many}`
+const plural = (count, one, many = `${one}s`) => `${formatted(count)} ${count === 1 ? one : many}`
 
 /** @param {number} folder */
 const folderKey = folder => (folder < PALETTE ? String(folder) : 'other')
@@ -461,8 +463,8 @@ function summaryOf(selection, showTests) {
   const parts = [
     element('span', 'selection-kind', selection.kind),
     element('code', 'selection-path', subject.path),
-    element('span', 'count-uses', `uses ${subject.uses.length.toLocaleString('en')}`),
-    element('span', 'count-used-by', `used by ${subject.usedBy.length.toLocaleString('en')}`)
+    element('span', 'count-uses', `uses ${formatted(subject.uses.length)}`),
+    element('span', 'count-used-by', `used by ${formatted(subject.usedBy.length)}`)
   ]
   if (showTests) {
     parts.push(element('span', 'count-used-by', plural(subject.usedByTests.length, 'test')))
@@ -474,11 +476,7 @@ function summaryOf(selection, showTests) {
   }
   if (hidden.size > 0) {
     parts.push(
-      element(
-        'span',
-        'count-hidden',
-        `${hidden.size.toLocaleString('en')} hidden with tests and stories`
-      )
+      element('span', 'count-hidden', `${formatted(hidden.size)} hidden with tests and stories`)
     )
   }
   return parts
