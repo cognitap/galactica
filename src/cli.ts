@@ -12,11 +12,18 @@ import { graphOf } from './graph.ts'
 import { htmlOf } from './html.ts'
 import { toRepoPath, type RepoPath } from './model.ts'
 import { render } from './render.ts'
+import { templateProblem } from './source-links.ts'
 import { defaultCommand, installSkill, skillFile, skillTemplate } from './skill.ts'
 
 const htmlOptions = {
   out: { type: 'string', value: '<file>', summary: 'File html writes (default: galactica.html)' },
-  open: { type: 'boolean', value: '', summary: 'Open the written file in the default browser' }
+  open: { type: 'boolean', value: '', summary: 'Open the written file in the default browser' },
+  'source-url': {
+    type: 'string',
+    value: '<template>',
+    summary:
+      'Where html links source, with {commit}, {path} and {line}; "none" turns links off (default: the GitHub remote)'
+  }
 } as const
 
 const initOptions = {
@@ -214,8 +221,13 @@ function html(argv: readonly string[], cwd: string): Result {
   const input = writerInput('html', htmlFlags, argv, cwd)
   if ('code' in input) return input
   const { values, root } = input
+  const template = values['source-url']
+  const problem =
+    template === undefined || template === 'none' ? undefined : templateProblem(template)
+  if (problem !== undefined) return failure(`--source-url: ${problem}`)
   const out = resolve(cwd, values.out ?? 'galactica.html')
-  const page = htmlOf(graphAt(root, values['no-cache']), pageSourceOf(root) ?? null)
+  const source = template === 'none' ? null : (pageSourceOf(root, template) ?? null)
+  const page = htmlOf(graphAt(root, values['no-cache']), source)
   try {
     writeFileSync(out, page)
   } catch (error) {
