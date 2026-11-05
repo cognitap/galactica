@@ -5,6 +5,43 @@
     "commonjs": { "dir": "." }
   },
   "modules": {
+    "src/app.js": {
+      "path": "src/app.js",
+      "symbols": [
+        {
+          "name": "createApp",
+          "kind": "function",
+          "line": 5,
+          "default": true,
+          "signature": "function createApp()"
+        },
+        {
+          "name": "routes",
+          "kind": "const",
+          "line": 9,
+          "default": false,
+          "signature": "const routes = [...]"
+        },
+        {
+          "name": "version",
+          "kind": "const",
+          "line": 10,
+          "default": false,
+          "signature": "const version = '1.0.0'"
+        }
+      ],
+      "edges": [
+        {
+          "to": { "kind": "module", "path": "src/math.js" },
+          "line": 1,
+          "form": "import",
+          "names": ["add"],
+          "typeOnly": false,
+          "dynamic": false,
+          "via": []
+        }
+      ]
+    },
     "src/config.cjs": {
       "path": "src/config.cjs",
       "symbols": [
