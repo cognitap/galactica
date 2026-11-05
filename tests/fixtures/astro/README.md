@@ -1,1 +1,1 @@
-Reading `src/Counter.astro` needs the Astro compiler, which DEV-690 loads from the target repository's `node_modules`. This fixture installs nothing.
+Galactica reads the frontmatter of `src/Counter.astro` as text, with no compiler, so the fixture installs nothing.

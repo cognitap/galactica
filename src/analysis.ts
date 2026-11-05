@@ -18,6 +18,13 @@ import { resolveBarrels } from './barrels.ts'
 import { compilerOptionsOf, discover, type DiscoveredModule, type Warning } from './discovery.ts'
 import { currentStamp, readCache, writeCache, type Cache, type CacheEntry } from './cache.ts'
 import { extract, hashOf } from './extraction.ts'
+import {
+  compilerResolver,
+  frameworkScript,
+  unreadWarnings,
+  type Compiler,
+  type Unread
+} from './frameworks.ts'
 import { importResolver, type ImportResolver } from './import-resolution.ts'
 import { resolutionModeOf } from './imports.ts'
 import {
@@ -84,9 +91,10 @@ function resolveModule(
   options: ts.CompilerOptions,
   resolver: ImportResolver
 ): Analyzed {
-  const { path, language } = module
-  if (!isScriptLanguage(language)) return { facts: { path, hash, symbols, edges: [] }, skipped: [] }
-  const format = resolver.formatOf(module)
+  const { path } = module
+  const { language, format } = isScriptLanguage(module.language)
+    ? { language: module.language, format: resolver.formatOf(module) }
+    : frameworkScript
   const edges: Edge[] = []
   const skipped: string[] = []
   for (const { specifier, syntax, resolutionMode, ...taken } of imports) {
@@ -102,24 +110,28 @@ function resolveModule(
 type Source = keyof Summary['modules']
 
 /**
- * The module's entry, from `old` when its size and mtime, or else its hash,
- * are unchanged. The stat comes before the read, so a file written after the
- * read has a newer mtime than the entry records.
+ * The module's entry, from `cached` when it was read with the same compiler
+ * and the module's size and mtime, or else its hash, are unchanged. The stat
+ * comes before the read, so a file written after the read has a newer mtime
+ * than the entry records.
  */
 function entryOf(
   root: string,
   { path, language }: DiscoveredModule,
-  old: CacheEntry | undefined,
+  cached: CacheEntry | undefined,
+  compiler: Compiler | undefined,
   clock: Clock
 ): readonly [CacheEntry, Source] {
   const file = join(root, path)
   const { mtimeMs, size } = statSync(file)
+  const old = cached?.compiler === compiler?.stamp ? cached : undefined
   if (old && old.mtimeMs === mtimeMs && old.size === size) return [old, 'reused']
   const bytes = readFileSync(file)
   const hash = hashOf(bytes)
   if (old?.hash === hash) return [{ ...old, mtimeMs, size }, 'reread']
-  const extraction = timed(clock, 'parse', () => extract(path, language, bytes))
-  return [{ hash, mtimeMs, size, ...extraction }, 'parsed']
+  const extraction = timed(clock, 'parse', () => extract(path, language, bytes, compiler?.load))
+  const stamp = compiler ? { compiler: compiler.stamp } : {}
+  return [{ hash, mtimeMs, size, ...extraction, ...stamp }, 'parsed']
 }
 
 export interface Options {
@@ -135,10 +147,19 @@ export function analyzeRepository(rootDir: string, { cache }: Options = {}): Ana
   const cached: Cache = store ? readCache(store.directory, store.stamp) : new Map()
   const counts: Record<Source, number> = { reused: 0, reread: 0, parsed: 0 }
   const entries = new Map<RepoPath, CacheEntry>()
+  const compilerOf = compilerResolver(discovery.root)
+  const unread: Unread[] = []
   for (const module of discovery.modules) {
-    const [entry, source] = entryOf(discovery.root, module, cached.get(module.path), clock)
-    entries.set(module.path, entry)
+    const { path, language } = module
+    const dir = discovery.packages[module.package]!.dir
+    const compiler = compilerOf(language, dir)
+    const [entry, source] = entryOf(discovery.root, module, cached.get(path), compiler, clock)
+    entries.set(path, entry)
     counts[source]++
+    const { failure } = entry
+    if (compiler && (!compiler.load || failure !== undefined)) {
+      unread.push({ path, language, dir, compiler, ...(failure === undefined ? {} : { failure }) })
+    }
   }
   const changed = counts.reread + counts.parsed > 0 || cached.size !== entries.size
   if (store && changed) writeCache(store.directory, store.stamp, entries)
@@ -170,7 +191,7 @@ export function analyzeRepository(rootDir: string, { cache }: Options = {}): Ana
       modules
     },
     summary: {
-      warnings: [...discovery.warnings, ...resolver.warnings()].sort(
+      warnings: [...discovery.warnings, ...resolver.warnings(), ...unreadWarnings(unread)].sort(
         (a, b) => compare(a.path, b.path) || compare(a.message, b.message)
       ),
       unresolved: edges.filter(edge => edge.to.kind === 'unresolved').length,

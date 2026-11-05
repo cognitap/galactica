@@ -60,7 +60,18 @@ const entry: CacheEntry = {
 
 const cache: Cache = new Map([
   ['src/a.ts' as RepoPath, entry],
-  ['src/App.vue' as RepoPath, { hash: 'beef', mtimeMs: 1, size: 0, symbols: [], imports: [] }]
+  [
+    'src/App.vue' as RepoPath,
+    {
+      hash: 'beef',
+      mtimeMs: 1,
+      size: 0,
+      symbols: [],
+      imports: [],
+      failure: 'Unexpected token',
+      compiler: '3.5.44'
+    }
+  ]
 ])
 
 const cacheText = (directory: string) => readFileSync(join(directory, 'cache.json'), 'utf8')
@@ -140,6 +151,8 @@ test('an entry that does not parse is left out, and the others are kept', t => {
     { ...entry, imports: [{ ...entry.imports[0], renames: { a: 1 } }] },
     { ...entry, imports: [{ ...entry.imports[0], resolutionMode: 'both' }] },
     { ...entry, imports: 'none' },
+    { ...entry, failure: 1 },
+    { ...entry, compiler: null },
     'entry'
   ]
   for (const value of broken) {

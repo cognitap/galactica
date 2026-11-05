@@ -49,7 +49,7 @@
           "kind": "const",
           "line": 3,
           "default": false,
-          "signature": "const components"
+          "signature": "const components = {...}"
         }
       ],
       "edges": [

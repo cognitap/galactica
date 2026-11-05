@@ -1,1 +1,1 @@
-Reading `src/Counter.vue` needs the Vue compiler, which DEV-690 loads from the target repository's `node_modules`. This fixture installs nothing.
+Reading `src/Counter.vue` needs `vue/compiler-sfc`. The fixture installs nothing, so Galactica resolves it from the root of this fixture and finds the `vue` that Galactica itself has as a devDependency.
