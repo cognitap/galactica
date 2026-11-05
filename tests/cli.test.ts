@@ -170,6 +170,20 @@ test('overview counts the warnings, and its JSON lists them the same from every 
   for (const output of outputs.slice(1)) assert.equal(output, outputs[0])
 })
 
+test('deps counts a relative import into an untracked node_modules as its package', t => {
+  const root = gitRepository(t, {
+    '.gitignore': 'node_modules/\n',
+    'package.json': { name: 'site' },
+    'src/Toc.astro':
+      "---\nimport List from '../node_modules/@astrojs/starlight/dist/List.astro'\n---\n",
+    'node_modules/@astrojs/starlight/package.json': { name: '@astrojs/starlight' },
+    'node_modules/@astrojs/starlight/dist/List.astro': ''
+  })
+  const deps = JSON.parse(galactica(root, 'deps', 'src/Toc.astro', '--json').stdout)
+  assert.deepEqual(deps.external, ['@astrojs/starlight'])
+  assert.deepEqual(deps.unresolved, [])
+})
+
 test('an unknown name is an empty answer with exit code 0', () => {
   const { status, stdout } = galactica(monorepo, 'where', 'gret', '--json')
   assert.equal(status, 0)
