@@ -33,6 +33,7 @@ const cases = [
   'tests-and-stories',
   'package-self-reference',
   'paths-over-package',
+  'paths-catch-all',
   'import-query',
   'commonjs',
   'monorepo',
