@@ -1,9 +1,20 @@
 /**
- * Grouping modules into areas by folder, with no config: each folder is an
- * area, except that a folder of a single module joins its parent.
+ * Grouping modules into areas: the area `galactica.config.json` names for a
+ * module, or else its folder, except that a folder of a single module joins
+ * its parent.
  */
 
-import type { AreaPath, Model, ModuleNode, RepoPath } from './model.ts'
+import { posix } from 'node:path'
+import { ConfigError } from './config.ts'
+import type {
+  AreaPath,
+  AreaRule,
+  Config,
+  Model,
+  ModuleNode,
+  PackageName,
+  RepoPath
+} from './model.ts'
 import { packageOf } from './workspace.ts'
 
 export type Placement = Pick<ModuleNode, 'package' | 'area'>
@@ -13,21 +24,48 @@ const directoryOf = (path: string): string => {
   return slash < 0 ? '.' : path.slice(0, slash)
 }
 
+/** The area the first matching rule names, which must lie in the module's own package. */
+function configuredArea(
+  model: Model,
+  rules: readonly AreaRule[],
+  path: RepoPath,
+  owner: PackageName
+): AreaPath | undefined {
+  const rule = rules.find(({ glob }) => posix.matchesGlob(path, glob))
+  if (rule === undefined) return undefined
+  if (packageOf(model.packages, rule.area as string as RepoPath) !== owner) {
+    throw new ConfigError(
+      `areas[${JSON.stringify(rule.glob)}]`,
+      `${rule.area} is not in package ${owner} (${model.packages[owner].dir}), the package of ${path}`
+    )
+  }
+  return rule.area
+}
+
 /**
- * The package and area of each module. A folder that holds a single module
- * joins its parent, repeatedly, while the parent holds modules of its own,
- * and never above the package's directory.
+ * The package and area of each module. A module a rule of the config matches
+ * is in the area the rule names. Of the others, a folder that holds a single
+ * module joins its parent, repeatedly, while the parent holds modules of its
+ * own, and never above the package's directory.
  */
-export function areasOf(model: Model): ReadonlyMap<RepoPath, Placement> {
+export function areasOf(model: Model, config: Config): ReadonlyMap<RepoPath, Placement> {
   const paths = Object.keys(model.modules) as RepoPath[]
+  const owners = new Map(
+    paths.map(path => {
+      const owner = packageOf(model.packages, path)
+      if (owner === undefined) throw new Error(`${path} is in no package`)
+      return [path, { owner, configured: configuredArea(model, config.areas, path, owner) }]
+    })
+  )
   const counts = new Map<string, number>()
-  for (const directory of paths.map(directoryOf)) {
+  for (const path of paths.filter(path => owners.get(path)!.configured === undefined)) {
+    const directory = directoryOf(path)
     counts.set(directory, (counts.get(directory) ?? 0) + 1)
   }
   return new Map(
     paths.map(path => {
-      const owner = packageOf(model.packages, path)
-      if (owner === undefined) throw new Error(`${path} is in no package`)
+      const { owner, configured } = owners.get(path)!
+      if (configured !== undefined) return [path, { package: owner, area: configured }]
       const top = model.packages[owner].dir
       let area = directoryOf(path)
       // Merging only single-module folders keeps each Radiant component family,

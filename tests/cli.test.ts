@@ -5,6 +5,7 @@ import { tmpdir } from 'node:os'
 import { join, relative } from 'node:path'
 import { after, test, type TestContext } from 'node:test'
 import { commands } from '../src/contract.ts'
+import { validConfigs } from './config-examples.ts'
 import { fixtureRepo } from './fixtures.ts'
 import { git, gitRepository, repository } from './temp-repository.ts'
 
@@ -261,6 +262,24 @@ test('html --source-url without {path}, or not on http(s), fails and writes no p
     assert.match(stderr, problem)
     assert.equal(existsSync(join(root, 'bad.html')), false)
   }
+})
+
+test('commands take kinds and areas from galactica.config.json', t => {
+  const root = repository(t, {
+    'package.json': { name: 'acme' },
+    'galactica.config.json': validConfigs.storybookAndComponents,
+    '.storybook/examples/KbdExamples.tsx': '',
+    'src/components/Kbd/Kbd.tsx': 'export const Kbd = 1',
+    'src/components/Kbd/Kbd.stories.tsx': ''
+  })
+  assert.match(
+    galactica(root, 'outline', '.storybook/examples/KbdExamples.tsx').stdout,
+    /^\.storybook\/examples\/KbdExamples\.tsx \(story, area \.storybook\/examples, package acme\)/
+  )
+  assert.match(
+    galactica(root, 'outline', 'src/components/Kbd/Kbd.tsx').stdout,
+    /^src\/components\/Kbd\/Kbd\.tsx \(source, area src\/components, package acme\)/
+  )
 })
 
 test('an invalid galactica.config.json fails every command with one line naming the key', t => {

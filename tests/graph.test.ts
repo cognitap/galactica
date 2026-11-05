@@ -11,6 +11,7 @@ import {
   type RepoPath,
   type SymbolFacts
 } from '../src/model.ts'
+import { loaded, validConfigs } from './config-examples.ts'
 
 const edge = (to: string, fields: Partial<Edge> = {}): Edge => ({
   to: { kind: 'module', path: to as RepoPath },
@@ -142,4 +143,34 @@ test('the graph carries the layers and cycles of its model', () => {
       ]
     }
   ])
+})
+
+test('an area the config names is layered like a folder area', t => {
+  const graph = graphOf(
+    modelOf({
+      'src/app/main.ts': { edges: [edge('src/lib/date/format.ts')] },
+      'src/app/routes.ts': {},
+      'src/lib/date/format.ts': {},
+      'src/lib/date/parse.ts': {},
+      'src/lib/http/get.ts': { edges: [edge('src/lib/date/parse.ts')] },
+      'src/lib/http/post.ts': {}
+    }),
+    loaded(t, validConfigs.layeredAreas)
+  )
+  assert.deepEqual(
+    [...graph.areas.values()].map(area => [area.path, area.layer, area.modules]),
+    [
+      ['src/app', 1, ['src/app/main.ts', 'src/app/routes.ts']],
+      [
+        'src/core',
+        0,
+        [
+          'src/lib/date/format.ts',
+          'src/lib/date/parse.ts',
+          'src/lib/http/get.ts',
+          'src/lib/http/post.ts'
+        ]
+      ]
+    ]
+  )
 })

@@ -234,7 +234,9 @@ test('a config change takes effect on a warm run, which parses no module', t => 
   const warm = analyzeRepository(root, config, { cache })
   assert.deepEqual(warm.summary.modules, counts(4, 0, 0))
   assert.equal(warm.model.modules['src/legacy.cjs' as RepoPath], undefined)
-  assert.equal(graphOf(warm.model, config).modules.get('src/b.ts' as RepoPath)?.kind, 'test')
+  const graph = graphOf(warm.model, config)
+  assert.equal(graph.modules.get('src/b.ts' as RepoPath)?.kind, 'test')
+  assert.equal(graph.modules.get('src/a.ts' as RepoPath)?.area, 'src/core')
 })
 
 test('every fixture gives the same model warm as cold', t => {

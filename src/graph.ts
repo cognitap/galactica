@@ -21,7 +21,7 @@ import {
 import { kindOf, languageOf } from './source-file.ts'
 
 function nodesOf(model: Model, config: Config, paths: readonly RepoPath[]): Graph['modules'] {
-  const placements = areasOf(model)
+  const placements = areasOf(model, config)
   return new Map(
     paths.map((path): [RepoPath, ModuleNode] => {
       const language = languageOf(path)

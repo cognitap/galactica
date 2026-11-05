@@ -1,7 +1,9 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
 import { areasOf } from '../src/areas.ts'
-import { MODEL_FORMAT, type Model, type RepoPath } from '../src/model.ts'
+import { ConfigError } from '../src/config.ts'
+import { emptyConfig, MODEL_FORMAT, type Config, type Model, type RepoPath } from '../src/model.ts'
+import { loaded, validConfigs } from './config-examples.ts'
 
 function modelOf(packages: Readonly<Record<string, string>>, paths: readonly string[]): Model {
   return {
@@ -16,8 +18,8 @@ function modelOf(packages: Readonly<Record<string, string>>, paths: readonly str
   }
 }
 
-const areas = (model: Model) =>
-  Object.fromEntries([...areasOf(model)].map(([path, { area }]) => [path, area]))
+const areas = (model: Model, config: Config = emptyConfig) =>
+  Object.fromEntries([...areasOf(model, config)].map(([path, { area }]) => [path, area]))
 
 test('each folder of several modules is an area', () => {
   const model = modelOf({ acme: '.' }, [
@@ -52,7 +54,7 @@ test('merging stops at the package directory, which is an area itself', () => {
     'lib/ui/index.ts',
     'lib/ui/src/Button.tsx'
   ])
-  assert.deepEqual(Object.fromEntries(areasOf(model)), {
+  assert.deepEqual(Object.fromEntries(areasOf(model, emptyConfig)), {
     'lib/a.ts': { package: 'acme', area: 'lib' },
     'lib/b.ts': { package: 'acme', area: 'lib' },
     'lib/ui/index.ts': { package: 'ui', area: 'lib/ui' },
@@ -63,4 +65,40 @@ test('merging stops at the package directory, which is an area itself', () => {
 test('the root package directory is the area "."', () => {
   const model = modelOf({ acme: '.' }, ['main.ts', 'tools/build.ts'])
   assert.deepEqual(areas(model), { 'main.ts': '.', 'tools/build.ts': '.' })
+})
+
+test('a module the config places joins the area of the first glob it matches', t => {
+  const model = modelOf({ acme: '.' }, [
+    'src/cn.ts',
+    'src/index.ts',
+    'src/components/Button/Button.tsx',
+    'src/components/Button/Button.stories.tsx',
+    'src/components/Kbd/Kbd.tsx'
+  ])
+  assert.deepEqual(areas(model, loaded(t, validConfigs.areaOrder)), {
+    'src/cn.ts': 'src',
+    'src/index.ts': 'src',
+    'src/components/Button/Button.tsx': 'src/components',
+    'src/components/Button/Button.stories.tsx': 'src/stories',
+    'src/components/Kbd/Kbd.tsx': 'src/components'
+  })
+})
+
+test('an area outside the package of a module it places makes the config invalid', t => {
+  const model = modelOf({ acme: '.', ui: 'packages/ui' }, ['packages/ui/src/a.ts', 'scripts/a.ts'])
+  for (const [config, message] of [
+    [
+      validConfigs.areaOutsidePackage,
+      'areas["packages/ui/**"]: src is not in package ui (packages/ui), the package of packages/ui/src/a.ts'
+    ],
+    [
+      validConfigs.areaInNestedPackage,
+      'areas["scripts/**"]: packages/ui is not in package acme (.), the package of scripts/a.ts'
+    ]
+  ] as const) {
+    assert.throws(
+      () => areasOf(model, loaded(t, config)),
+      error => error instanceof ConfigError && error.message === `galactica.config.json: ${message}`
+    )
+  }
 })

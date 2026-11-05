@@ -1,5 +1,10 @@
 /** Every config the tests use, so `tests/config.test.ts` can check each against the schema and `loadConfig`. */
 
+import type { TestContext } from 'node:test'
+import { loadConfig } from '../src/config.ts'
+import type { Config } from '../src/model.ts'
+import { repository } from './temp-repository.ts'
+
 export const gitlab = 'https://gitlab.example.com/group/repo/-/blob/{commit}/{path}#L{line}'
 
 export const validConfigs = {
@@ -15,7 +20,24 @@ export const validConfigs = {
   storybookExamples: { kinds: { story: ['.storybook/examples/**'] } },
   selection: { include: ['src/**', 'scripts/**'], exclude: ['src/generated/**'] },
   everything: { include: ['**'] },
-  warmChange: { exclude: ['src/legacy.cjs'], kinds: { test: ['src/b.ts'] } },
+  warmChange: {
+    exclude: ['src/legacy.cjs'],
+    kinds: { test: ['src/b.ts'] },
+    areas: { 'src/a.ts': 'src/core' }
+  },
+  areaOrder: {
+    areas: {
+      'src/components/**/*.stories.tsx': 'src/stories',
+      'src/components/**': 'src/components'
+    }
+  },
+  areaOutsidePackage: { areas: { 'packages/ui/**': 'src' } },
+  areaInNestedPackage: { areas: { 'scripts/**': 'packages/ui' } },
+  layeredAreas: { areas: { 'src/lib/**': 'src/core' } },
+  storybookAndComponents: {
+    kinds: { story: ['.storybook/examples/**'] },
+    areas: { 'src/components/**': 'src/components' }
+  },
   kindClash: { kinds: { story: ['**/*.example.tsx'], test: ['src/**'] } },
   sourceUrlNone: { sourceUrl: 'none' },
   rootArea: { areas: { 'src/**': '.' } },
@@ -82,3 +104,8 @@ export const invalidConfigs: readonly { readonly config: object; readonly messag
     message: 'sourceUrl: a source URL template must contain {path}'
   }
 ]
+
+/** `config` as `loadConfig` reads it from a repository of its own. */
+export function loaded(t: TestContext, config: object): Config {
+  return loadConfig(repository(t, { 'galactica.config.json': config }))
+}
