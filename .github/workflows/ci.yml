@@ -46,8 +46,6 @@ jobs:
     name: Benchmark
     runs-on: ubuntu-latest
     timeout-minutes: 15
-    # Reports the numbers without failing until the warm target is met.
-    continue-on-error: true
     steps:
       - name: Check out repository
         uses: actions/checkout@v7.0.1
@@ -73,6 +71,8 @@ jobs:
         run: node scripts/synthetic-repo.ts "$RUNNER_TEMP/synthetic" --modules 3000
 
       - name: Benchmark against the speed targets
+        # Reports the numbers without failing the job until the warm target is met.
+        continue-on-error: true
         shell: bash
         run: pnpm --silent bench "$RUNNER_TEMP/synthetic" --check | tee "$RUNNER_TEMP/bench.txt"
 
