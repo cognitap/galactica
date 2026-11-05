@@ -52,7 +52,13 @@ function subjectLabel(subject: Subject): string {
     : `${subject.path} (${subject.kind})`
 }
 
-function renderOverview({ all, packages, cycles, unresolved }: Overview): readonly string[] {
+function renderOverview({
+  all,
+  packages,
+  cycles,
+  unresolved,
+  warnings
+}: Overview): readonly string[] {
   const areas = packages.flatMap(pkg => pkg.areas)
   const modules = packages.reduce((sum, pkg) => sum + pkg.modules, 0)
   const layered = packages.flatMap(pkg => {
@@ -82,6 +88,9 @@ function renderOverview({ all, packages, cycles, unresolved }: Overview): readon
     'most imported:',
     ...capped(ranked),
     `${plural(cycles, 'import cycle')}, ${plural(unresolved, 'unresolved import')}`,
+    ...(warnings.length === 0
+      ? []
+      : [`${plural(warnings.length, 'warning')}, galactica overview --json lists them`]),
     'next: galactica where <name> finds a symbol, galactica uses <file> lists what to check and test before you edit it'
   ]
 }

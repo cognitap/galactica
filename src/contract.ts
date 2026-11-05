@@ -75,6 +75,13 @@ export type Subject =
   | { readonly kind: 'area'; readonly path: string; readonly package: string }
   | { readonly kind: 'package'; readonly name: string; readonly dir: string }
 
+/** A problem the analysis found and worked around, such as a config it could not read. */
+export interface Warning {
+  /** The file the problem is in. */
+  readonly path: string
+  readonly message: string
+}
+
 export interface Failure {
   readonly schemaVersion: typeof SCHEMA_VERSION
   readonly command: Command
@@ -107,6 +114,8 @@ export interface Overview extends Envelope<'overview'> {
   }[]
   readonly cycles: number
   readonly unresolved: number
+  /** Every warning of the analysis, sorted by path, then message. */
+  readonly warnings: readonly Warning[]
 }
 
 export interface Where extends Envelope<'where'> {

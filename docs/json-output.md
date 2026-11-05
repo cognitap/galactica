@@ -26,6 +26,8 @@ For agent and tool authors. Every command except `html` and `init` prints one JS
 
 Packages are sorted by name. Areas are sorted by layer, lowest first, then by path. Layer 0 depends on no other area in its package, and areas in one import cycle share a layer. `all` is true when `--all` was given. `top` lists the most imported source and config modules of the area, never tests or stories, so an area of only tests and stories has an empty `top`. It is sorted by `importers` descending, then path. It holds five entries, or all of them with `--all`. `importers` counts the modules other than tests and stories that import the module itself. An import through a barrel counts for the module that defines the name, not for the barrel. `exports` lists the names the module exports, in line order. `cycles` counts import cycles among source modules. `unresolved` counts imports that resolved to nothing.
 
+`warnings` lists every problem the analysis worked around, sorted by `path`, then `message`. `path` is the file the problem is in, such as a `package.json` without a name, a second package with a name another package already has, or a `tsconfig.json` TypeScript reports an error in. `message` is one line, and names files under the root by their path from the root. The text of `overview` gives only their number. Galactica 0.1.0 printed no `warnings`.
+
 ```json
 {
   "schemaVersion": 1,
@@ -50,7 +52,13 @@ Packages are sorted by name. Areas are sorted by layer, lowest first, then by pa
     }
   ],
   "cycles": 2,
-  "unresolved": 0
+  "unresolved": 0,
+  "warnings": [
+    {
+      "path": "packages/legacy/package.json",
+      "message": "a workspace package without a name is skipped"
+    }
+  ]
 }
 ```
 

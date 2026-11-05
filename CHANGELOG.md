@@ -4,6 +4,10 @@
 
 ## Unreleased
 
+- `overview` prints how many warnings the analysis has, such as a workspace package without a name, and its `--json` lists them in a new `warnings` field. Each warning is one line, with paths from the repository root.
+- A relative import into `node_modules`, such as `../node_modules/@astrojs/starlight/dist/Foo.astro`, counts as an external import of that package instead of being dropped.
+- The README says how Nuxt and SvelteKit configs that `nuxi prepare` or `svelte-kit sync` generate affect the map, and its examples match the current output.
+
 ## 0.1.0
 
 The first release. Galactica is experimental during `0.x`: a minor version can change the command output, the config or the skill.

@@ -155,6 +155,35 @@ test('a package is external by the name in its specifier, installed or not', t =
   )
 })
 
+test('a relative path into node_modules is external, by the package it reaches', t => {
+  const files = {
+    'src/components/Toc.astro': '',
+    'node_modules/@astrojs/starlight/package.json': { name: '@astrojs/starlight' },
+    'node_modules/@astrojs/starlight/dist/List.astro': '',
+    'node_modules/@astrojs/starlight/dist/toc.js': '',
+    'node_modules/zod/package.json': { name: 'zod' },
+    'node_modules/zod/lib/index.js': ''
+  }
+  assert.deepEqual(
+    resolved(t, files, 'src/components/Toc.astro', [
+      '../../node_modules/@astrojs/starlight/dist/List.astro',
+      '../../node_modules/@astrojs/starlight/dist/toc.js',
+      '../../node_modules/zod/lib/index.js'
+    ]),
+    {
+      '../../node_modules/@astrojs/starlight/dist/List.astro': {
+        kind: 'external',
+        name: '@astrojs/starlight'
+      },
+      '../../node_modules/@astrojs/starlight/dist/toc.js': {
+        kind: 'external',
+        name: '@astrojs/starlight'
+      },
+      '../../node_modules/zod/lib/index.js': { kind: 'external', name: 'zod' }
+    }
+  )
+})
+
 test('a package import that reaches no file stays unresolved', t => {
   assert.deepEqual(resolved(t, { 'src/main.ts': '' }, 'src/main.ts', ['#internal/log']), {
     '#internal/log': { kind: 'unresolved', specifier: '#internal/log' }

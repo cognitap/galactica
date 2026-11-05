@@ -125,10 +125,16 @@ export function importResolver(
     return cache
   }
 
-  /** The repository file at an absolute path that exists, as a module when it is one. */
+  /**
+   * The repository file at an absolute path that exists, as a module when it
+   * is one. A file under `node_modules`, reached by a relative path such as
+   * `../node_modules/pkg/Foo.astro`, belongs to its package.
+   */
   function inRepository(file: string): Resolution | undefined {
     if (!isInside(root, file)) return undefined
     const path = toRepoPath(root, file)
+    const name = packageOfFile(`/${path}`)
+    if (name) return { kind: 'external', name }
     return modules.has(path) ? { kind: 'module', path } : { kind: 'file', path }
   }
 
