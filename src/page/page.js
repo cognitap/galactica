@@ -47,14 +47,9 @@ const plural = (count, one, many = `${one}s`) => `${formatted(count)} ${count ==
 /** @param {number} folder */
 const folderKey = folder => (folder < PALETTE ? String(folder) : 'other')
 
-/**
- * An area with more shown modules than this starts collapsed. Eight rows read
- * at a glance, and on the largest maps they keep most areas open while the few
- * big ones, which hold most of the modules, start closed.
- */
+/** Eight rows read at a glance; on large maps this keeps most areas open and closes the few big ones that hold most modules. */
 const COLLAPSE_PAST = 8
 
-/** The kinds the filter offers, in its order, and what a count of each is called. */
 const KINDS = /** @type {const} */ ({
   source: { label: 'Source', one: 'source module', many: 'source modules' },
   config: { label: 'Config', one: 'config module', many: 'config modules' },
@@ -165,7 +160,6 @@ function symbolItem(module, symbol) {
 }
 
 /**
- * A module's row. Its symbols are drawn when the row first opens, since most never do.
  * @param {PageModule} module
  * @param {string} usualKind the kind most modules of its area have, which needs no tag
  */
@@ -224,13 +218,11 @@ const usualKindOf = kinds =>
 /** @typedef {{ readonly index: number } & ReturnType<typeof moduleItem>} ModuleView */
 
 /**
- * An area box. Past `COLLAPSE_PAST` shown modules it starts collapsed, and a
- * module's row is drawn only when its box first lists it.
  * @param {number} index
- * @param {(view: ModuleView) => void} drawn called with each row when it is drawn
- * @param {() => void} expanded called when the reader expands the box
+ * @param {(view: ModuleView) => void} onRowDrawn
+ * @param {() => void} onExpand
  */
-function areaBox(index, drawn, expanded) {
+function areaBox(index, onRowDrawn, onExpand) {
   const area = data.areas[index]
   const box = element('article', 'area')
   box.dataset.folder = folderKey(area.folder)
@@ -262,23 +254,19 @@ function areaBox(index, drawn, expanded) {
     if (view === undefined) {
       view = { index: module, ...moduleItem(data.modules[module], usualKind) }
       views.set(module, view)
-      drawn(view)
+      onRowDrawn(view)
     }
     return view
   }
   /** @type {ReadonlySet<ModuleKind>} */
   let kinds = new Set()
-  /**
-   * The reader's choice, or undefined while the box follows the threshold.
-   * @type {boolean | undefined}
-   */
-  let chosen
+  let opened = false
   const listed = () => area.modules.filter(module => kinds.has(data.modules[module].kind))
   const update = () => {
     const shown = listed()
     const exported = shown.reduce((sum, module) => sum + data.modules[module].symbols.length, 0)
     const collapsible = shown.length > COLLAPSE_PAST
-    const open = !collapsible || (chosen ?? false)
+    const open = !collapsible || opened
     toggle.hidden = !collapsible
     count.hidden = collapsible
     toggle.setAttribute('aria-expanded', String(open))
@@ -292,18 +280,17 @@ function areaBox(index, drawn, expanded) {
     return { shown: shown.length, exported }
   }
   toggle.addEventListener('click', () => {
-    chosen = toggle.getAttribute('aria-expanded') !== 'true'
+    opened = toggle.getAttribute('aria-expanded') !== 'true'
     update()
-    if (chosen) expanded()
+    if (opened) onExpand()
   })
   /** @param {ReadonlySet<ModuleKind>} shown */
   const filter = shown => {
     kinds = shown
     return update()
   }
-  /** Lists every shown module of the box, so a row the reader asked for is drawn. */
   const reveal = () => {
-    chosen = true
+    opened = true
     update()
   }
   return { index, box, select, tag, filter, reveal }
@@ -411,8 +398,6 @@ function packageNav() {
 const kindNames = kinds => kinds.map(kind => KINDS[kind].many).join(' and ')
 
 /**
- * The search field, a combobox whose listbox offers the best matches, those the
- * filter hides included and marked.
  * @param {readonly SearchEntry[]} entries
  * @param {() => ReadonlySet<ModuleKind>} shownKinds
  * @param {(target: Target) => void} go
@@ -519,8 +504,6 @@ const RELATIONS = /** @type {const} */ ({
 const subjectOf = ({ kind, index }) => (kind === 'area' ? data.areas[index] : data.modules[index])
 
 /**
- * What the selection bar says: the counts `uses` and `deps` give, and how many
- * of the modules they relate to the filter hides, by kind.
  * @param {Selection} selection
  * @param {ReadonlySet<ModuleKind>} shown
  */
@@ -553,12 +536,11 @@ function summaryOf(selection, shown) {
 
 /**
  * Marks the selection, what it uses and what uses it, by toggling classes on
- * the boxes and rows already drawn, so a selection redraws nothing. A box
- * counts its related modules whether or not their rows are drawn.
+ * the boxes and rows already drawn, so a selection redraws nothing.
  * @param {readonly AreaView[]} areaViews
- * @param {ReadonlyMap<number, ModuleView>} moduleViews the rows drawn so far
+ * @param {ReadonlyMap<number, ModuleView>} drawnRows
  */
-function highlighter(areaViews, moduleViews) {
+function highlighter(areaViews, drawnRows) {
   /** @type {(() => void)[]} */
   let undo = []
   /**
@@ -588,7 +570,7 @@ function highlighter(areaViews, moduleViews) {
 
   /**
    * @param {Selection | undefined} selection
-   * @param {ReadonlySet<ModuleKind>} shown the kinds whose related modules are marked
+   * @param {ReadonlySet<ModuleKind>} shown
    */
   return (selection, shown) => {
     for (const step of undo) step()
@@ -617,7 +599,7 @@ function highlighter(areaViews, moduleViews) {
     /** @type {Map<number, Record<Relation, number>>} */
     const areas = new Map()
     for (const [index, relations] of modules) {
-      const view = moduleViews.get(index)
+      const view = drawnRows.get(index)
       if (view !== undefined) {
         add(
           view.item,
@@ -654,7 +636,7 @@ function highlighter(areaViews, moduleViews) {
       press(select)
     } else {
       add(areaViews[data.modules[selection.index].area].box, ['has-selected'])
-      const view = moduleViews.get(selection.index)
+      const view = drawnRows.get(selection.index)
       if (view === undefined) return
       add(view.item, ['is-selected'])
       press(view.select)
@@ -689,7 +671,6 @@ function selectionOf(fragment) {
 }
 
 /**
- * The kind filter: one toggle button for each kind the map has.
  * @param {(kind: ModuleKind) => void} flip
  */
 function kindFilter(flip) {
@@ -716,13 +697,11 @@ function kindFilter(flip) {
 }
 
 /**
- * The kinds that must be shown for `target` to be on the map: its module's
- * kind, or every kind an area holds when none of them is shown.
  * @param {Target} target
  * @param {ReadonlySet<ModuleKind>} shown
  * @returns {readonly ModuleKind[]}
  */
-function kindsFor(target, shown) {
+function missingKinds(target, shown) {
   const held =
     target.kind === 'area'
       ? /** @type {ModuleKind[]} */ (Object.keys(KINDS)).filter(
@@ -768,7 +747,7 @@ function draw() {
     select(selection?.kind === next.kind && selection.index === next.index ? undefined : next)
 
   /** @param {ModuleView} view */
-  const drawn = view => {
+  const onRowDrawn = view => {
     moduleViews.set(view.index, view)
     view.select.addEventListener('click', () =>
       toggleSelection({ kind: 'module', index: view.index })
@@ -776,7 +755,7 @@ function draw() {
   }
   /** @param {number} index */
   const boxOf = index => {
-    const view = areaBox(index, drawn, describe)
+    const view = areaBox(index, onRowDrawn, describe)
     view.select.addEventListener('click', () => toggleSelection({ kind: 'area', index }))
     areaViews[index] = view
     return view
@@ -816,13 +795,9 @@ function draw() {
     ].join(' · ')
   }
 
-  /**
-   * Selects what the search or the address names, first showing its kinds
-   * and listing its box's modules when the map hides it.
-   * @param {Target} target
-   */
+  /** @param {Target} target */
   const go = target => {
-    const missing = kindsFor(target, shown)
+    const missing = missingKinds(target, shown)
     if (missing.length > 0) {
       show(new Set([...shown, ...missing]))
       field.refresh()

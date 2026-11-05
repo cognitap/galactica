@@ -94,21 +94,17 @@ function tierOf(entry, wanted) {
 }
 
 /**
- * The kinds that hide `entry` from the map, none when one of its kinds is shown.
  * @param {SearchEntry} entry
- * @param {ReadonlySet<ModuleKind>} shown the kinds the map shows
+ * @param {ReadonlySet<ModuleKind>} shown
  * @returns {readonly ModuleKind[]}
  */
 export const hiddenBy = (entry, shown) =>
   entry.kinds.some(kind => shown.has(kind)) ? [] : entry.kinds
 
 /**
- * The entries that match `query` whatever its case, best first, then those the
- * map shows before those it hides, then in path order. Hidden entries are
- * still found, so a search never misses what the filter leaves out.
  * @param {readonly SearchEntry[]} entries in path order, as `entriesOf` gives them
  * @param {string} query
- * @param {ReadonlySet<ModuleKind>} shown the kinds the map shows
+ * @param {ReadonlySet<ModuleKind>} shown
  * @param {number} [limit]
  * @returns {readonly SearchEntry[]}
  */

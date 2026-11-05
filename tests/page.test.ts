@@ -26,7 +26,6 @@ const html = htmlOf(
   )
 )
 
-/** Functions the page tests read the page through, as a reader sees it. */
 const helpers = `
   const visible = node => node !== null && node !== undefined && node.checkVisibility()
   const box = path => [...document.querySelectorAll('.area')].find(

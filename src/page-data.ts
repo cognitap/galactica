@@ -19,11 +19,7 @@ import { isSourceOrConfig } from './source-file.ts'
 import type { PageSource } from './source-links.ts'
 import { areaSubject, moduleSubject, type Resolved } from './subjects.ts'
 
-/**
- * Module indexes in ascending order, each stored as its gap from the one
- * before, so a long list of nearby modules takes few digits. The list keeps
- * its length, and `indexesOf` in `src/page/indexes.js` reads it back.
- */
+/** Ascending module indexes, each stored as its gap from the one before, so long lists of nearby modules take few digits. */
 export type IndexGaps = Brand<readonly number[], 'IndexGaps'>
 
 export function gapsOf(indexes: readonly number[]): IndexGaps {

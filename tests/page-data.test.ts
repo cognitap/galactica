@@ -218,7 +218,6 @@ interface Relations {
   readonly uses: readonly number[]
 }
 
-/** What the CLI answers for `text` at depth 1, as module indexes in ascending order. */
 function cliRelations(text: string): Relations {
   const indexOf = new Map(appPage.modules.map(({ path }, index) => [path, index]))
   const indexes = (modules: readonly { readonly path: string }[]) =>
@@ -231,7 +230,6 @@ function cliRelations(text: string): Relations {
   }
 }
 
-/** What the page reads back from a module's or an area's relations. */
 const relations = ({ usedBy, usedByTests, uses }: PageRelations): Relations => ({
   usedBy: indexesOf(usedBy),
   usedByTests: indexesOf(usedByTests),

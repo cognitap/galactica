@@ -15,17 +15,14 @@ const candidates = [
   '/usr/bin/chromium-browser'
 ]
 
-/** The Chrome the page tests drive, or undefined when the machine has none. */
 export const chrome = candidates.find(path => path !== undefined && existsSync(path))
 
 export interface Page {
   /** Runs `body` as an async function in the page and gives its result, which must be JSON. */
   run<T>(body: string): Promise<T>
-  /** Loads `html` from a file, with `fragment` in its address, and waits for its first frame. */
   load(html: string, fragment?: string): Promise<void>
 }
 
-/** A headless Chrome tab, closed with its profile after the test. */
 export async function openPage(t: TestContext, path: string): Promise<Page> {
   const dir = mkdtempSync(join(tmpdir(), 'galactica-chrome-'))
   const file = join(dir, 'map.html')
