@@ -1,12 +1,13 @@
 /**
  * Which files a repository has. In a git work tree that is what git tracks or
- * would track, so `.gitignore` applies exactly. Outside one, a walk of the
- * directory tree, which reads no ignore file.
+ * would track, so `.gitignore` applies exactly. Outside one, or in a folder
+ * that an enclosing repository ignores, a walk of the directory tree, which
+ * reads no ignore file.
  */
 
 import { spawnSync } from 'node:child_process'
-import { existsSync, readdirSync } from 'node:fs'
-import { join } from 'node:path'
+import { existsSync, readdirSync, realpathSync } from 'node:fs'
+import { join, relative } from 'node:path'
 import { parseRepoPath, type RepoPath } from './model.ts'
 
 /** Build output and installed packages. Skipped at any depth, even when git tracks them. */
@@ -55,18 +56,32 @@ export function gitEnvironment(): NodeJS.ProcessEnv {
   )
 }
 
+function git(root: string, args: readonly string[]) {
+  return spawnSync('git', args, {
+    cwd: root,
+    env: gitEnvironment(),
+    encoding: 'utf8',
+    maxBuffer: 1 << 30,
+    stdio: ['ignore', 'pipe', 'ignore']
+  })
+}
+
+/**
+ * Whether `git ls-files` run in `root` lists its files. It does not when
+ * `root` is no work tree, or sits in a folder that an enclosing repository
+ * ignores, where git lists nothing.
+ */
+function listedByGit(root: string): boolean {
+  if (existsSync(join(root, '.git'))) return true
+  const toplevel = git(root, ['rev-parse', '--show-toplevel'])
+  if (toplevel.status !== 0) return false
+  const inside = relative(toplevel.stdout.trimEnd(), realpathSync(root))
+  return inside === '' || git(root, ['check-ignore', '--quiet', '.']).status === 1
+}
+
 function gitFiles(root: string): readonly string[] | undefined {
-  const result = spawnSync(
-    'git',
-    ['ls-files', '-z', '--cached', '--others', '--exclude-standard'],
-    {
-      cwd: root,
-      env: gitEnvironment(),
-      encoding: 'utf8',
-      maxBuffer: 1 << 30,
-      stdio: ['ignore', 'pipe', 'ignore']
-    }
-  )
+  if (!listedByGit(root)) return undefined
+  const result = git(root, ['ls-files', '-z', '--cached', '--others', '--exclude-standard'])
   if (result.status !== 0) return undefined
   // --cached lists files deleted from the work tree until the deletion is staged.
   return [...new Set(result.stdout.split('\0'))].filter(
