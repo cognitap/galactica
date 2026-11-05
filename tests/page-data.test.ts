@@ -259,6 +259,8 @@ test('the page carries the source its links are built from, or null', () => {
     template: 'https://github.com/acme/app/blob/abc1234/{path}#L{line}',
     prefix: 'web',
     shortCommit: 'abc1234',
+    unpushed: 0,
+    remote: 'origin',
     uncommitted: false
   }
   const graph = graphOf(modelOf({ 'src/a.ts': {} }))

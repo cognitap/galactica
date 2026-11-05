@@ -25,7 +25,16 @@ export function hrefOf(source, path, line) {
  * The header note for a map that includes changes the links cannot show.
  * @param {PageSource} source
  */
-export const noteOf = source =>
-  source.uncommitted
-    ? `Links point to commit ${source.shortCommit}; this map also includes uncommitted changes.`
-    : undefined
+export function noteOf(source) {
+  const changes = []
+  if (source.unpushed > 0) {
+    changes.push(`${source.unpushed} unpushed commit${source.unpushed === 1 ? '' : 's'}`)
+  }
+  if (source.uncommitted) changes.push('uncommitted changes')
+  if (changes.length === 0) return undefined
+  const linked =
+    source.unpushed > 0
+      ? `${source.shortCommit}, the newest commit on ${source.remote}`
+      : `commit ${source.shortCommit}`
+  return `Links point to ${linked}; this map also includes ${changes.join(' and ')}.`
+}

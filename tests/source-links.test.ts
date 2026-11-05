@@ -1,7 +1,13 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
 import { hrefOf, noteOf } from '../src/page/links.js'
-import { chosenRemote, githubTemplate, pageSource, templateProblem } from '../src/source-links.ts'
+import {
+  chosenRemote,
+  githubTemplate,
+  linkBase,
+  pageSource,
+  templateProblem
+} from '../src/source-links.ts'
 
 const github = (owner: string, repository: string) =>
   `https://github.com/${owner}/${repository}/blob/{commit}/{path}#L{line}`
@@ -56,8 +62,8 @@ test('another host, or a malformed remote, gives no template', () => {
 })
 
 test('origin wins, else the first remote by name, else none', () => {
-  assert.equal(chosenRemote({ upstream: 'u', origin: 'o' }), 'o')
-  assert.equal(chosenRemote({ zeta: 'z', alpha: 'a' }), 'a')
+  assert.equal(chosenRemote({ upstream: 'u', origin: 'o' }), 'origin')
+  assert.equal(chosenRemote({ zeta: 'z', alpha: 'a' }), 'alpha')
   assert.equal(chosenRemote({}), undefined)
 })
 
@@ -70,12 +76,20 @@ test('a template needs an http(s) address and {path}', () => {
 })
 
 test('the page source has the commit filled in, wherever the template uses it', () => {
-  const facts = { commit: 'a8b474d0123456789', prefix: 'web', uncommitted: false }
+  const facts = {
+    commit: 'a8b474d0123456789',
+    prefix: 'web',
+    uncommitted: false,
+    unpushed: 3,
+    remote: 'origin'
+  }
   assert.deepEqual(pageSource('https://h/{commit}/{path}?ref={commit}', facts), {
     template: 'https://h/a8b474d0123456789/{path}?ref=a8b474d0123456789',
     prefix: 'web',
     shortCommit: 'a8b474d',
-    uncommitted: false
+    uncommitted: false,
+    unpushed: 3,
+    remote: 'origin'
   })
 })
 
@@ -83,7 +97,9 @@ const source = (prefix = '', template = github('o', 'r').replace('{commit}', 'ab
   template,
   prefix,
   shortCommit: 'abc',
-  uncommitted: false
+  uncommitted: false,
+  unpushed: 0,
+  remote: 'origin'
 })
 
 test('a symbol link carries its line and a module link has no line fragment', () => {
@@ -121,10 +137,45 @@ test('a replacement pattern in a path is taken literally', () => {
   assert.equal(hrefOf(source('', 'https://h/{path}'), "a$&$'.ts"), "https://h/a%24%26%24'.ts")
 })
 
-test('the header says which commit the links point to only when tracked files changed', () => {
+test('the links point to HEAD when the remote has it, or when no ref says what the remote has', () => {
+  const facts = { remote: 'origin', upstream: 'origin/topic', exists: () => true }
+  assert.equal(linkBase({ ...facts, remoteHasHead: true }), undefined)
+  assert.equal(linkBase({ ...facts, remoteHasHead: false, exists: () => false }), undefined)
+})
+
+test('the base is the upstream on the remote, then HEAD, main and master of the remote', () => {
+  const only = (...refs: string[]) => ({
+    remote: 'origin',
+    remoteHasHead: false,
+    upstream: 'origin/topic',
+    exists: (ref: string) => refs.includes(ref)
+  })
+  const all = ['origin/topic', 'origin/HEAD', 'origin/main', 'origin/master']
+  assert.equal(linkBase(only(...all)), 'origin/topic')
+  assert.equal(linkBase(only(...all.slice(1))), 'origin/HEAD')
+  assert.equal(linkBase(only(...all.slice(2))), 'origin/main')
+  assert.equal(linkBase(only('origin/master')), 'origin/master')
+})
+
+test('an upstream on another remote, or no upstream, is skipped', () => {
+  const facts = { remote: 'origin', remoteHasHead: false, exists: () => true }
+  assert.equal(linkBase({ ...facts, upstream: 'fork/topic' }), 'origin/HEAD')
+  assert.equal(linkBase({ ...facts, upstream: undefined }), 'origin/HEAD')
+})
+
+test('the header says what the links point to only when the map has changes they cannot show', () => {
   assert.equal(noteOf(source()), undefined)
+  const linked = { ...source(), shortCommit: 'b0a90b4' }
   assert.equal(
-    noteOf({ ...source(), shortCommit: 'a8b474d', uncommitted: true }),
-    'Links point to commit a8b474d; this map also includes uncommitted changes.'
+    noteOf({ ...linked, uncommitted: true }),
+    'Links point to commit b0a90b4; this map also includes uncommitted changes.'
+  )
+  assert.equal(
+    noteOf({ ...linked, unpushed: 3 }),
+    'Links point to b0a90b4, the newest commit on origin; this map also includes 3 unpushed commits.'
+  )
+  assert.equal(
+    noteOf({ ...linked, unpushed: 1, uncommitted: true, remote: 'upstream' }),
+    'Links point to b0a90b4, the newest commit on upstream; this map also includes 1 unpushed commit and uncommitted changes.'
   )
 })

@@ -1,8 +1,11 @@
 import assert from 'node:assert/strict'
+import { execFileSync } from 'node:child_process'
 import { mkdirSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { test, type TestContext } from 'node:test'
 import { pageSourceOf } from '../src/git-source.ts'
+import { noteOf } from '../src/page/links.js'
+import { gitEnvironment } from '../src/repository-files.ts'
 import { git, gitRepository, repository } from './temp-repository.ts'
 
 const commit = (root: string) =>
@@ -96,4 +99,85 @@ test('a hook environment does not redirect the reads', t => {
     else process.env.GIT_DIR = saved
   })
   assert.match(pageSourceOf(root)!.template, /acme\/app\//)
+})
+
+function remoteTracking(root: string, ref: string, from = 'HEAD') {
+  git(root, 'update-ref', `refs/remotes/${ref}`, from)
+}
+
+function ahead(root: string, name: string) {
+  writeFileSync(join(root, name), name)
+  git(root, 'add', '.')
+  commit(root)
+}
+
+const head = (root: string) =>
+  execFileSync('git', ['rev-parse', 'HEAD'], {
+    cwd: root,
+    env: gitEnvironment(),
+    encoding: 'utf8'
+  }).trim()
+
+test('a pushed HEAD is linked as it is', t => {
+  const root = committed(t, 'https://github.com/acme/app')
+  remoteTracking(root, 'origin/main')
+  const source = pageSourceOf(root)!
+  assert.equal(source.template.split('/')[6], head(root))
+  assert.equal(source.unpushed, 0)
+  assert.equal(noteOf(source), undefined)
+})
+
+test('HEAD ahead of its upstream links the merge base and counts the commits beyond it', t => {
+  const root = committed(t, 'https://github.com/acme/app')
+  const pushed = head(root)
+  remoteTracking(root, 'origin/topic')
+  git(root, 'branch', '--set-upstream-to', 'origin/topic')
+  ahead(root, 'one.ts')
+  ahead(root, 'two.ts')
+  const source = pageSourceOf(root)!
+  assert.equal(source.template.split('/')[6], pushed)
+  assert.equal(source.unpushed, 2)
+  assert.equal(
+    noteOf(source),
+    `Links point to ${pushed.slice(0, 7)}, the newest commit on origin; this map also includes 2 unpushed commits.`
+  )
+  writeFileSync(join(root, 'b.ts'), 'export {}\n')
+  assert.match(noteOf(pageSourceOf(root)!)!, /2 unpushed commits and uncommitted changes\.$/)
+})
+
+test('a branch without an upstream falls back to origin/HEAD, then origin/main, then origin/master', t => {
+  const root = committed(t, 'https://github.com/acme/app')
+  const pushed = head(root)
+  ahead(root, 'one.ts')
+  const linked = () => pageSourceOf(root)!.template.split('/')[6]
+  remoteTracking(root, 'origin/master', pushed)
+  assert.equal(linked(), pushed)
+  ahead(root, 'two.ts')
+  const second = head(root)
+  remoteTracking(root, 'origin/main', second)
+  assert.equal(linked(), second)
+  ahead(root, 'three.ts')
+  git(root, 'symbolic-ref', 'refs/remotes/origin/HEAD', 'refs/remotes/origin/master')
+  assert.equal(linked(), pushed)
+  assert.equal(pageSourceOf(root)!.unpushed, 3)
+})
+
+test('an upstream on another remote is not used', t => {
+  const root = committed(t, 'https://github.com/acme/app')
+  const pushed = head(root)
+  remoteTracking(root, 'origin/main')
+  git(root, 'remote', 'add', 'fork', 'https://github.com/me/app')
+  remoteTracking(root, 'fork/topic')
+  git(root, 'branch', '--set-upstream-to', 'fork/topic')
+  ahead(root, 'one.ts')
+  assert.equal(pageSourceOf(root)!.template.split('/')[6], pushed)
+})
+
+test('without any remote ref the links point to HEAD', t => {
+  const root = committed(t, 'https://github.com/acme/app')
+  ahead(root, 'one.ts')
+  const source = pageSourceOf(root)!
+  assert.equal(source.template.split('/')[6], head(root))
+  assert.equal(source.unpushed, 0)
+  assert.equal(noteOf(source), undefined)
 })

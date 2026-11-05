@@ -14,8 +14,12 @@ export interface PageSource {
   /** The root's directory within the repository, "" when the root is the repository's top level. */
   readonly prefix: string
   readonly shortCommit: string
-  /** Whether tracked files differ from the commit the links point to. */
+  /** Whether tracked files differ from HEAD. */
   readonly uncommitted: boolean
+  /** The commits HEAD has beyond the commit the links point to. */
+  readonly unpushed: number
+  /** The remote the links are for. */
+  readonly remote: string
 }
 
 const GITHUB_SLUG = /^[\w.-]+$/
@@ -60,20 +64,51 @@ export function templateProblem(template: string): string | undefined {
   return undefined
 }
 
-/** The remote to read links from: `origin`, else the first by name. */
+/** The name of the remote to read links from: `origin`, else the first by name. */
 export function chosenRemote(remotes: Readonly<Record<string, string>>): string | undefined {
-  const name = Object.hasOwn(remotes, 'origin') ? 'origin' : Object.keys(remotes).sort()[0]
-  return name === undefined ? undefined : remotes[name]
+  return Object.hasOwn(remotes, 'origin') ? 'origin' : Object.keys(remotes).sort()[0]
+}
+
+/**
+ * The ref whose merge base with HEAD the links should point to, or undefined
+ * when they should point to HEAD itself: because the remote has HEAD, or
+ * because no ref can say what the remote has. Tried in order: the current
+ * branch's upstream when it is on the remote, `<remote>/HEAD`, `<remote>/main`,
+ * `<remote>/master`.
+ */
+export function linkBase(facts: {
+  readonly remote: string
+  readonly remoteHasHead: boolean
+  readonly upstream: string | undefined
+  readonly exists: (ref: string) => boolean
+}): string | undefined {
+  if (facts.remoteHasHead) return undefined
+  const { remote, upstream } = facts
+  const candidates = [
+    ...(upstream?.startsWith(`${remote}/`) ? [upstream] : []),
+    `${remote}/HEAD`,
+    `${remote}/main`,
+    `${remote}/master`
+  ]
+  return candidates.find(facts.exists)
 }
 
 export function pageSource(
   template: string,
-  facts: { readonly commit: string; readonly prefix: string; readonly uncommitted: boolean }
+  facts: {
+    readonly commit: string
+    readonly prefix: string
+    readonly uncommitted: boolean
+    readonly unpushed: number
+    readonly remote: string
+  }
 ): PageSource {
   return {
     template: template.replaceAll('{commit}', () => facts.commit),
     prefix: facts.prefix,
     shortCommit: facts.commit.slice(0, 7),
-    uncommitted: facts.uncommitted
+    uncommitted: facts.uncommitted,
+    unpushed: facts.unpushed,
+    remote: facts.remote
   }
 }

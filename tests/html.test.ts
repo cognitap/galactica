@@ -63,6 +63,8 @@ const source: PageSource = {
   template: 'https://github.com/acme/app/blob/abc1234/{path}#L{line}',
   prefix: '',
   shortCommit: 'abc1234',
+  unpushed: 0,
+  remote: 'origin',
   uncommitted: true
 }
 
