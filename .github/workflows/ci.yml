@@ -39,19 +39,8 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Format, lint, typecheck and test
+      - name: Format, lint, typecheck, test and run the packed package
         run: pnpm check
-
-      - name: Run the packed package from an empty folder
-        # An install gets only `dependencies`, so this fails when the built code imports anything else.
-        shell: bash
-        run: |
-          pnpm pack --pack-destination "$RUNNER_TEMP"
-          mkdir "$RUNNER_TEMP/install"
-          cd "$RUNNER_TEMP/install"
-          npm init -y > /dev/null
-          npm install --no-audit --no-fund "$RUNNER_TEMP"/cognitap-galactica-*.tgz
-          npx --no-install galactica overview --root "$GITHUB_WORKSPACE"
 
   bench:
     name: Benchmark
