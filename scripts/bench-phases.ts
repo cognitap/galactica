@@ -14,28 +14,21 @@ const dist = (name: string) => new URL(`../dist/${name}.js`, import.meta.url).hr
 const [root, command, subject = ''] = process.argv.slice(2) as [string, Command, string?]
 
 const start = performance.now()
-await import('typescript')
-const typescriptLoaded = performance.now()
-const [
-  { analyzeRepository },
-  { cacheDirectory },
-  { commandTable },
-  { loadConfig },
-  graph,
-  model,
-  rendering,
-  files
-] = await Promise.all([
-  import(dist('analysis')) as Promise<typeof import('../src/analysis.ts')>,
-  import(dist('cache')) as Promise<typeof import('../src/cache.ts')>,
-  import(dist('commands')) as Promise<typeof import('../src/commands.ts')>,
-  import(dist('config')) as Promise<typeof import('../src/config.ts')>,
-  import(dist('graph')) as Promise<typeof import('../src/graph.ts')>,
-  import(dist('model')) as Promise<typeof import('../src/model.ts')>,
-  import(dist('render')) as Promise<typeof import('../src/render.ts')>,
-  import(dist('repository-files')) as Promise<typeof import('../src/repository-files.ts')>
-])
+const [{ cacheDirectory }, { commandTable }, { loadConfig }, graph, model, rendering, files] =
+  await Promise.all([
+    import(dist('cache')) as Promise<typeof import('../src/cache.ts')>,
+    import(dist('commands')) as Promise<typeof import('../src/commands.ts')>,
+    import(dist('config')) as Promise<typeof import('../src/config.ts')>,
+    import(dist('graph')) as Promise<typeof import('../src/graph.ts')>,
+    import(dist('model')) as Promise<typeof import('../src/model.ts')>,
+    import(dist('render')) as Promise<typeof import('../src/render.ts')>,
+    import(dist('repository-files')) as Promise<typeof import('../src/repository-files.ts')>
+  ])
 const galacticaLoaded = performance.now()
+const { analyzeRepository } = (await import(
+  dist('analysis')
+)) as typeof import('../src/analysis.ts')
+const typescriptLoaded = performance.now()
 
 const config = loadConfig(root)
 const { model: analyzed, summary } = analyzeRepository(root, config, {
@@ -60,10 +53,10 @@ const busiest = [...built.modules.values()]
 console.log(
   JSON.stringify({
     phases: {
-      typescript: typescriptLoaded - start,
-      galactica: galacticaLoaded - typescriptLoaded,
+      typescript: typescriptLoaded - galacticaLoaded,
+      galactica: galacticaLoaded - start,
       ...durations,
-      cache: analysisDone - galacticaLoaded - phases,
+      cache: analysisDone - typescriptLoaded - phases,
       graph: graphDone - analysisDone,
       command: commandDone - graphDone
     },

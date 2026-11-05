@@ -13,18 +13,12 @@
 import { readFileSync, statSync } from 'node:fs'
 import { join } from 'node:path'
 import { performance } from 'node:perf_hooks'
-import type ts from 'typescript'
+import ts from 'typescript'
 import { resolveBarrels } from './barrels.ts'
 import { compilerOptionsOf, discover, type DiscoveredModule, type Warning } from './discovery.ts'
 import { currentStamp, readCache, writeCache, type Cache, type CacheEntry } from './cache.ts'
 import { extract, hashOf } from './extraction.ts'
-import {
-  compilerResolver,
-  frameworkScript,
-  unreadWarnings,
-  type Compiler,
-  type Unread
-} from './frameworks.ts'
+import { compilerResolver, unreadWarnings, type Compiler, type Unread } from './frameworks.ts'
 import { importResolver, type ImportResolver } from './import-resolution.ts'
 import { resolutionModeOf } from './imports.ts'
 import {
@@ -70,6 +64,9 @@ function compare(a: string, b: string): number {
 }
 
 const extensionOf = (path: string) => /(\.d)?\.[^./]+$/.exec(path)?.[0] ?? '(none)'
+
+/** A framework file compiles to an ES module, so its imports resolve as a TypeScript ES module's do. */
+const frameworkScript = { language: 'ts', format: ts.ModuleKind.ESNext } as const
 
 type Clock = Record<keyof Summary['durations'], number>
 

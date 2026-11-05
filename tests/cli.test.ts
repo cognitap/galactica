@@ -34,6 +34,27 @@ function galactica(cwd: string, ...args: string[]) {
 const plain = fixtureRepo('plain-relative')
 const monorepo = fixtureRepo('monorepo')
 
+test('the CLI loads TypeScript only when a command analyzes a repository', () => {
+  const script = [
+    "import { createRequire } from 'node:module'",
+    `const { run } = await import(${JSON.stringify(cli)})`,
+    'const loaded = () =>',
+    "  Object.keys(createRequire(import.meta.url).cache).some(file => file.includes('/typescript/'))",
+    'const before = loaded()',
+    `await run(['--version'], ${JSON.stringify(plain)})`,
+    'const afterVersion = loaded()',
+    `await run(['overview', '--no-cache'], ${JSON.stringify(plain)})`,
+    'console.log(JSON.stringify([before, afterVersion, loaded()]))'
+  ].join('\n')
+  const result = spawnSync('node', ['--input-type=module', '-e', script], {
+    cwd: plain,
+    env,
+    encoding: 'utf8'
+  })
+  assert.equal(result.status, 0, result.stderr)
+  assert.deepEqual(JSON.parse(result.stdout), [false, false, true])
+})
+
 test('prints usage with --help, listing every command', () => {
   const { status, stdout } = galactica(plain, '--help')
   assert.equal(status, 0)

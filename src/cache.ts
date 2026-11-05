@@ -15,10 +15,10 @@ import {
   statSync,
   writeFileSync
 } from 'node:fs'
+import { createRequire } from 'node:module'
 import { homedir } from 'node:os'
 import { dirname, extname, isAbsolute, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import ts from 'typescript'
 import { symbolKinds } from './contract.ts'
 import type { Extraction } from './extraction.ts'
 import type { Import, ImportSyntax } from './imports.ts'
@@ -61,9 +61,18 @@ function buildHash(): string {
   return hash.digest('hex')
 }
 
+const versionOf = (manifest: string) => String(JSON.parse(readFileSync(manifest, 'utf8')).version)
+
+// Read from its package.json, so a warm run knows the stamp without loading TypeScript.
+const typescriptVersion = () =>
+  versionOf(createRequire(import.meta.url).resolve('typescript/package.json'))
+
 export function currentStamp(): Stamp {
-  const pkg = JSON.parse(readFileSync(join(here, '..', 'package.json'), 'utf8'))
-  return { galactica: String(pkg.version), build: buildHash(), typescript: ts.version }
+  return {
+    galactica: versionOf(join(here, '..', 'package.json')),
+    build: buildHash(),
+    typescript: typescriptVersion()
+  }
 }
 
 export interface Environment {
