@@ -62,15 +62,15 @@ test('include adds no file that git ignores or that lies in a skipped directory'
 
 test('a module matching the globs of a configured kind takes it before the built-in rules', t => {
   const root = repository(t, {
-    'galactica.config.json': validConfigs.storybookExamples,
-    '.storybook/examples/KbdExamples.tsx': '',
-    '.storybook/preview.tsx': '',
+    'galactica.config.json': validConfigs.vitepressTheme,
+    'docs/.vitepress/config.ts': '',
+    'docs/.vitepress/theme/index.ts': '',
     'src/Kbd.stories.tsx': ''
   })
   const kinds = discover(root, loadConfig(root)).modules.map(({ path, kind }) => [path, kind])
   assert.deepEqual(kinds, [
-    ['.storybook/examples/KbdExamples.tsx', 'story'],
-    ['.storybook/preview.tsx', 'config'],
+    ['docs/.vitepress/config.ts', 'config'],
+    ['docs/.vitepress/theme/index.ts', 'source'],
     ['src/Kbd.stories.tsx', 'story']
   ])
 })

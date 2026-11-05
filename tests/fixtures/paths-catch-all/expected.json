@@ -1,0 +1,46 @@
+{
+  "format": 1,
+  "repository": { "name": "@acme/root" },
+  "packages": {
+    "@acme/app": { "dir": "packages/app" },
+    "@acme/lib": { "dir": "packages/lib" }
+  },
+  "modules": {
+    "packages/app/src/main.ts": {
+      "path": "packages/app/src/main.ts",
+      "symbols": [
+        {
+          "name": "b",
+          "kind": "const",
+          "line": 3,
+          "default": false,
+          "signature": "const b"
+        }
+      ],
+      "edges": [
+        {
+          "to": { "kind": "module", "path": "packages/lib/src/index.ts" },
+          "line": 1,
+          "form": "import",
+          "names": ["a"],
+          "typeOnly": false,
+          "dynamic": false,
+          "via": []
+        }
+      ]
+    },
+    "packages/lib/src/index.ts": {
+      "path": "packages/lib/src/index.ts",
+      "symbols": [
+        {
+          "name": "a",
+          "kind": "const",
+          "line": 1,
+          "default": false,
+          "signature": "const a = 1"
+        }
+      ],
+      "edges": []
+    }
+  }
+}

@@ -25,7 +25,7 @@ test('loadConfig reads every option, area paths normalized and in file order', t
   assert.deepEqual(loadConfig(root), {
     include: ['src/**', 'scripts/**'],
     exclude: ['src/generated/**'],
-    kinds: { story: ['.storybook/examples/**'] },
+    kinds: { source: ['docs/.vitepress/theme/**'] },
     areas: [
       { glob: 'src/b/**', area: 'src/b' },
       { glob: 'src/a/**', area: 'src/a' }
@@ -60,8 +60,8 @@ const readmeConfigs = [
   ...readFileSync(new URL('../README.md', import.meta.url), 'utf8').matchAll(/```json\n([^]*?)```/g)
 ].map(([, block]) => JSON.parse(block!) as object)
 
-test('the README shows the full config and the Radiant one', () => {
-  assert.deepEqual(readmeConfigs, [validConfigs.full, validConfigs.storybookExamples])
+test('the README shows the full config and the VitePress one', () => {
+  assert.deepEqual(readmeConfigs, [validConfigs.full, validConfigs.vitepressTheme])
 })
 
 test('the schema accepts exactly the configs loadConfig accepts', t => {

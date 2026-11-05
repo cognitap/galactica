@@ -1,7 +1,8 @@
 /**
  * Where an import specifier leads from a module: a module of the repository,
- * an external package, or nowhere. Workspace packages resolve to their source
- * first, and TypeScript's own module resolution decides the rest.
+ * an external package, or nowhere. A `paths` alias that leads to a module
+ * wins, as it does for TypeScript. Workspace packages resolve to their source
+ * next, and TypeScript's own module resolution decides the rest.
  */
 
 import { isBuiltin } from 'node:module'
@@ -159,35 +160,67 @@ export function importResolver(
     return name ? { kind: 'external', name } : { kind: 'unresolved', specifier }
   }
 
+  function byTypeScript(
+    module: DiscoveredModule,
+    specifier: string,
+    options: ts.CompilerOptions,
+    mode: ts.ResolutionMode
+  ): Resolution {
+    const { resolvedModule } = ts.resolveModuleName(
+      specifier,
+      join(root, module.path),
+      options,
+      host,
+      cacheOf(module, options),
+      undefined,
+      mode
+    )
+    if (!resolvedModule) return unresolvedByTypeScript(module, specifier, options)
+    const file = resolvedModule.resolvedFileName
+    const external = resolvedModule.isExternalLibraryImport
+      ? (packageNamed(specifier, options) ?? packageOfFile(file))
+      : undefined
+    if (external) return { kind: 'external', name: external }
+    return inRepository(file) ?? { kind: 'unresolved', specifier }
+  }
+
+  /**
+   * A `paths` alias that leads to a module wins over a workspace package, as
+   * it does for TypeScript. One that leads nowhere, such as a catch-all `*`
+   * for type folders, leaves the specifier to the workspace.
+   */
+  function resolveWhole(
+    module: DiscoveredModule,
+    specifier: string,
+    mode: ts.ResolutionMode
+  ): Resolution {
+    const options = compilerOptionsOf(discovery, module)
+    const aliased =
+      options.paths !== undefined && pathsMatch(options.paths, specifier)
+        ? byTypeScript(module, specifier, options, mode)
+        : undefined
+    if (aliased?.kind === 'module') return aliased
+    const member = workspace.resolve(specifier)
+    if (member) return member.kind === 'module' ? member : { kind: 'unresolved', specifier }
+    if (isBuiltin(specifier)) {
+      return { kind: 'external', name: `node:${specifier.replace(/^node:/, '').split('/')[0]}` }
+    }
+    return aliased ?? byTypeScript(module, specifier, options, mode)
+  }
+
   return {
     formatOf(module) {
       const options = compilerOptionsOf(discovery, module)
       const packageJsons = cacheOf(module, options).getPackageJsonInfoCache()
       return ts.getImpliedNodeFormatForFile(join(root, module.path), packageJsons, host, options)
     },
+    /** A bundler such as Vite reads `./worker?worker` as the file `./worker` with a query, so a specifier that resolves to nothing whole resolves without its query. */
     resolve(module, specifier, mode) {
-      const member = workspace.resolve(specifier)
-      if (member) return member.kind === 'module' ? member : { kind: 'unresolved', specifier }
-      if (isBuiltin(specifier)) {
-        return { kind: 'external', name: `node:${specifier.replace(/^node:/, '').split('/')[0]}` }
-      }
-      const options = compilerOptionsOf(discovery, module)
-      const { resolvedModule } = ts.resolveModuleName(
-        specifier,
-        join(root, module.path),
-        options,
-        host,
-        cacheOf(module, options),
-        undefined,
-        mode
-      )
-      if (!resolvedModule) return unresolvedByTypeScript(module, specifier, options)
-      const file = resolvedModule.resolvedFileName
-      const external = resolvedModule.isExternalLibraryImport
-        ? (packageNamed(specifier, options) ?? packageOfFile(file))
-        : undefined
-      if (external) return { kind: 'external', name: external }
-      return inRepository(file) ?? { kind: 'unresolved', specifier }
+      const whole = resolveWhole(module, specifier, mode)
+      const query = specifier.indexOf('?')
+      if (whole.kind !== 'unresolved' || query < 0) return whole
+      const path = resolveWhole(module, specifier.slice(0, query), mode)
+      return path.kind === 'unresolved' ? whole : path
     },
     warnings: () => workspace.warnings()
   }

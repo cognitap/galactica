@@ -541,8 +541,13 @@ function exportedDeclaration(node: DeclarationStatement, scope: Scope): readonly
   ]
 }
 
+/** `export const a = 1`, and CommonJS chains such as `var a = exports.a = 1`. */
 function exportedVariables(node: ts.VariableStatement, scope: Scope): readonly Exported[] {
-  if (!modifiersOf(node).has(ts.SyntaxKind.ExportKeyword)) return []
+  if (!modifiersOf(node).has(ts.SyntaxKind.ExportKeyword)) {
+    return node.declarationList.declarations.flatMap(({ initializer }) =>
+      initializer ? exportedChain(unwrapped(initializer), node, scope) : []
+    )
+  }
   return node.declarationList.declarations.filter(isNamedVariable).map(declaration => ({
     name: declaration.name.text,
     default: false,
@@ -603,26 +608,46 @@ function exportedProperties(object: ts.ObjectLiteralExpression, scope: Scope): r
   })
 }
 
-/** CommonJS: `module.exports = ...`, `module.exports.name = ...` and `exports.name = ...`. */
-function exportedCommonJs(node: ts.ExpressionStatement, scope: Scope): readonly Exported[] {
-  const assignment = node.expression
-  if (
-    !ts.isBinaryExpression(assignment) ||
-    assignment.operatorToken.kind !== ts.SyntaxKind.EqualsToken
-  ) {
+/** The targets of `a = b = value`, leftmost first, and the value they all take. */
+function assignmentChain(expression: ts.Expression): {
+  readonly targets: readonly ts.Expression[]
+  readonly value: ts.Expression
+} {
+  const targets: ts.Expression[] = []
+  let value = expression
+  while (ts.isBinaryExpression(value) && value.operatorToken.kind === ts.SyntaxKind.EqualsToken) {
+    targets.push(value.left)
+    value = unwrapped(value.right)
+  }
+  return { targets, value }
+}
+
+/**
+ * CommonJS: `module.exports = ...`, `module.exports.name = ...` and
+ * `exports.name = ...`, also as links of a chain such as
+ * `exports = module.exports = value`.
+ */
+function exportedChain(
+  expression: ts.Expression,
+  statement: ts.Statement,
+  scope: Scope
+): readonly Exported[] {
+  const { targets, value } = assignmentChain(expression)
+  return targets.flatMap(target => {
+    if (isModuleExports(target)) {
+      return ts.isObjectLiteralExpression(value)
+        ? exportedProperties(value, scope)
+        : [exportedValue('default', value, statement, scope)]
+    }
+    if (ts.isPropertyAccessExpression(target) && isExportsObject(target.expression)) {
+      return [exportedValue(target.name.text, value, statement, scope)]
+    }
     return []
-  }
-  const { left } = assignment
-  const right = unwrapped(assignment.right)
-  if (isModuleExports(left)) {
-    return ts.isObjectLiteralExpression(right)
-      ? exportedProperties(right, scope)
-      : [exportedValue('default', right, node, scope)]
-  }
-  if (ts.isPropertyAccessExpression(left) && isExportsObject(left.expression)) {
-    return [exportedValue(left.name.text, right, node, scope)]
-  }
-  return []
+  })
+}
+
+function exportedCommonJs(node: ts.ExpressionStatement, scope: Scope): readonly Exported[] {
+  return exportedChain(node.expression, node, scope)
 }
 
 const statementRules = [

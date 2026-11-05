@@ -50,6 +50,12 @@ test('config files are named .config. or .<tool>rc., or live under a dot directo
   assert.equal(kind('.github/scripts/release.mjs'), 'config')
 })
 
+test('a module in a subfolder of .storybook is a story, since stories render it', () => {
+  assert.equal(kind('.storybook/examples/KbdExamples.tsx'), 'story')
+  assert.equal(kind('packages/ui/.storybook/decorators/theme/Frame.tsx'), 'story')
+  assert.equal(kind('.storybook/preview.tsx'), 'config')
+})
+
 test('everything else is source, including names that only resemble a rule', () => {
   for (const path of [
     'src/main.ts',

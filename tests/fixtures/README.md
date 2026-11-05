@@ -23,7 +23,7 @@ Each `expected.json` is the spec for the analyzer. It holds the `Model` from `sr
 - A component is a function whose own `return`, or arrow body, gives JSX, whatever its name. So is a `const` initialized by `forwardRef`, `memo`, `React.forwardRef` or `React.memo`, and a class extending `Component` or `PureComponent`, or the same on `React`.
 - A `.vue`, `.svelte` or `.astro` file exports one implicit default component. It is named after the file, on line 1, with the signature `component Name`.
 - A framework file also exports what its exporting script block exports, by the rules above, at the line in the file: a Vue `<script>`, not `<script setup>`, a Svelte module script, not the instance script, and an Astro frontmatter. A default export of a block is the component, so it gives no symbol of its own. The imports come from every script block. The `<script>` tags in an Astro body are not read.
-- CommonJS exports are the properties of `module.exports = { ... }` that name a local declaration, listed at that declaration, and each `exports.name = value` or `module.exports.name = value`, on the line of the assignment.
+- CommonJS exports are the properties of `module.exports = { ... }` that name a local declaration, listed at that declaration, and each `exports.name = value` or `module.exports.name = value`, on the line of the assignment. An assignment in a chain counts the same, as in `exports = module.exports = createApp` or `var routes = exports.routes = []`.
 
 ## Edges
 
@@ -33,8 +33,10 @@ Each `expected.json` is the spec for the analyzer. It holds the `Model` from `sr
 - A re-export that renames has `renames`, from each name it exports to the name it takes, with keys sorted. `export { default as Button } from` gives `{ "Button": "default" }` and `export * as ns from` gives `{ "ns": "*" }`. A name passed on both renamed and unrenamed also maps to itself. Edges that rename nothing, and `import` edges, have no `renames`.
 - `require()` and `import()` take their names from an object destructuring of the result. They are empty when the result is discarded, and `"*"` when it is used any other way. A `require()` is not `dynamic`.
 - An import through a barrel points at the defining module, with the barrels in `via`. A barrel's own `export ... from` edges point at the module they name, even when that is another barrel.
+- A specifier that a `paths` alias matches resolves through the alias, as TypeScript resolves it, even when it also names a workspace package or self-reference.
 - A bare specifier that names no workspace package or self-reference is `external`, with the package name and no subpath. A Node.js built-in is `external` as `node:<name>`, with or without the prefix in the specifier. A relative or `paths` specifier that resolves to no file is `unresolved`.
 - Any other specifier resolves as TypeScript resolves it with the module's tsconfig, in the mode its syntax and file format give. A fixture with no `tsconfig.json` resolves as TypeScript does with `moduleResolution: "bundler"` and `allowJs`. A specifier that names a module by its exact path, such as `./Counter.vue`, resolves to it.
+- A specifier with a `?` query, such as Vite's `./worker?worker` or `./logo.svg?raw`, that resolves to nothing whole resolves as the specifier before the `?`. When that resolves to nothing too, the import is `unresolved` with the whole specifier.
 - An import of a repository file that is no module, such as a stylesheet, a JSON file or a declaration file, yields no edge.
 
 ## Derived data

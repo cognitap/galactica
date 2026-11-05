@@ -110,7 +110,7 @@ Galactica needs no config. To override a default, add `galactica.config.json` to
   "$schema": "./node_modules/@cognitap/galactica/schema/galactica.config.schema.json",
   "include": ["src/**", "scripts/**"],
   "exclude": ["src/generated/**"],
-  "kinds": { "story": [".storybook/examples/**"] },
+  "kinds": { "source": ["docs/.vitepress/theme/**"] },
   "areas": { "src/components/**": "src/components" },
   "sourceUrl": "https://gitlab.example.com/group/repo/-/blob/{commit}/{path}#L{line}"
 }
@@ -124,10 +124,10 @@ Galactica needs no config. To override a default, add `galactica.config.json` to
 
 A glob matches the path from the repository root, with forward slashes, as Node.js `path.matchesGlob` does. `*` matches within one folder and `**` matches any number of folders, but neither matches a name that starts with a dot, so `**/*.tsx` misses `.storybook/preview.tsx` and `.storybook/**` finds it. `include` and `exclude` only narrow the files Galactica already reads. They never add a file that git ignores or a file in `node_modules`, `dist` or another build folder. An import of a module that the config leaves out gets no edge.
 
-Radiant keeps demo components in `.storybook/examples/`. By default, a module in a folder whose name starts with a dot is a `config` module, so these 54 modules count as code and shape the layers: `src/recipes`, whose stories import them, sits in layer 9. This config makes them stories, and `src/recipes` drops to layer 6:
+By default, a module in a folder whose name starts with a dot is a `config` module, such as `.storybook/main.ts` or `.github/scripts/release.mjs`. The subfolders of `.storybook` are the exception: they hold what stories render, such as Radiant's demo components in `.storybook/examples/`, so their modules are stories. Vite keeps the components of its documentation site in `docs/.vitepress/theme/`, where they are `config` modules by default. This config makes them source:
 
 ```json
-{ "kinds": { "story": [".storybook/examples/**"] } }
+{ "kinds": { "source": ["docs/.vitepress/theme/**"] } }
 ```
 
 `$schema` points an editor at `schema/galactica.config.schema.json`, which ships in the package, for completion and checks. Galactica ignores it. When the config is not valid, every command exits with code 1 and prints one line that names the key:

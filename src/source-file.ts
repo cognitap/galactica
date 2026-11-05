@@ -46,14 +46,25 @@ const testDirectories: ReadonlySet<string> = new Set(['__tests__', 'test', 'test
 const kindRules: readonly {
   readonly kind: Exclude<ModuleKind, 'source'>
   readonly name: RegExp
-  readonly directory: (segment: string) => boolean
+  /** Whether the folders the module is in, outermost first, give the kind. */
+  readonly folders: (directories: readonly string[]) => boolean
 }[] = [
-  { kind: 'test', name: /\.(test|spec)\./, directory: segment => testDirectories.has(segment) },
-  { kind: 'story', name: /\.(stories|story)\./, directory: () => false },
+  {
+    kind: 'test',
+    name: /\.(test|spec)\./,
+    folders: directories => directories.some(segment => testDirectories.has(segment))
+  },
+  {
+    kind: 'story',
+    name: /\.(stories|story)\./,
+    // Storybook reads its config from `.storybook` itself. Its subfolders hold
+    // what stories render, such as example components.
+    folders: directories => directories.slice(0, -1).includes('.storybook')
+  },
   {
     kind: 'config',
     name: /\.config\.|^\.[\w-]*rc\./,
-    directory: segment => segment.startsWith('.')
+    folders: directories => directories.some(segment => segment.startsWith('.'))
   }
 ]
 
@@ -77,7 +88,7 @@ export function kindOf(path: RepoPath, config: Config): ModuleKind {
   const name = nameOf(path)
   const directories = directoriesOf(path)
   const rule = kindRules.find(
-    ({ name: pattern, directory }) => pattern.test(name) || directories.some(directory)
+    ({ name: pattern, folders }) => pattern.test(name) || folders(directories)
   )
   return rule?.kind ?? 'source'
 }
