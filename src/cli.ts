@@ -23,7 +23,7 @@ const htmlOptions = {
     type: 'string',
     value: '<template>',
     summary:
-      'Where html links source, with {commit}, {path} and {line}; "none" turns links off (default: the GitHub remote)'
+      'Where html links source, with {commit}, {path} and {line}; "none" turns links off (default: sourceUrl in galactica.config.json, else the GitHub remote)'
   }
 } as const
 
@@ -244,12 +244,12 @@ function html(argv: readonly string[], cwd: string): Result {
   const input = writerInput('html', htmlFlags, argv, cwd)
   if ('code' in input) return input
   const { values, root } = input
-  const template = values['source-url']
-  const problem =
-    template === undefined || template === 'none' ? undefined : templateProblem(template)
+  const flag = values['source-url']
+  const problem = flag === undefined || flag === 'none' ? undefined : templateProblem(flag)
   if (problem !== undefined) return failure(`--source-url: ${problem}`)
   const repository = analyzed(root, values['no-cache'])
   if ('problem' in repository) return failure(repository.problem)
+  const template = flag ?? repository.config.sourceUrl
   const out = resolve(cwd, values.out ?? 'galactica.html')
   const source = template === 'none' ? null : (pageSourceOf(root, template) ?? null)
   const page = htmlOf(repository.graph, source)

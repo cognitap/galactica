@@ -5,7 +5,7 @@ import { tmpdir } from 'node:os'
 import { join, relative } from 'node:path'
 import { after, test, type TestContext } from 'node:test'
 import { commands } from '../src/contract.ts'
-import { validConfigs } from './config-examples.ts'
+import { gitlab, validConfigs } from './config-examples.ts'
 import { fixtureRepo } from './fixtures.ts'
 import { git, gitRepository, repository } from './temp-repository.ts'
 
@@ -231,7 +231,6 @@ test('html --source-url none turns links off', t => {
 })
 
 test('html --source-url sets the template for any host', t => {
-  const gitlab = 'https://gitlab.example.com/group/repo/-/blob/{commit}/{path}#L{line}'
   const root = linkedRepository(t, 'https://gitlab.example.com/group/repo.git')
   assert.equal(pageSource(root).source, null)
   const { status, source } = pageSource(root, '--source-url', gitlab)
@@ -240,6 +239,21 @@ test('html --source-url sets the template for any host', t => {
     source.template,
     /^https:\/\/gitlab\.example\.com\/group\/repo\/-\/blob\/[0-9a-f]{40}\/\{path\}#L\{line\}$/
   )
+})
+
+test('html takes sourceUrl from galactica.config.json, and --source-url wins over it', t => {
+  const root = linkedRepository(t, 'https://github.com/acme/app')
+  writeFileSync(join(root, 'galactica.config.json'), JSON.stringify(validConfigs.full))
+  assert.match(pageSource(root).source.template, /^https:\/\/gitlab\.example\.com\/group\/repo\//)
+  assert.equal(pageSource(root, '--source-url', 'none').source, null)
+  const other = 'https://git.example.com/{commit}/{path}'
+  assert.match(
+    pageSource(root, '--source-url', other).source.template,
+    /^https:\/\/git\.example\.com\//
+  )
+
+  writeFileSync(join(root, 'galactica.config.json'), JSON.stringify(validConfigs.sourceUrlNone))
+  assert.equal(pageSource(root).source, null)
 })
 
 test('html --source-url without {path}, or not on http(s), fails and writes no page', t => {
