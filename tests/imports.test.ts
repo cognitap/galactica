@@ -1,16 +1,14 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
 import ts from 'typescript'
-import { importsOf } from '../src/imports.ts'
+import { importsOf, resolutionModeOf } from '../src/imports.ts'
+import { parseRepoPath } from '../src/model.ts'
+import { parseScript, type ScriptLanguage } from '../src/syntax.ts'
 
 const parse = (lines: readonly string[], kind = ts.ScriptKind.TS) =>
   ts.createSourceFile('a.ts', lines.join('\n'), ts.ScriptTarget.Latest, true, kind)
 
-const imports = (lines: readonly string[], kind?: ts.ScriptKind) =>
-  importsOf(parse(lines, kind)).map(({ specifier, ...rest }) => ({
-    specifier: specifier.text,
-    ...rest
-  }))
+const imports = (lines: readonly string[], kind?: ts.ScriptKind) => importsOf(parse(lines, kind))
 
 const names = (lines: readonly string[]) =>
   Object.fromEntries(imports(lines).map(entry => [entry.specifier, entry.names]))
@@ -202,4 +200,75 @@ test('JavaScript files read require and import the same way', () => {
       { specifier: './lazy.js', names: ['*'] }
     ]
   )
+})
+
+test('each import records its syntax, and a resolution-mode attribute where a type-only one sets it', () => {
+  assert.deepEqual(
+    imports([
+      "import 'side'",
+      "export * from 'star'",
+      "import x = require('equals')",
+      "const r = require('required')",
+      "const d = import('dynamic')",
+      "import type { T } from 'as-import' with { 'resolution-mode': 'import' }",
+      "export type { U } from 'as-require' with { 'resolution-mode': 'require' }",
+      "import { v } from 'not-type-only' with { 'resolution-mode': 'require' }"
+    ]).map(({ specifier, syntax, resolutionMode }) => ({ specifier, syntax, resolutionMode })),
+    [
+      { specifier: 'side', syntax: 'declaration', resolutionMode: undefined },
+      { specifier: 'star', syntax: 'declaration', resolutionMode: undefined },
+      { specifier: 'equals', syntax: 'import-equals', resolutionMode: undefined },
+      { specifier: 'required', syntax: 'require', resolutionMode: undefined },
+      { specifier: 'dynamic', syntax: 'import-call', resolutionMode: undefined },
+      { specifier: 'as-import', syntax: 'declaration', resolutionMode: 'import' },
+      { specifier: 'as-require', syntax: 'declaration', resolutionMode: 'require' },
+      { specifier: 'not-type-only', syntax: 'declaration', resolutionMode: undefined }
+    ]
+  )
+})
+
+test('the resolution mode of each import is the one TypeScript reads from the module itself', () => {
+  const lines = [
+    "import 'side'",
+    "import x = require('equals')",
+    "const r = require('required')",
+    "const d = import('dynamic')",
+    "import type { T } from 'as-import' with { 'resolution-mode': 'import' }",
+    "export type { U } from 'as-require' with { 'resolution-mode': 'require' }"
+  ].join('\n')
+  const languages: readonly ScriptLanguage[] = ['ts', 'mts', 'cts', 'tsx', 'js', 'mjs', 'cjs']
+  const formats: readonly ts.ResolutionMode[] = [
+    undefined,
+    ts.ModuleKind.CommonJS,
+    ts.ModuleKind.ESNext
+  ]
+  const optionSets: readonly ts.CompilerOptions[] = [
+    {},
+    { module: ts.ModuleKind.NodeNext, moduleResolution: ts.ModuleResolutionKind.NodeNext },
+    { module: ts.ModuleKind.Node16, moduleResolution: ts.ModuleResolutionKind.Node16 },
+    { module: ts.ModuleKind.ESNext, moduleResolution: ts.ModuleResolutionKind.Bundler },
+    { module: ts.ModuleKind.CommonJS, moduleResolution: ts.ModuleResolutionKind.Bundler },
+    { module: ts.ModuleKind.Preserve, moduleResolution: ts.ModuleResolutionKind.Bundler }
+  ]
+  for (const language of languages) {
+    for (const format of formats) {
+      const path = parseRepoPath(`src/a.${language}`)
+      const source = parseScript(path, language, lines, format)
+      const literals = new Map<string, ts.StringLiteralLike>()
+      const visit = (node: ts.Node): void => {
+        if (ts.isStringLiteralLike(node)) literals.set(node.text, node)
+        ts.forEachChild(node, visit)
+      }
+      visit(source)
+      for (const options of optionSets) {
+        for (const imported of importsOf(source)) {
+          assert.equal(
+            resolutionModeOf(imported, language, format, options),
+            ts.getModeForUsageLocation(source, literals.get(imported.specifier)!, options),
+            `${imported.specifier} in ${language}, format ${format}, ${JSON.stringify(options)}`
+          )
+        }
+      }
+    }
+  }
 })

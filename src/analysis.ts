@@ -1,24 +1,36 @@
 /**
  * Analysing a repository into its `Model`: discovery, then for each module one
  * read and one parse, from which come its content hash, its symbols and its
- * resolved edges, and last the pass that follows imports through barrels.
- * There is no program and no type checker.
+ * imports, then the resolution of those imports across the repository, and
+ * last the pass that follows imports through barrels. There is no program and
+ * no type checker.
+ *
+ * With a cache, a module whose bytes are unchanged since the last run is not
+ * parsed again. Everything after the parse depends on other files, so it runs
+ * every time.
  */
 
-import { createHash } from 'node:crypto'
-import { readFileSync } from 'node:fs'
+import { readFileSync, statSync } from 'node:fs'
 import { join } from 'node:path'
 import { performance } from 'node:perf_hooks'
-import ts from 'typescript'
+import type ts from 'typescript'
 import { resolveBarrels } from './barrels.ts'
 import { compilerOptionsOf, discover, type DiscoveredModule, type Warning } from './discovery.ts'
+import { currentStamp, readCache, writeCache, type Cache, type CacheEntry } from './cache.ts'
+import { extract, hashOf } from './extraction.ts'
 import { importResolver, type ImportResolver } from './import-resolution.ts'
-import { importsOf } from './imports.ts'
-import { compareEdges, MODEL_FORMAT, type Edge, type Model, type ModuleFacts } from './model.ts'
-import { symbolsOf } from './symbols.ts'
-import { isScriptLanguage, parseScript } from './syntax.ts'
+import { resolutionModeOf } from './imports.ts'
+import {
+  compareEdges,
+  MODEL_FORMAT,
+  type Edge,
+  type Model,
+  type ModuleFacts,
+  type RepoPath
+} from './model.ts'
+import { isScriptLanguage } from './syntax.ts'
 
-/** What a caller reports about a run. It stays out of the `Model`, which is the cache. */
+/** What a caller reports about a run. It stays out of the `Model`. */
 export interface Summary {
   /** From discovery, the compiler settings and the workspace resolver. Sorted by path, then message. */
   readonly warnings: readonly Warning[]
@@ -26,6 +38,11 @@ export interface Summary {
   readonly unresolved: number
   /** Imports of repository files that are no modules, such as stylesheets, by extension. They get no edge. */
   readonly skipped: Readonly<Record<string, number>>
+  /**
+   * How each module's symbols and imports were had: from the cache without a
+   * read, from the cache after a read whose hash matched, or from a parse.
+   */
+  readonly modules: { readonly reused: number; readonly reread: number; readonly parsed: number }
   /** Wall time of each phase, in milliseconds. */
   readonly durations: {
     readonly discovery: number
@@ -61,45 +78,80 @@ interface Analyzed {
   readonly skipped: readonly string[]
 }
 
-function analyzeModule(
-  root: string,
+function resolveModule(
   module: DiscoveredModule,
+  { hash, symbols, imports }: CacheEntry,
   options: ts.CompilerOptions,
-  resolver: ImportResolver,
-  clock: Clock
+  resolver: ImportResolver
 ): Analyzed {
   const { path, language } = module
-  const bytes = readFileSync(join(root, path))
-  const hash = createHash('sha256').update(bytes).digest('hex')
-  if (!isScriptLanguage(language)) {
-    return { facts: { path, hash, symbols: [], edges: [] }, skipped: [] }
-  }
-  const format = timed(clock, 'resolution', () => resolver.formatOf(module))
-  const { source, symbols, imports } = timed(clock, 'parse', () => {
-    const source = parseScript(path, language, bytes.toString('utf8'), format)
-    return { source, symbols: symbolsOf(source), imports: importsOf(source) }
-  })
+  if (!isScriptLanguage(language)) return { facts: { path, hash, symbols, edges: [] }, skipped: [] }
+  const format = resolver.formatOf(module)
   const edges: Edge[] = []
   const skipped: string[] = []
-  timed(clock, 'resolution', () => {
-    for (const { specifier, ...taken } of imports) {
-      const mode = ts.getModeForUsageLocation(source, specifier, options)
-      const to = resolver.resolve(module, specifier.text, mode)
-      if (to.kind === 'file') skipped.push(extensionOf(to.path))
-      else edges.push({ to, ...taken, via: [] })
-    }
-  })
+  for (const { specifier, syntax, resolutionMode, ...taken } of imports) {
+    const mode = resolutionModeOf({ syntax, resolutionMode }, language, format, options)
+    const to = resolver.resolve(module, specifier, mode)
+    if (to.kind === 'file') skipped.push(extensionOf(to.path))
+    else edges.push({ to, ...taken, via: [] })
+  }
   edges.sort(compareEdges)
   return { facts: { path, hash, symbols, edges }, skipped }
 }
 
+type Source = keyof Summary['modules']
+
+/**
+ * The module's entry, from `old` when its size and mtime, or else its hash,
+ * are unchanged. The stat comes before the read, so a file written after the
+ * read has a newer mtime than the entry records.
+ */
+function entryOf(
+  root: string,
+  { path, language }: DiscoveredModule,
+  old: CacheEntry | undefined,
+  clock: Clock
+): readonly [CacheEntry, Source] {
+  const file = join(root, path)
+  const { mtimeMs, size } = statSync(file)
+  if (old && old.mtimeMs === mtimeMs && old.size === size) return [old, 'reused']
+  const bytes = readFileSync(file)
+  const hash = hashOf(bytes)
+  if (old?.hash === hash) return [{ ...old, mtimeMs, size }, 'reread']
+  const extraction = timed(clock, 'parse', () => extract(path, language, bytes))
+  return [{ hash, mtimeMs, size, ...extraction }, 'parsed']
+}
+
+export interface Options {
+  /** The folder of the cache. Without one, every module is parsed and nothing is written. */
+  readonly cache?: string
+}
+
 /** The repository's model, with a summary of what the analysis could not resolve or map. */
-export function analyzeRepository(rootDir: string): Analysis {
+export function analyzeRepository(rootDir: string, { cache }: Options = {}): Analysis {
   const clock: Clock = { discovery: 0, parse: 0, resolution: 0, barrels: 0 }
   const discovery = timed(clock, 'discovery', () => discover(rootDir))
+  const store = cache === undefined ? undefined : { directory: cache, stamp: currentStamp() }
+  const cached: Cache = store ? readCache(store.directory, store.stamp) : new Map()
+  const counts: Record<Source, number> = { reused: 0, reread: 0, parsed: 0 }
+  const entries = new Map<RepoPath, CacheEntry>()
+  for (const module of discovery.modules) {
+    const [entry, source] = entryOf(discovery.root, module, cached.get(module.path), clock)
+    entries.set(module.path, entry)
+    counts[source]++
+  }
+  const changed = counts.reread + counts.parsed > 0 || cached.size !== entries.size
+  if (store && changed) writeCache(store.directory, store.stamp, entries)
   const resolver = importResolver(discovery)
-  const analyzed = discovery.modules.map(module =>
-    analyzeModule(discovery.root, module, compilerOptionsOf(discovery, module), resolver, clock)
+  const analyzed = timed(clock, 'resolution', () =>
+    discovery.modules.map(module =>
+      resolveModule(
+        module,
+        entries.get(module.path)!,
+        compilerOptionsOf(discovery, module),
+        resolver
+      )
+    )
   )
 
   const skipped: Record<string, number> = {}
@@ -123,6 +175,7 @@ export function analyzeRepository(rootDir: string): Analysis {
       ),
       unresolved: edges.filter(edge => edge.to.kind === 'unresolved').length,
       skipped,
+      modules: counts,
       durations: clock
     }
   }

@@ -4,6 +4,7 @@ import { readFileSync, statSync, writeFileSync } from 'node:fs'
 import { join, relative, resolve } from 'node:path'
 import { parseArgs, type ParseArgsOptionsConfig } from 'node:util'
 import { analyzeRepository } from './analysis.ts'
+import { cacheDirectory } from './cache.ts'
 import { commandOptions, commandTable, type Input } from './commands.ts'
 import { SCHEMA_VERSION, type Command, type Failure } from './contract.ts'
 import { graphOf } from './graph.ts'
@@ -33,6 +34,7 @@ const initOptions = {
 const options = {
   root: { type: 'string' },
   json: { type: 'boolean' },
+  'no-cache': { type: 'boolean' },
   help: { type: 'boolean', short: 'h' },
   version: { type: 'boolean', short: 'v' },
   ...commandOptions,
@@ -72,6 +74,7 @@ function usage(): string {
   const optionRows: readonly Row[] = [
     ['--root <dir>', 'Repository to map (default: current directory)'],
     ['--json', 'Print the JSON object documented in docs/json-output.md'],
+    ['--no-cache', 'Analyze every file, without reading or writing the cache'],
     ...flags.map((option): Row => [
       `--${option}${optionValue(option)}`,
       flagOptions[option].summary
@@ -120,6 +123,11 @@ function insideRoot(root: string, cwd: string): RepoPath | undefined {
   }
 }
 
+function graphAt(root: string, noCache: boolean | undefined) {
+  const options = noCache ? {} : { cache: cacheDirectory(root) }
+  return graphOf(analyzeRepository(root, options).model)
+}
+
 function rootOf(cwd: string, given: string | undefined): string | undefined {
   const root = resolve(cwd, given ?? '.')
   return statSync(root, { throwIfNoEntry: false })?.isDirectory() ? root : undefined
@@ -157,7 +165,7 @@ function inputOf(command: Command, argv: readonly string[], cwd: string) {
     all: values.all ?? false,
     cwd: insideRoot(root, cwd)
   }
-  return { root, json: values.json ?? false, input }
+  return { root, json: values.json ?? false, noCache: values['no-cache'], input }
 }
 
 const failure = (message: string): Result => ({
@@ -206,7 +214,7 @@ function html(argv: readonly string[], cwd: string): Result {
   if ('code' in input) return input
   const { values, root } = input
   const out = resolve(cwd, values.out ?? 'galactica.html')
-  const page = htmlOf(graphOf(analyzeRepository(root).model))
+  const page = htmlOf(graphAt(root, values['no-cache']))
   try {
     writeFileSync(out, page)
   } catch (error) {
@@ -265,7 +273,7 @@ export function run(argv: readonly string[], cwd: string): Result {
   const output =
     'error' in parsed
       ? parsed
-      : commandTable[name].run(graphOf(analyzeRepository(parsed.root).model), parsed.input)
+      : commandTable[name].run(graphAt(parsed.root, parsed.noCache), parsed.input)
   const failed = 'error' in output
   if (json) return { code: failed ? 1 : 0, stdout: JSON.stringify(output, null, 2), stderr: '' }
   return failed
