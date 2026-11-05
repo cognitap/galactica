@@ -1,3 +1,4 @@
+import { indexesOf } from './indexes.js'
 import { hrefOf, noteOf } from './links.js'
 import { entriesOf, hiddenBy, search } from './search.js'
 
@@ -5,6 +6,7 @@ import { entriesOf, hiddenBy, search } from './search.js'
 /** @typedef {import('../page-data.ts').PageArea} PageArea */
 /** @typedef {import('../page-data.ts').PageModule} PageModule */
 /** @typedef {import('../page-data.ts').PagePackage} PagePackage */
+/** @typedef {import('../page-data.ts').IndexGaps} IndexGaps */
 /** @typedef {import('../contract.ts').ModuleKind} ModuleKind */
 /** @typedef {import('./search.js').SearchEntry} SearchEntry */
 /** @typedef {import('./search.js').Target} Target */
@@ -533,7 +535,7 @@ function summaryOf(selection, shown) {
   if (shown.has('test')) {
     parts.push(element('span', 'count-used-by', plural(subject.usedByTests.length, 'test')))
   }
-  const related = new Set([...subject.uses, ...subject.usedBy, ...subject.usedByTests])
+  const related = new Set([subject.uses, subject.usedBy, subject.usedByTests].flatMap(indexesOf))
   /** @type {Map<ModuleKind, number>} */
   const hidden = new Map()
   for (const index of related) {
@@ -598,11 +600,11 @@ function highlighter(areaViews, moduleViews) {
     /** @type {Map<number, Set<Relation>>} */
     const modules = new Map()
     /**
-     * @param {readonly number[]} indexes
+     * @param {IndexGaps} gaps
      * @param {Relation} relation
      */
-    const relate = (indexes, relation) => {
-      for (const index of indexes) {
+    const relate = (gaps, relation) => {
+      for (const index of indexesOf(gaps)) {
         if (shown.has(data.modules[index].kind)) {
           modules.set(index, (modules.get(index) ?? new Set()).add(relation))
         }

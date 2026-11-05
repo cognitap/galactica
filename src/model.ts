@@ -16,7 +16,7 @@ import { isAbsolute, posix, relative, sep } from 'node:path'
 import type { Language, ModuleKind, SymbolKind } from './contract.ts'
 
 declare const brand: unique symbol
-type Brand<T, Name extends string> = T & { readonly [brand]: Name }
+export type Brand<T, Name extends string> = T & { readonly [brand]: Name }
 
 /** Repository-relative, forward slashes, no leading `./`, no trailing `/`. "." is the root. */
 export type RepoPath = Brand<string, 'RepoPath'>
