@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict'
-import { existsSync, rmSync } from 'node:fs'
+import { existsSync, mkdirSync, rmSync, writeFileSync } from 'node:fs'
 import { basename, join } from 'node:path'
 import { test } from 'node:test'
 import ts from 'typescript'
@@ -102,6 +102,35 @@ test('outside a git work tree, a walk lists the files, without reading .gitignor
     'coverage/lcov.js': ''
   })
   assert.deepEqual(paths(discover(root)), ['output/report.ts', 'src/main.ts'])
+})
+
+test('a repository inside an ignored folder of another repository is walked', t => {
+  const outer = gitRepository(t, {
+    '.gitignore': 'nested/\n',
+    'nested/src/a.ts': '',
+    'nested/output/b.ts': '',
+    'nested/node_modules/pkg/index.js': ''
+  })
+  assert.deepEqual(paths(discover(join(outer, 'nested'))), ['output/b.ts', 'src/a.ts'])
+})
+
+test('a repository that is its own work tree inside an ignored folder still uses git', t => {
+  const outer = gitRepository(t, { '.gitignore': 'nested/\n', 'nested/src/a.ts': '' })
+  const inner = join(outer, 'nested')
+  git(inner, 'init', '--quiet')
+  writeFileSync(join(inner, '.gitignore'), 'output/\n')
+  mkdirSync(join(inner, 'output'))
+  writeFileSync(join(inner, 'output/b.ts'), '')
+  assert.deepEqual(paths(discover(inner)), ['src/a.ts'])
+})
+
+test('a folder of a repository that is not ignored lists files through the parent git', t => {
+  const outer = gitRepository(t, {
+    '.gitignore': 'generated/\n',
+    'packages/x/src/a.ts': '',
+    'packages/x/generated/b.ts': ''
+  })
+  assert.deepEqual(paths(discover(join(outer, 'packages/x'))), ['src/a.ts'])
 })
 
 test('the repository and its one package are named by the root package.json', t => {
