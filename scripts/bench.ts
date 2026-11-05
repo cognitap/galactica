@@ -19,7 +19,7 @@ import { parseArgs } from 'node:util'
 const targets = { cold: 10_000, warm: 500 } as const
 type Cache = keyof typeof targets
 
-const cli = fileURLToPath(new URL('../dist/cli.js', import.meta.url))
+const cli = fileURLToPath(new URL('../dist/bin.js', import.meta.url))
 const probe = fileURLToPath(new URL('bench-phases.ts', import.meta.url))
 
 const { cacheDirectory }: typeof import('../src/cache.ts') = await import(

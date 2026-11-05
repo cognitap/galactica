@@ -1,4 +1,3 @@
-#!/usr/bin/env node
 import { spawn } from 'node:child_process'
 import { readFileSync, statSync, writeFileSync } from 'node:fs'
 import { join, relative, resolve } from 'node:path'
@@ -317,7 +316,8 @@ export async function run(argv: readonly string[], cwd: string): Promise<Result>
     : { code: 0, stdout: render(output), stderr: '' }
 }
 
-if (import.meta.main) {
+/** Runs the command that `process.argv` names, as `dist/bin.js` does once Node.js passes its check. */
+export async function main(): Promise<void> {
   const result = await run(process.argv.slice(2), process.cwd())
   if (result.stdout !== '') console.log(result.stdout)
   if (result.stderr !== '') console.error(result.stderr)

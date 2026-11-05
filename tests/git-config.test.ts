@@ -12,7 +12,7 @@ import { join } from 'node:path'
 import { test } from 'node:test'
 import { git, gitRepository, repository } from './temp-repository.ts'
 
-const cli = new URL('../dist/cli.js', import.meta.url).pathname
+const cli = new URL('../dist/bin.js', import.meta.url).pathname
 
 const commit = (root: string) =>
   git(root, '-c', 'user.name=t', '-c', 'user.email=t@example.com', 'commit', '--quiet', '-m', 'm')

@@ -7,27 +7,23 @@ Galactica maps a JavaScript or TypeScript repository, for coding agents and for 
 
 Galactica is inspired by [codemap](https://github.com/peterretief/codemap), which draws a similar page for Go modules.
 
-## Status
+## Installation
 
-The five agent commands, `html` and `init` work from a checkout. Galactica is not on npm yet. Work is tracked in the Galactica project in Linear.
-
-To run the commands, build Galactica once, then run `dist/cli.js` from the repository you want to map, or pass that repository with `--root`:
-
-```sh
-pnpm install
-pnpm build
-node /path/to/galactica/dist/cli.js overview --root /path/to/repository
-```
-
-The first command in a repository analyzes every file and keeps what each file gives on its own in a cache. A later command parses only the files that changed since. On Radiant, about 500 modules, the first command takes about 0.8 seconds and a later one about 0.3 seconds.
-
-## Usage
-
-Galactica needs Node.js 24 or newer. Once it is published, it runs in any repository with no install and no config:
+Galactica needs Node.js 24.1.0 or newer. It runs in any repository with no install and no config:
 
 ```sh
 npx @cognitap/galactica overview
 ```
+
+To pin a version for a team, install it as a dev dependency and run it through the package manager, for example `pnpm add -D @cognitap/galactica` and `pnpm exec galactica overview`.
+
+Galactica is experimental while its version is `0.x`: a minor version can change the command output, the config or the skill. The [changelog](CHANGELOG.md) marks each breaking change, and the [release policy](RELEASE_POLICY.md) says what the public contract covers.
+
+## Usage
+
+Run each command from the repository you want to map, or pass that repository with `--root`. The first command in a repository analyzes every file and keeps what each file gives on its own in a cache. A later command parses only the files that changed since. On Radiant, about 500 modules, the first command takes about 0.8 seconds and a later one about 0.3 seconds.
+
+The examples below write `galactica` for `npx @cognitap/galactica`.
 
 | Command          | Answers                                                             |
 | ---------------- | ------------------------------------------------------------------- |
@@ -40,6 +36,20 @@ npx @cognitap/galactica overview
 | `init`           | Install the agent skill into this repository.                       |
 
 Every command except `html` and `init` prints short text by default and structured output with `--json`. The [JSON output reference](docs/json-output.md) documents the fields. A subject is a module path, a package name, a package directory or an area path. `uses` and `deps` follow `--depth` import steps, 1 by default, and `overview --all` ranks every module instead of the top five of each area. A command that cannot answer prints one line to stderr and exits with code 1.
+
+These options apply across commands:
+
+| Option          | Effect                                                            |
+| --------------- | ----------------------------------------------------------------- |
+| `--root <dir>`  | Use this repository instead of the current directory.             |
+| `--json`        | Print the JSON object instead of text. Not for `html` and `init`. |
+| `--no-cache`    | Analyze every file, and neither read nor write the cache.         |
+| `--depth <n>`   | How many import steps `uses` and `deps` follow. 1 by default.     |
+| `--all`         | List every module of each area in `overview`, not the top five.   |
+| `-h, --help`    | Print every command and option.                                   |
+| `-v, --version` | Print the version.                                                |
+
+`html` and `init` take the options described in their sections below.
 
 `uses` lists what imports a file, with the names each direct dependent takes, and every test that reaches it at any distance. On Radiant:
 
@@ -91,13 +101,20 @@ The template must start with `http://` or `https://` and contain `{path}`. Each 
 
 `init` installs the agent skill in `.agents/skills/galactica/`, which Codex reads, and in `.claude/skills/galactica/`, which Claude Code reads. Cursor's agent did not open the skill from either folder in testing, so `init` also writes the rule `.cursor/rules/galactica.mdc`, which Cursor requests by the skill's description and which sends it to the skill. It writes those three files and nothing else, and prints each path with whether it was created, updated or unchanged. The skill tells an agent to run `overview` when it starts in an unfamiliar repository, `where` instead of grep, and `uses` before it edits a file, then the tests `uses` lists.
 
-The skill runs `npx @cognitap/galactica` by default. Until Galactica is on npm, pass the command for your checkout:
+The skill runs `npx @cognitap/galactica` by default. `--command` sets the command it runs instead, for example when Galactica is a dev dependency, or a build from a checkout:
 
 ```sh
-node /path/to/galactica/dist/cli.js init --command "node /path/to/galactica/dist/cli.js"
+npx @cognitap/galactica init --command "pnpm exec galactica"
+node /path/to/galactica/dist/bin.js init --command "node /path/to/galactica/dist/bin.js"
 ```
 
-Running `init` again updates each file to the current version, unless someone edited it. Each file records a hash of what `init` wrote, so `init` keeps an edited file, says so, and replaces it only with `--force`. It exits with code 1 only when it kept every file. The skill is also at `skills/galactica/` in this repository, where the [skills CLI](https://github.com/vercel-labs/skills) finds it.
+Running `init` again updates each file to the current version, unless someone edited it. Each file records a hash of what `init` wrote, so `init` keeps an edited file, says so, and replaces it only with `--force`. It exits with code 1 only when it kept every file. The skill is also at `skills/galactica/` in this repository, so the [skills CLI](https://github.com/vercel-labs/skills) installs it for any agent it supports, in place of `init`:
+
+```sh
+npx skills add cognitap/galactica
+```
+
+A skill installed this way runs `npx @cognitap/galactica`, and `npx skills update` updates it.
 
 Galactica keeps the symbols and imports of each file in a cache, so it adds nothing to the repository except the optional skill. The cache is `node_modules/.cache/galactica/cache.json` when the repository has a `node_modules` folder. Otherwise it is in the user cache folder, under `galactica/` and a hash of the repository path: `~/Library/Caches` on macOS, `$XDG_CACHE_HOME` or `~/.cache` on Linux, and `%LOCALAPPDATA%` on Windows. A file whose size and modification time are unchanged is not read again, and a file whose content is unchanged is not parsed again. The whole cache is discarded when Galactica, TypeScript, `vue` or `svelte` changes version, or a compiler is installed or removed. Everything that depends on more than one file, such as where an import leads, is worked out again on every run, so the cache never gives a stale answer. Deleting the cache is always safe. `--no-cache` analyzes every file and neither reads nor writes the cache.
 
@@ -165,3 +182,15 @@ On an Apple M1 Pro with Node.js 26, both targets hold. These are the medians of 
 | [tldraw](https://github.com/tldraw/tldraw) at `27b47cb` | 2,932   | 3.2 s     | 0.20 s |
 
 A first run here starts with the files already in the operating system's file cache, and spends most of its time parsing modules. A warm run answers from the cached model: it stats every file and directory the last full analysis depended on, compares git's file listing, and reuses the model when nothing changed, without loading TypeScript. Of its 0.2 seconds, Node.js startup takes about 30 ms, the checks and the model 60 to 90 ms, and the graph 40 to 60 ms. A command after a change runs the full analysis again, apart from the parse of unchanged modules, and discovery and import resolution dominate it.
+
+## Development
+
+Build Galactica from a checkout, then run `dist/bin.js` where you would run `galactica`:
+
+```sh
+pnpm install
+pnpm build
+node /path/to/galactica/dist/bin.js overview --root /path/to/repository
+```
+
+`pnpm check` runs format, lint, typecheck and the tests, and then installs the packed package in a throwaway repository and runs it there. [RELEASE_POLICY.md](RELEASE_POLICY.md) describes how a version is released.

@@ -1,0 +1,98 @@
+name: Release Galactica
+
+on:
+  workflow_dispatch:
+    inputs:
+      publish:
+        description: Publish the verified archive with npm trusted publishing
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+concurrency:
+  group: galactica-release
+  cancel-in-progress: false
+
+jobs:
+  prepare:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    outputs:
+      artifact-id: ${{ steps.candidate.outputs.artifact-id }}
+    steps:
+      - uses: actions/checkout@v7.0.1
+        with:
+          persist-credentials: false
+
+      - uses: pnpm/action-setup@v6.1.0
+        with:
+          run_install: false
+
+      - uses: actions/setup-node@v7.0.0
+        with:
+          node-version-file: .nvmrc
+
+      - run: pnpm install --frozen-lockfile
+
+      - run: pnpm release:prepare
+        env:
+          RELEASE_PUBLISH: ${{ inputs.publish }}
+
+      - uses: actions/upload-artifact@v7.0.2
+        id: candidate
+        with:
+          name: galactica-${{ github.sha }}-${{ github.run_attempt }}
+          path: release/
+          if-no-files-found: error
+
+  publish:
+    if: ${{ inputs.publish && github.repository == 'cognitap/galactica' && github.ref == 'refs/heads/main' }}
+    needs: prepare
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    environment: npm
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@v7.0.1
+        with:
+          persist-credentials: false
+
+      - uses: pnpm/action-setup@v6.1.0
+        with:
+          run_install: false
+
+      - uses: actions/setup-node@v7.0.0
+        with:
+          node-version-file: .nvmrc
+
+      - uses: actions/download-artifact@v8.0.2
+        with:
+          artifact-ids: ${{ needs.prepare.outputs.artifact-id }}
+          path: release/
+
+      - name: Publish and verify the prepared archive
+        run: |
+          version=$(jq -er .version release/release.json)
+          expected=$(jq -er .integrity release/release.json)
+          for attempt in {0..30}; do
+            if published=$(curl -fsS --max-time 10 -H 'Cache-Control: no-cache' "https://registry.npmjs.org/@cognitap%2Fgalactica/$version" | jq -er .dist.integrity); then
+              if [ "$published" != "$expected" ]; then
+                echo 'Registry integrity differs from the release archive.' >&2
+                exit 1
+              fi
+              echo "Verified @cognitap/galactica@$version."
+              exit 0
+            fi
+            if [ "$attempt" -eq 0 ]; then
+              # An upload can succeed even when the publish command fails.
+              pnpm publish release/galactica.tgz --no-git-checks --ignore-scripts --access public --tag latest --registry https://registry.npmjs.org/ --publish-wait-timeout 300000 || echo 'Publish returned an error; checking npm.'
+            else
+              sleep 5
+            fi
+          done
+          echo "Could not verify @cognitap/galactica@$version after 30 registry checks." >&2
+          exit 1

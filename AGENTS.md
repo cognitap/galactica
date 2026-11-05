@@ -13,7 +13,8 @@ Galactica analyzes a JavaScript or TypeScript repository into one internal model
 
 ## Structure
 
-- `src/cli.ts`: command-line entry point. It parses argv against the command table, loads `galactica.config.json` once through `src/config.ts`, analyzes the repository through `src/model-cache.ts`, with no cache when `--no-cache` is given, runs the command and prints its JSON object or its text. A `ConfigError` from any step fails the command with its one line. For `html`, it writes the page from `src/html.ts` to a file and can open it, taking the link template from `--source-url`, else the config's `sourceUrl`. For `init`, it installs the skill through `src/skill.ts`. It holds no command logic.
+- `src/bin.ts`: the `galactica` executable. It checks the Node.js version through `src/node-version.ts` before anything else loads, then runs `main` from `src/cli.ts`. `src/node-version.ts` holds the minimum, which `package.json` `engines` repeats and `tests/node-version.test.ts` keeps equal.
+- `src/cli.ts`: the command line. It parses argv against the command table, loads `galactica.config.json` once through `src/config.ts`, analyzes the repository through `src/model-cache.ts`, with no cache when `--no-cache` is given, runs the command and prints its JSON object or its text. A `ConfigError` from any step fails the command with its one line. For `html`, it writes the page from `src/html.ts` to a file and can open it, taking the link template from `--source-url`, else the config's `sourceUrl`. For `init`, it installs the skill through `src/skill.ts`. It holds no command logic.
 - `src/commands.ts`: the command table. Each entry gives a command's argument, the options it takes, and the pure function from the `Graph` to its `--json` object. Adding a command is one entry here and one renderer in `src/render.ts`.
 - `src/render.ts`: the text form of each command, built only from its `--json` object, so text and JSON never disagree.
 - `src/subjects.ts`: what a command argument names. `resolveSubject` reads a module path, package name, package directory or area path, from the current directory and from the root, and `resolveModule` reads a module path only.
@@ -55,6 +56,7 @@ Galactica analyzes a JavaScript or TypeScript repository into one internal model
 - `src/compiler-settings.ts`: which tsconfig applies to a file, following `extends` and project references, and the defaults when none does. Each config is parsed once per run, its include globs are matched against the repository's file list through TypeScript's own matcher, and its option warnings come from a program with no root files whose current directory is the root, so their text is the same wherever the command runs.
 - `docs/json-output.md`: reference for the `--json` output. Update it with `src/contract.ts`.
 - `tests/`: `node:test` suites. CLI tests run the built `dist/`, and unit tests import `src/` directly. `tests/temp-repository.ts` writes a throwaway repository for a test, and `tests/models.ts` builds a `Model` in memory for the command tests.
+- `scripts/pack-and-test.ts`: packs Galactica, installs the archive into a throwaway repository with pnpm, from its store where it can, and runs `--version`, `uses`, `init` and `html` there through the installed `galactica` executable. `pnpm test` runs it after the suites, so CI does, and `pnpm release:prepare` runs it on the release archive.
 - `tests/fixtures/<case>/`: one small repository per hard analysis case in `repo/`, with its expected `Model` in `expected.json` and, where the case is about derived data, `expected-graph.json`. `tests/fixtures/README.md` states the conventions. Formatters never touch these files, because the expected files pin line numbers.
 - `tests/fixtures.ts`: lists the cases, reads and writes the expected files, and holds the aspect table. Each aspect is one part of the expected files with the issue that implements it. `tests/fixtures.test.ts` checks each expected file against its repository, and compares each implemented aspect with the analyzer's output. `tests/update-fixtures.ts` rewrites the implemented aspects.
 
@@ -67,10 +69,19 @@ Galactica analyzes a JavaScript or TypeScript repository into one internal model
 - The HTML page is one file with no network requests. Inline all scripts, styles and data.
 - Output is deterministic: the same repository produces byte-identical output.
 - A first run on about 3,000 files takes under 10 seconds, and a command with a warm cache takes under half a second. Do not merge changes that break these targets.
-- Support Node.js 24 and newer.
+- Support Node.js 24.1.0 and newer. 24.0 prints an ExperimentalWarning on `path.matchesGlob`. Keep `src/bin.ts` and `src/node-version.ts` free of other imports and of syntax older Node.js cannot parse, so an older version gets the check's message.
 
 ## Commands
 
 `pnpm check` runs format, lint, typecheck and tests. Run it before every commit.
 
 `pnpm fixtures:update` rewrites the implemented aspects of every expected file from the analyzer's output. Run it when a change to the output is intended, and review the diff under `tests/fixtures` as part of the change. When an issue implements an aspect, give the aspect a check in `tests/fixtures.ts` and remove the cases it finishes from `pendingIn`.
+
+## Releases
+
+Follow [RELEASE_POLICY.md](RELEASE_POLICY.md):
+
+1. Open PR `Release Galactica <version>`: run `pnpm version patch --no-git-tag-version` (`minor` for a breaking change during `0.x`), move Unreleased notes under `## <version>`, commit, and run `pnpm release:prepare`.
+2. Squash-merge after CI passes, then run the **Release Galactica** workflow on `main` with `publish`.
+3. Verify `pnpm view @cognitap/galactica@<version> dist.integrity` matches `release.json` (never rerun `publish` for an existing version).
+4. Create GitHub release `v<version>` titled `Galactica <version>` at `sourceCommit`.

@@ -1,8 +1,16 @@
 {
   "name": "@cognitap/galactica",
-  "version": "0.0.0",
-  "private": true,
+  "version": "0.1.0",
   "description": "Maps a JavaScript or TypeScript repository for agents and humans",
+  "keywords": [
+    "agent-skills",
+    "cli",
+    "codemap",
+    "dependency-graph",
+    "monorepo",
+    "typescript"
+  ],
+  "homepage": "https://github.com/cognitap/galactica#readme",
   "bugs": {
     "url": "https://github.com/cognitap/galactica/issues"
   },
@@ -12,7 +20,7 @@
     "url": "git+https://github.com/cognitap/galactica.git"
   },
   "bin": {
-    "galactica": "./dist/cli.js"
+    "galactica": "./dist/bin.js"
   },
   "files": [
     "LICENSE",
@@ -26,13 +34,15 @@
     "prepare": "husky",
     "build": "rimraf dist && tsc -p tsconfig.build.json && node --input-type=module -e \"import { cpSync } from 'node:fs'; cpSync('src/page', 'dist/page', { recursive: true })\"",
     "typecheck": "tsc --noEmit",
-    "test": "pnpm build && node --test tests/*.test.ts",
+    "test": "pnpm build && node --test tests/*.test.ts && node scripts/pack-and-test.ts",
+    "test:package": "pnpm build && node scripts/pack-and-test.ts",
     "bench": "pnpm --silent build && node scripts/bench.ts",
     "fixtures:update": "node tests/update-fixtures.ts",
     "lint": "oxlint --deny-warnings",
     "format": "oxfmt",
     "format:check": "oxfmt --check",
-    "check": "pnpm format:check && pnpm lint && pnpm typecheck && pnpm test"
+    "check": "pnpm format:check && pnpm lint && pnpm typecheck && pnpm test",
+    "release:prepare": "node scripts/prepare-release.ts"
   },
   "dependencies": {
     "typescript": "6.0.3"
@@ -57,7 +67,7 @@
     }
   },
   "engines": {
-    "node": ">=24"
+    "node": ">=24.1.0"
   },
   "packageManager": "pnpm@12.11.2"
 }
