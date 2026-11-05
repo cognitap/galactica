@@ -13,7 +13,8 @@ Galactica analyzes a JavaScript or TypeScript repository into one internal model
 
 ## Structure
 
-- `src/cli.ts`: command-line entry point. It parses argv against the command table, loads `galactica.config.json` once through `src/config.ts`, analyzes the repository through `src/model-cache.ts`, with no cache when `--no-cache` is given, runs the command and prints its JSON object or its text. A `ConfigError` from any step fails the command with its one line. For `html`, it writes the page from `src/html.ts` to a file and can open it, taking the link template from `--source-url`, else the config's `sourceUrl`. For `init`, it installs the skill through `src/skill.ts`. It holds no command logic.
+- `src/bin.ts`: the `galactica` executable. It checks the Node.js version through `src/node-version.ts` before anything else loads, then runs `main` from `src/cli.ts`. `src/node-version.ts` holds the minimum, which `package.json` `engines` repeats and `tests/node-version.test.ts` keeps equal.
+- `src/cli.ts`: the command line. It parses argv against the command table, loads `galactica.config.json` once through `src/config.ts`, analyzes the repository through `src/model-cache.ts`, with no cache when `--no-cache` is given, runs the command and prints its JSON object or its text. A `ConfigError` from any step fails the command with its one line. For `html`, it writes the page from `src/html.ts` to a file and can open it, taking the link template from `--source-url`, else the config's `sourceUrl`. For `init`, it installs the skill through `src/skill.ts`. It holds no command logic.
 - `src/commands.ts`: the command table. Each entry gives a command's argument, the options it takes, and the pure function from the `Graph` to its `--json` object. Adding a command is one entry here and one renderer in `src/render.ts`.
 - `src/render.ts`: the text form of each command, built only from its `--json` object, so text and JSON never disagree.
 - `src/subjects.ts`: what a command argument names. `resolveSubject` reads a module path, package name, package directory or area path, from the current directory and from the root, and `resolveModule` reads a module path only.
@@ -67,7 +68,7 @@ Galactica analyzes a JavaScript or TypeScript repository into one internal model
 - The HTML page is one file with no network requests. Inline all scripts, styles and data.
 - Output is deterministic: the same repository produces byte-identical output.
 - A first run on about 3,000 files takes under 10 seconds, and a command with a warm cache takes under half a second. Do not merge changes that break these targets.
-- Support Node.js 24 and newer.
+- Support Node.js 24.1.0 and newer. 24.0 prints an ExperimentalWarning on `path.matchesGlob`. Keep `src/bin.ts` and `src/node-version.ts` free of other imports and of syntax older Node.js cannot parse, so an older version gets the check's message.
 
 ## Commands
 

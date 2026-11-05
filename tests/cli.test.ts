@@ -9,7 +9,8 @@ import { gitlab, invalidConfigs, validConfigs } from './config-examples.ts'
 import { fixtureRepo } from './fixtures.ts'
 import { git, gitRepository, repository } from './temp-repository.ts'
 
-const cli = new URL('../dist/cli.js', import.meta.url).pathname
+const cli = new URL('../dist/bin.js', import.meta.url).pathname
+const program = new URL('../dist/cli.js', import.meta.url).pathname
 
 /** A home of its own, so a repository without node_modules keeps its cache out of the user's. */
 const home = mkdtempSync(join(tmpdir(), 'galactica-home-'))
@@ -37,7 +38,7 @@ const monorepo = fixtureRepo('monorepo')
 test('the CLI loads TypeScript only when a command analyzes a repository', () => {
   const script = [
     "import { createRequire } from 'node:module'",
-    `const { run } = await import(${JSON.stringify(cli)})`,
+    `const { run } = await import(${JSON.stringify(program)})`,
     'const loaded = () =>',
     "  Object.keys(createRequire(import.meta.url).cache).some(file => file.includes('/typescript/'))",
     'const before = loaded()',
@@ -53,6 +54,30 @@ test('the CLI loads TypeScript only when a command analyzes a repository', () =>
   })
   assert.equal(result.status, 0, result.stderr)
   assert.deepEqual(JSON.parse(result.stdout), [false, false, true])
+})
+
+test('an older Node.js gets one line and loads nothing beyond the version check', () => {
+  const preload = [
+    "import { registerHooks } from 'node:module'",
+    "Object.defineProperty(process.versions, 'node', { value: '22.21.1' })",
+    'const loaded = []',
+    'registerHooks({ resolve: (specifier, context, next) => {',
+    '  const resolved = next(specifier, context)',
+    '  loaded.push(resolved.url)',
+    '  return resolved',
+    '} })',
+    "process.on('exit', () => console.log(JSON.stringify(loaded)))"
+  ].join('\n')
+  const { status, stdout, stderr } = spawnSync(
+    'node',
+    ['--import', `data:text/javascript,${encodeURIComponent(preload)}`, cli, 'overview'],
+    { cwd: plain, env, encoding: 'utf8' }
+  )
+  assert.equal(status, 1)
+  assert.equal(stderr, 'galactica: needs Node.js 24.1.0 or newer, and this is Node.js 22.21.1\n')
+  const dist = new URL('../dist/', import.meta.url).href
+  const loaded = (JSON.parse(stdout) as string[]).map(url => url.replace(dist, ''))
+  assert.deepEqual(loaded, ['bin.js', 'node-version.js'])
 })
 
 test('prints usage with --help, listing every command', () => {

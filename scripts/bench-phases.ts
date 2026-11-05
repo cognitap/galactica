@@ -1,5 +1,5 @@
 /**
- * One command the way `dist/cli.js` runs it, timed by phase, for
+ * One command the way `dist/bin.js` runs it, timed by phase, for
  * `scripts/bench.ts`. It loads the built `dist/` rather than `src/`, since
  * that is the code users run. Prints one JSON object.
  *

@@ -12,7 +12,7 @@
     "url": "git+https://github.com/cognitap/galactica.git"
   },
   "bin": {
-    "galactica": "./dist/cli.js"
+    "galactica": "./dist/bin.js"
   },
   "files": [
     "LICENSE",
@@ -57,7 +57,7 @@
     }
   },
   "engines": {
-    "node": ">=24"
+    "node": ">=24.1.0"
   },
   "packageManager": "pnpm@12.11.2"
 }

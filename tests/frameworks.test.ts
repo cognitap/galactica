@@ -64,7 +64,7 @@ test('a compiler in the repository being mapped is never loaded', t => {
     assert.deepEqual(targets(model, 'src/Card.svelte'), ['src/a.ts'], run)
     assert.deepEqual(summary.warnings, [], run)
   }
-  const output = cli(join(galactica, 'dist', 'cli.js'), root, 'uses', 'src/a.ts')
+  const output = cli(join(galactica, 'dist', 'bin.js'), root, 'uses', 'src/a.ts')
   assert.match(output, /src\/App\.vue/)
   assert.match(output, /src\/Card\.svelte/)
   assert.deepEqual(
@@ -113,7 +113,7 @@ test('installed without its optional dependencies, each framework warns once, an
 test('a cache written without the compilers is discarded once they are installed', t => {
   const { folder, link } = installed(t, [])
   const root = repository(t, app)
-  const uses = () => cli(join(folder, 'dist', 'cli.js'), root, 'uses', 'src/a.ts', '--json')
+  const uses = () => cli(join(folder, 'dist', 'bin.js'), root, 'uses', 'src/a.ts', '--json')
   const dependents = () => JSON.parse(uses()).modules.map(({ path }: { path: string }) => path)
   assert.deepEqual(dependents(), [])
   link('vue')

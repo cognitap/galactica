@@ -11,12 +11,12 @@ Galactica is inspired by [codemap](https://github.com/peterretief/codemap), whic
 
 The five agent commands, `html` and `init` work from a checkout. Galactica is not on npm yet. Work is tracked in the Galactica project in Linear.
 
-To run the commands, build Galactica once, then run `dist/cli.js` from the repository you want to map, or pass that repository with `--root`:
+To run the commands, build Galactica once, then run `dist/bin.js` from the repository you want to map, or pass that repository with `--root`:
 
 ```sh
 pnpm install
 pnpm build
-node /path/to/galactica/dist/cli.js overview --root /path/to/repository
+node /path/to/galactica/dist/bin.js overview --root /path/to/repository
 ```
 
 The first command in a repository analyzes every file and keeps what each file gives on its own in a cache. A later command parses only the files that changed since. On Radiant, about 500 modules, the first command takes about 0.8 seconds and a later one about 0.3 seconds.
@@ -94,7 +94,7 @@ The template must start with `http://` or `https://` and contain `{path}`. Each 
 The skill runs `npx @cognitap/galactica` by default. Until Galactica is on npm, pass the command for your checkout:
 
 ```sh
-node /path/to/galactica/dist/cli.js init --command "node /path/to/galactica/dist/cli.js"
+node /path/to/galactica/dist/bin.js init --command "node /path/to/galactica/dist/bin.js"
 ```
 
 Running `init` again updates each file to the current version, unless someone edited it. Each file records a hash of what `init` wrote, so `init` keeps an edited file, says so, and replaces it only with `--force`. It exits with code 1 only when it kept every file. The skill is also at `skills/galactica/` in this repository, where the [skills CLI](https://github.com/vercel-labs/skills) finds it.
