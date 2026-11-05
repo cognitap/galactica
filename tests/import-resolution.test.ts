@@ -190,6 +190,22 @@ test('a package import that reaches no file stays unresolved', t => {
   })
 })
 
+test('a SvelteKit alias without its generated tsconfig stays unresolved, never a package', t => {
+  const files = {
+    'tsconfig.json': { extends: './.svelte-kit/tsconfig.json' },
+    'src/routes/+page.ts': '',
+    'src/lib/utils.ts': ''
+  }
+  assert.deepEqual(
+    resolved(t, files, 'src/routes/+page.ts', ['$lib/utils', '$app/stores', 'svelte']),
+    {
+      '$lib/utils': { kind: 'unresolved', specifier: '$lib/utils' },
+      '$app/stores': { kind: 'unresolved', specifier: '$app/stores' },
+      svelte: { kind: 'external', name: 'svelte' }
+    }
+  )
+})
+
 test('a repository file that is no module is no module target', t => {
   const files = {
     'tsconfig.json': {
