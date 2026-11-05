@@ -4,6 +4,7 @@ import type { Deps, Failure, Uses } from '../src/contract.ts'
 import { graphOf } from '../src/graph.ts'
 import { emptyConfig, type RepoPath } from '../src/model.ts'
 import { pageData, type PageData, type PageRelations } from '../src/page-data.ts'
+import { indexesOf } from '../src/page/indexes.js'
 import { deps, uses } from '../src/queries.ts'
 import { defines, edge, modelOf } from './models.ts'
 
@@ -211,8 +212,13 @@ function answered<T extends Uses | Deps>(answer: T | Failure): T {
   return answer
 }
 
-/** What the CLI answers for `text` at depth 1, as the page stores it. */
-function cliRelations(text: string): PageRelations {
+interface Relations {
+  readonly usedBy: readonly number[]
+  readonly usedByTests: readonly number[]
+  readonly uses: readonly number[]
+}
+
+function cliRelations(text: string): Relations {
   const indexOf = new Map(appPage.modules.map(({ path }, index) => [path, index]))
   const indexes = (modules: readonly { readonly path: string }[]) =>
     modules.map(({ path }) => indexOf.get(path)!).sort((a, b) => a - b)
@@ -224,10 +230,10 @@ function cliRelations(text: string): PageRelations {
   }
 }
 
-const relations = ({ usedBy, usedByTests, uses }: PageRelations): PageRelations => ({
-  usedBy,
-  usedByTests,
-  uses
+const relations = ({ usedBy, usedByTests, uses }: PageRelations): Relations => ({
+  usedBy: indexesOf(usedBy),
+  usedByTests: indexesOf(usedByTests),
+  uses: indexesOf(uses)
 })
 
 test('each module and area carries what uses and deps answer for it at depth 1', () => {
@@ -238,22 +244,22 @@ test('each module and area carries what uses and deps answer for it at depth 1',
     assert.deepEqual(relations(area), cliRelations(area.path), area.path)
   }
   const cn = appPage.modules.find(({ path }) => path === 'src/cn.ts')!
-  assert.deepEqual(modulePaths(appPage, cn.usedBy), [
+  assert.deepEqual(modulePaths(appPage, relations(cn).usedBy), [
     'src/app/main.ts',
     'src/index.ts',
     'src/ui/Button.tsx'
   ])
-  assert.deepEqual(modulePaths(appPage, cn.usedByTests), [
+  assert.deepEqual(modulePaths(appPage, relations(cn).usedByTests), [
     'src/ui/Card.test.tsx',
     'tests/cn.test.ts'
   ])
   const main = appPage.modules.find(({ path }) => path === 'src/app/main.ts')!
-  assert.deepEqual(modulePaths(appPage, main.uses), ['src/cn.ts', 'src/index.ts'])
+  assert.deepEqual(modulePaths(appPage, relations(main).uses), ['src/cn.ts', 'src/index.ts'])
 })
 
 test('an area at a package directory answers for the area, not for the package', () => {
   const root = appPage.areas.find(({ path }) => path === '.')!
-  assert.deepEqual(modulePaths(appPage, root.uses), ['src/app/main.ts'])
+  assert.deepEqual(modulePaths(appPage, relations(root).uses), ['src/app/main.ts'])
   assert.deepEqual(root.usedBy, [])
   assert.notDeepEqual(relations(root), cliRelations('.'))
 })

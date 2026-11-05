@@ -55,14 +55,14 @@
         aria-label="Packages"
         hidden
       ></nav>
-      <button
-        type="button"
-        id="toggle-tests"
-        class="toggle"
-        aria-pressed="false"
-      >
-        Show tests and stories
-      </button>
+      <div class="kind-filter">
+        <span id="kind-filter-label">Show</span>
+        <div
+          id="kind-filter"
+          role="group"
+          aria-labelledby="kind-filter-label"
+        ></div>
+      </div>
       <section
         class="legend"
         aria-label="Legend"

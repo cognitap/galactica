@@ -5,21 +5,38 @@
  */
 
 import type { ModuleKind, Reached } from './contract.ts'
-import { compare, type AreaPath, type Graph, type RepoPath, type SymbolFacts } from './model.ts'
+import {
+  compare,
+  type AreaPath,
+  type Brand,
+  type Graph,
+  type RepoPath,
+  type SymbolFacts
+} from './model.ts'
 import { depsOf, usesOf } from './queries.ts'
 import { orderRows } from './row-order.ts'
 import { isSourceOrConfig } from './source-file.ts'
 import type { PageSource } from './source-links.ts'
 import { areaSubject, moduleSubject, type Resolved } from './subjects.ts'
 
-/** What `uses` and `deps` answer at depth 1, as module indexes in ascending order. */
+/** Ascending module indexes, each stored as its gap from the one before, so long lists of nearby modules take few digits. */
+export type IndexGaps = Brand<readonly number[], 'IndexGaps'>
+
+export function gapsOf(indexes: readonly number[]): IndexGaps {
+  const gaps: readonly number[] = indexes.map(
+    (index, position) => index - (indexes[position - 1] ?? 0)
+  )
+  return gaps as IndexGaps
+}
+
+/** What `uses` and `deps` answer at depth 1. */
 export interface PageRelations {
   /** The `modules` of `uses`: what imports the subject, stories and config included. */
-  readonly usedBy: readonly number[]
+  readonly usedBy: IndexGaps
   /** The `tests` of `uses`, at any distance. */
-  readonly usedByTests: readonly number[]
+  readonly usedByTests: IndexGaps
   /** The `modules` of `deps`: what the subject imports in the workspace, barrels included. */
-  readonly uses: readonly number[]
+  readonly uses: IndexGaps
 }
 
 export interface PageModule extends PageRelations {
@@ -122,7 +139,7 @@ function relationsOf(
   moduleIndex: ReadonlyMap<string, number>
 ): PageRelations {
   const indexes = (modules: readonly Reached[]) =>
-    modules.map(({ path }) => moduleIndex.get(path)!).sort((a, b) => a - b)
+    gapsOf(modules.map(({ path }) => moduleIndex.get(path)!).sort((a, b) => a - b))
   const { modules: usedBy, tests } = usesOf(graph, resolved, 1)
   return {
     usedBy: indexes(usedBy),
