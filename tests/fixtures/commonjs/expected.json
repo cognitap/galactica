@@ -1,5 +1,5 @@
 {
-  "format": 1,
+  "format": 2,
   "repository": { "name": "commonjs" },
   "packages": {
     "commonjs": { "dir": "." }
@@ -38,6 +38,7 @@
           "names": ["add"],
           "typeOnly": false,
           "dynamic": false,
+          "loadTime": ["add"],
           "via": []
         }
       ]
@@ -74,6 +75,7 @@
           "names": ["add"],
           "typeOnly": false,
           "dynamic": false,
+          "loadTime": ["add"],
           "via": []
         },
         {

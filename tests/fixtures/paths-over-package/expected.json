@@ -1,5 +1,5 @@
 {
-  "format": 1,
+  "format": 2,
   "repository": { "name": "@acme/tool" },
   "packages": {
     "@acme/tool": { "dir": "." }
@@ -37,6 +37,7 @@
           "names": ["run"],
           "typeOnly": false,
           "dynamic": false,
+          "loadTime": ["run"],
           "via": []
         }
       ]

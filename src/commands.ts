@@ -5,6 +5,7 @@
  */
 
 import type { Command, Failure, Output, Warning } from './contract.ts'
+import { cycles } from './cycles.ts'
 import type { Graph, RepoPath } from './model.ts'
 import { overview } from './overview.ts'
 import { deps, outline, uses, where } from './queries.ts'
@@ -74,5 +75,10 @@ export const commandTable: { readonly [C in Command]: CommandSpec } = {
     options: ['depth'],
     summary: 'What the subject depends on, in the workspace and outside it',
     run: ({ graph }, { argument, cwd, depth }) => deps(graph, argument, cwd, depth)
+  },
+  cycles: {
+    options: [],
+    summary: 'Each import cycle, which imports run at load time, and where to break it',
+    run: ({ graph }) => cycles(graph)
   }
 }

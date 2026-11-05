@@ -26,6 +26,7 @@ const cases = [
   'tsconfig-paths',
   'barrels',
   'cycle',
+  'cycle-kinds',
   'javascript',
   'allowjs-mixed',
   'type-only-and-dynamic',

@@ -24,7 +24,7 @@ import type { Extraction } from './extraction.ts'
 import type { Import, ImportSyntax } from './imports.ts'
 import { compare, type RepoPath, type SymbolFacts } from './model.ts'
 
-export const CACHE_FORMAT = 3
+export const CACHE_FORMAT = 4
 
 export interface CacheEntry extends Extraction {
   readonly hash: string
@@ -162,13 +162,25 @@ const isRenames = (value: unknown): value is Readonly<Record<string, string>> =>
 
 function importOf(value: unknown): Import | undefined {
   if (!isRecord(value)) return undefined
-  const { specifier, syntax, resolutionMode, line, form, names, renames, typeOnly, dynamic } = value
+  const {
+    specifier,
+    syntax,
+    resolutionMode,
+    line,
+    form,
+    names,
+    renames,
+    typeOnly,
+    dynamic,
+    loadTime
+  } = value
   if (!isString(specifier) || !isSyntax(syntax) || !isLine(line) || !isForm(form)) return undefined
   if (!isStrings(names) || typeof typeOnly !== 'boolean' || typeof dynamic !== 'boolean') {
     return undefined
   }
   if (resolutionMode !== undefined && !isMode(resolutionMode)) return undefined
   if (renames !== undefined && !isRenames(renames)) return undefined
+  if (loadTime !== undefined && !isStrings(loadTime)) return undefined
   return {
     specifier,
     syntax,
@@ -178,7 +190,8 @@ function importOf(value: unknown): Import | undefined {
     names,
     ...(renames === undefined ? {} : { renames }),
     typeOnly,
-    dynamic
+    dynamic,
+    ...(loadTime === undefined ? {} : { loadTime })
   }
 }
 

@@ -23,6 +23,11 @@ export interface Extraction {
 export const hashOf = (bytes: Uint8Array): string =>
   createHash('sha256').update(bytes).digest('hex')
 
+function withoutLoadTime(imported: Import): Import {
+  const { loadTime: _, ...rest } = imported
+  return rest
+}
+
 /** The default export every framework file has, named after the file. */
 function componentOf(path: RepoPath): SymbolFacts {
   const file = path.slice(path.lastIndexOf('/') + 1)
@@ -30,7 +35,7 @@ function componentOf(path: RepoPath): SymbolFacts {
   return { name, kind: 'component', line: 1, default: true, signature: `component ${name}` }
 }
 
-function blockExtraction(path: RepoPath, block: ScriptBlock): Extraction {
+function blockExtraction(path: RepoPath, block: ScriptBlock, loads: boolean): Extraction {
   const source = parseScript(path, block.language, block.text)
   const shift = <T extends { readonly line: number }>(item: T): T => ({
     ...item,
@@ -38,7 +43,8 @@ function blockExtraction(path: RepoPath, block: ScriptBlock): Extraction {
   })
   // The file's default export is its component, whatever a block exports as default.
   const symbols = block.exports ? symbolsOf(source).filter(symbol => !symbol.default) : []
-  return { symbols: symbols.map(shift), imports: importsOf(source).map(shift) }
+  const imports = loads ? importsOf(source) : importsOf(source).map(withoutLoadTime)
+  return { symbols: symbols.map(shift), imports: imports.map(shift) }
 }
 
 function frameworkExtraction(
@@ -55,7 +61,12 @@ function frameworkExtraction(
     const failure = (error instanceof Error ? error.message : String(error)).split('\n')[0]!
     return { symbols: [component], imports: [], failure }
   }
-  const extractions = blocks.map(block => blockExtraction(path, block))
+  // Only a Vue `<script>` or a Svelte module script runs as the module loads.
+  // `<script setup>`, a Svelte instance script and Astro frontmatter run per
+  // component instance or render.
+  const extractions = blocks.map(block =>
+    blockExtraction(path, block, block.exports && language !== 'astro')
+  )
   const symbols = [component, ...extractions.flatMap(extraction => extraction.symbols)]
   return {
     symbols: symbols.sort((a, b) => a.line - b.line || compare(a.name, b.name)),

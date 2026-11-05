@@ -5,6 +5,7 @@
  */
 
 import ts from 'typescript'
+import { isRequireCall, loadTimeOf } from './load-time.ts'
 import { parseRepoPath, type Edge } from './model.ts'
 import type { ScriptLanguage } from './source-file.ts'
 import { parseScript } from './syntax.ts'
@@ -127,12 +128,6 @@ function fromImportEquals(node: ts.ImportEqualsDeclaration): Taken | undefined {
     dynamic: false
   }
 }
-
-const isRequireCall = (node: ts.Node): node is ts.CallExpression =>
-  ts.isCallExpression(node) &&
-  ts.isIdentifier(node.expression) &&
-  node.expression.text === 'require' &&
-  node.arguments.length === 1
 
 const isImportCall = (node: ts.Node): node is ts.CallExpression =>
   ts.isCallExpression(node) && node.expression.kind === ts.SyntaxKind.ImportKeyword
@@ -304,6 +299,7 @@ function overrideOf(
 /** The module's imports in source order. Specifiers that are no string literal are skipped. */
 export function importsOf(source: ts.SourceFile): readonly Import[] {
   const bindings = bindingsOf(source)
+  const loadTime = loadTimeOf(source, bindings)
   const imports: Import[] = []
   const visit = (node: ts.Node): void => {
     for (const taken of takenBy(node, bindings)) {
@@ -311,16 +307,19 @@ export function importsOf(source: ts.SourceFile): readonly Import[] {
       if (!specifier || !ts.isStringLiteralLike(specifier)) continue
       const resolutionMode = overrideOf(source, specifier)
       const at = taken.at ?? specifier
+      const names = sortedNames(taken.names)
+      const read = taken.form === 'import' && !taken.dynamic ? loadTime(specifier, names) : []
       imports.push({
         specifier: specifier.text,
         syntax: taken.syntax,
         ...(resolutionMode === undefined ? {} : { resolutionMode }),
         line: source.getLineAndCharacterOfPosition(at.getStart(source)).line + 1,
         form: taken.form,
-        names: sortedNames(taken.names),
+        names,
         ...(taken.renames === undefined ? {} : { renames: taken.renames }),
         typeOnly: taken.typeOnly,
-        dynamic: taken.dynamic
+        dynamic: taken.dynamic,
+        ...(read.length === 0 || taken.typeOnly ? {} : { loadTime: read })
       })
     }
     ts.forEachChild(node, visit)

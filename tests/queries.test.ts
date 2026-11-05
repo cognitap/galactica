@@ -217,7 +217,8 @@ test('deps lists the modules and barrels a module imports, its packages, externa
     ],
     packages: [],
     external: ['react'],
-    unresolved: [{ from: 'src/app/main.ts', specifier: './gone' }]
+    unresolved: [{ from: 'src/app/main.ts', specifier: './gone' }],
+    cycles: []
   })
 })
 

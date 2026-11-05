@@ -120,6 +120,41 @@ test('uses and deps follow edges in a plain repository', () => {
   assert.deepEqual(deps.unresolved, [{ from: 'src/main.ts', specifier: './gone' }])
 })
 
+test('cycles lists each loop that runs as code, load time first, through barrels, and no type-only loop', () => {
+  const cycleKinds = fixtureRepo('cycle-kinds')
+  const json = JSON.parse(galactica(cycleKinds, 'cycles', '--json').stdout)
+  assert.deepEqual(
+    json.cycles.map((cycle: { modules: string[]; loadTime: boolean }) => [
+      cycle.modules,
+      cycle.loadTime
+    ]),
+    [
+      [['src/load/plugins.ts', 'src/load/config.ts'], true],
+      [['src/barrel/log.ts', 'src/barrel/store.ts'], false],
+      [['src/later/order.ts', 'src/later/user.ts'], false]
+    ]
+  )
+  const text = galactica(cycleKinds, 'cycles').stdout
+  assert.match(
+    text,
+    /^ {2}src\/load\/config\.ts:1 -> src\/load\/plugins\.ts {2}plugins {2}used later {2}break here$/m
+  )
+  assert.match(
+    text,
+    /^ {2}src\/load\/plugins\.ts:1 -> src\/load\/config\.ts {2}defaults {2}used at load time$/m
+  )
+  assert.match(
+    text,
+    /^ {2}src\/barrel\/log\.ts:1 -> src\/barrel\/store\.ts {2}via src\/barrel\/index\.ts {2}Store {2}used later$/m
+  )
+  assert.doesNotMatch(text, /src\/types\//)
+  assert.match(
+    galactica(cycleKinds, 'uses', 'src/load/config.ts').stdout,
+    /^in an import cycle with src\/load\/plugins\.ts, used at load time: galactica cycles shows where to break it$/m
+  )
+  assert.doesNotMatch(galactica(cycleKinds, 'deps', 'src/types/shape.ts').stdout, /cycle/)
+})
+
 test('subjects resolve by package name and directory in a monorepo, from any directory', () => {
   const byName = JSON.parse(galactica(monorepo, 'deps', '@mono/app', '--json').stdout)
   assert.deepEqual(byName.subject, { kind: 'package', name: '@mono/app', dir: 'packages/app' })

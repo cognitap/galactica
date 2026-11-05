@@ -1,5 +1,5 @@
 {
-  "format": 1,
+  "format": 2,
   "repository": { "name": "vue" },
   "packages": {
     "vue": { "dir": "." }
@@ -60,6 +60,7 @@
           "names": ["default"],
           "typeOnly": false,
           "dynamic": false,
+          "loadTime": ["default"],
           "via": []
         }
       ]

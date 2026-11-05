@@ -9,7 +9,7 @@
 
 export const SCHEMA_VERSION = 1
 
-export const commands = ['overview', 'where', 'outline', 'uses', 'deps'] as const
+export const commands = ['overview', 'where', 'outline', 'uses', 'deps', 'cycles'] as const
 export type Command = (typeof commands)[number]
 
 export const moduleKinds = ['source', 'test', 'story', 'config'] as const
@@ -132,6 +132,32 @@ export interface Outline extends Envelope<'outline'> {
   readonly symbols: readonly SymbolRef[]
 }
 
+/** An import from one module of a cycle to another. */
+export interface CycleImport {
+  readonly from: string
+  readonly to: string
+  /** The line of the import in `from`. */
+  readonly line: number
+  /** As `to` exports them, sorted. "*" for a namespace import, empty for a side-effect import. */
+  readonly names: readonly string[]
+  /** Barrels the import passes through, importer side first. */
+  readonly via: readonly string[]
+  /** `load-time` when `from` reads one of `names` in code that runs while it loads, `later` when only inside functions. */
+  readonly use: 'load-time' | 'later'
+  /** Whether the import points back up `modules`. Cutting every import marked so leaves no cycle among the modules. */
+  readonly break: boolean
+}
+
+/** Source and config modules that import each other in a loop, leaving out type-only imports and re-exports. */
+export interface Cycle {
+  /** In dependency order: every import goes down this list, except those marked `break`. */
+  readonly modules: readonly string[]
+  /** Whether an import of the cycle is used at load time. */
+  readonly loadTime: boolean
+  /** Every import between the modules, sorted by `from`, line, then `to`. */
+  readonly imports: readonly CycleImport[]
+}
+
 export interface Uses extends Envelope<'uses'> {
   readonly subject: Subject
   readonly depth: number
@@ -142,6 +168,8 @@ export interface Uses extends Envelope<'uses'> {
    * `depth`: the question is which tests to run. Same order as `modules`.
    */
   readonly tests: readonly Reached[]
+  /** The cycles a module of the subject is in, ordered as `cycles` orders them. */
+  readonly cycles: readonly Cycle[]
 }
 
 export interface Deps extends Envelope<'deps'> {
@@ -155,6 +183,13 @@ export interface Deps extends Envelope<'deps'> {
   readonly external: readonly string[]
   /** Sorted by `from`, then `specifier`. */
   readonly unresolved: readonly { readonly from: string; readonly specifier: string }[]
+  /** The cycles a module of the subject is in, ordered as `cycles` orders them. */
+  readonly cycles: readonly Cycle[]
 }
 
-export type Output = Overview | Where | Outline | Uses | Deps
+export interface Cycles extends Envelope<'cycles'> {
+  /** Those with an import used at load time first, then by their first module in path order. */
+  readonly cycles: readonly Cycle[]
+}
+
+export type Output = Overview | Where | Outline | Uses | Deps | Cycles

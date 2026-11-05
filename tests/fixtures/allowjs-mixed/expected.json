@@ -1,5 +1,5 @@
 {
-  "format": 1,
+  "format": 2,
   "repository": { "name": "allowjs-mixed" },
   "packages": {
     "allowjs-mixed": { "dir": "." }
@@ -47,6 +47,7 @@
           "names": ["legacyTotal"],
           "typeOnly": false,
           "dynamic": false,
+          "loadTime": ["legacyTotal"],
           "via": []
         }
       ]

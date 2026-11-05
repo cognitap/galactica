@@ -1,5 +1,5 @@
 {
-  "format": 1,
+  "format": 2,
   "repository": { "name": "cycle" },
   "packages": {
     "cycle": { "dir": "." }
@@ -24,6 +24,7 @@
           "names": ["placeOrder"],
           "typeOnly": false,
           "dynamic": false,
+          "loadTime": ["placeOrder"],
           "via": []
         }
       ]

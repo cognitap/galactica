@@ -50,7 +50,7 @@ export function parseRepoPath(raw: string): RepoPath {
   return normalize(slashed)
 }
 
-export const MODEL_FORMAT = 1
+export const MODEL_FORMAT = 2
 
 export interface Model {
   readonly format: typeof MODEL_FORMAT
@@ -107,6 +107,12 @@ export interface Edge {
   readonly renames?: Readonly<Record<string, string>>
   readonly typeOnly: boolean
   readonly dynamic: boolean
+  /**
+   * The `names` the importer reads while it loads, in top-level code or in a
+   * top-level function that code calls, sorted. Absent when it reads them only
+   * later, inside functions. Never on a re-export, a type-only or a dynamic import.
+   */
+  readonly loadTime?: readonly string[]
   /**
    * Barrels the resolver walked through to reach `to`, importer side first.
    * If one of them changes, this edge may resolve differently.
