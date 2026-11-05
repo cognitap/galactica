@@ -23,11 +23,17 @@ export interface Warning {
   readonly message: string
 }
 
+/** Where a config writes build output, and the source directory that output mirrors, both absolute. */
+export interface Build {
+  readonly outDir: string
+  readonly rootDir: string
+}
+
 export interface Config {
   readonly path: RepoPath
   readonly parsed: ts.ParsedCommandLine
-  /** The build output directory, when it lies inside the repository and apart from the config's sources. */
-  readonly outDir: RepoPath | undefined
+  /** Present when the outDir lies inside the repository and apart from the config's sources. */
+  readonly build: Build | undefined
 }
 
 // Without these, a config's file list never includes framework files, so they
@@ -45,6 +51,8 @@ interface Parsed {
 export interface CompilerSettings {
   /** The config that applies to the absolute `file`, or undefined when the defaults do. */
   readonly configOf: (file: string) => Config | undefined
+  /** The config at the absolute `configFile`, whether or not it applies to any file. */
+  readonly configAt: (configFile: string) => Config | undefined
   readonly configs: () => readonly Config[]
   readonly warnings: () => readonly Warning[]
 }
@@ -86,7 +94,7 @@ export function compilerSettings(root: string): CompilerSettings {
       .getOptionsDiagnostics()
       .forEach(report)
     const result = {
-      config: { path, parsed: commandLine, outDir: outDirOf(root, configFile, commandLine) },
+      config: { path, parsed: commandLine, build: buildOf(root, configFile, commandLine) },
       files: new Set(commandLine.fileNames),
       references: (commandLine.projectReferences ?? [])
         .map(reference => ts.resolveProjectReferencePath(reference))
@@ -120,6 +128,9 @@ export function compilerSettings(root: string): CompilerSettings {
       }
       return undefined
     },
+    configAt(configFile) {
+      return parse(configFile)?.config
+    },
     configs() {
       return [...parsed.values()].flatMap(entry => (entry ? [entry.config] : []))
     },
@@ -130,14 +141,14 @@ export function compilerSettings(root: string): CompilerSettings {
 }
 
 // An outDir that holds its own config holds the sources too, so it marks no build output.
-function outDirOf(
+function buildOf(
   root: string,
   configFile: string,
-  commandLine: ts.ParsedCommandLine
-): RepoPath | undefined {
-  const outDir = commandLine.options.outDir
+  { options }: ts.ParsedCommandLine
+): Build | undefined {
+  const { outDir } = options
   return outDir && isInside(root, outDir) && !isInside(outDir, configFile)
-    ? toRepoPath(root, outDir)
+    ? { outDir, rootDir: options.rootDir ?? dirname(configFile) }
     : undefined
 }
 
