@@ -1,8 +1,16 @@
 {
   "name": "@cognitap/galactica",
-  "version": "0.0.0",
-  "private": true,
+  "version": "0.1.0",
   "description": "Maps a JavaScript or TypeScript repository for agents and humans",
+  "keywords": [
+    "agent-skills",
+    "cli",
+    "codemap",
+    "dependency-graph",
+    "monorepo",
+    "typescript"
+  ],
+  "homepage": "https://github.com/cognitap/galactica#readme",
   "bugs": {
     "url": "https://github.com/cognitap/galactica/issues"
   },
