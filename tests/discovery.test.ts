@@ -1,5 +1,7 @@
 import assert from 'node:assert/strict'
+import { spawnSync } from 'node:child_process'
 import { existsSync, mkdirSync, rmSync, writeFileSync } from 'node:fs'
+import { tmpdir } from 'node:os'
 import { basename, join } from 'node:path'
 import { test } from 'node:test'
 import ts from 'typescript'
@@ -300,6 +302,85 @@ test('framework files belong to the config whose include matches them', t => {
     'tsconfig.json',
     'tsconfig.json'
   ])
+})
+
+const rootDirWarning = {
+  path: 'packages/lib/tsconfig.json',
+  message:
+    "The common source directory of 'tsconfig.json' is '../..'. The 'rootDir' setting must be explicitly set to this or another path to adjust your output's file layout.\n  Visit https://aka.ms/ts6 for migration information."
+}
+
+test('a missing project reference warns, and a referenced config keeps its own warnings', t => {
+  const root = repository(t, {
+    'tsconfig.json': {
+      files: [],
+      references: [{ path: './packages/app' }, { path: './packages/missing' }]
+    },
+    'packages/app/tsconfig.json': {
+      compilerOptions: { composite: true, outDir: 'dist' },
+      include: ['src'],
+      references: [{ path: '../lib' }]
+    },
+    'packages/app/src/main.ts': '',
+    'packages/lib/tsconfig.json': { compilerOptions: { outDir: 'dist' }, include: ['src'] },
+    'packages/lib/src/lib.ts': ''
+  })
+  const discovery = discover(root, emptyConfig)
+  assert.deepEqual(discovery.warnings, [
+    rootDirWarning,
+    { path: 'tsconfig.json', message: `File '${join(root, 'packages/missing')}' not found.` },
+    {
+      path: 'tsconfig.json',
+      message: `Referenced project '${join(root, 'packages/lib')}' must have setting "composite": true.`
+    }
+  ])
+  assert.deepEqual(configs(discovery), {
+    'packages/app/src/main.ts': 'packages/app/tsconfig.json',
+    'packages/lib/src/lib.ts': 'packages/lib/tsconfig.json'
+  })
+})
+
+/** The warnings of `discover(root)` from a process whose working directory is `cwd`. */
+function warningsFrom(cwd: string, root: string): unknown {
+  const module = (name: string) =>
+    JSON.stringify(new URL(`../src/${name}.ts`, import.meta.url).href)
+  const script = [
+    `const [{ discover }, { emptyConfig }] = await Promise.all([import(${module('discovery')}), import(${module('model')})])`,
+    'console.log(JSON.stringify(discover(process.argv[1], emptyConfig).warnings))'
+  ].join('\n')
+  const result = spawnSync(process.execPath, ['--input-type=module', '-e', script, '--', root], {
+    cwd,
+    encoding: 'utf8'
+  })
+  assert.equal(result.status, 0, result.stderr)
+  return JSON.parse(result.stdout)
+}
+
+test('warnings read the same wherever the command runs', t => {
+  const root = repository(t, {
+    'packages/lib/tsconfig.json': { compilerOptions: { outDir: 'dist' }, include: ['src'] },
+    'packages/lib/src/lib.ts': ''
+  })
+  assert.deepEqual(warningsFrom(root, root), [rootDirWarning])
+  assert.deepEqual(warningsFrom(tmpdir(), root), [rootDirWarning])
+})
+
+test('a config whose include matches only files git ignores has no inputs', t => {
+  const root = gitRepository(t, {
+    '.gitignore': 'generated/\n',
+    'tsconfig.json': { include: ['generated'] },
+    'generated/schema.ts': '',
+    'main.ts': ''
+  })
+  const discovery = discover(root, emptyConfig)
+  assert.deepEqual(
+    discovery.warnings.map(({ path, message }) => [
+      path,
+      /No inputs were found/.exec(message)?.[0]
+    ]),
+    [['tsconfig.json', 'No inputs were found']]
+  )
+  assert.deepEqual(configs(discovery), { 'main.ts': null })
 })
 
 test('config problems become warnings, and the options TypeScript still honours stay', t => {

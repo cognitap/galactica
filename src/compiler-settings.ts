@@ -57,11 +57,133 @@ export interface CompilerSettings {
   readonly warnings: () => readonly Warning[]
 }
 
-/** Reads configs on demand under `root` and remembers each one, so a config is parsed once per run. */
-export function compilerSettings(root: string): CompilerSettings {
+interface FileSystemEntries {
+  readonly files: readonly string[]
+  readonly directories: readonly string[]
+}
+
+type MatchFiles = (
+  path: string,
+  extensions: readonly string[] | undefined,
+  excludes: readonly string[] | undefined,
+  includes: readonly string[] | undefined,
+  useCaseSensitiveFileNames: boolean,
+  currentDirectory: string,
+  depth: number | undefined,
+  getFileSystemEntries: (path: string) => FileSystemEntries,
+  realpath: (path: string) => string
+) => string[]
+
+// The glob matcher behind `ts.sys.readDirectory`, which the public typings leave out.
+const { matchFiles } = ts as unknown as { readonly matchFiles: MatchFiles }
+
+const canonicalFileName = ts.sys.useCaseSensitiveFileNames
+  ? (name: string) => name
+  : (name: string) => name.toLowerCase()
+
+const noEntries: FileSystemEntries = { files: [], directories: [] }
+
+/**
+ * TypeScript's `readDirectory`, answered from the repository's files instead
+ * of a walk of the disk. The globs match as TypeScript matches them, through
+ * its own matcher over the directories the file list implies.
+ */
+function listedDirectories(
+  root: string,
+  files: readonly RepoPath[]
+): ts.ParseConfigHost['readDirectory'] {
+  const slashed = root.split(sep).join('/').replace(/\/$/, '')
+  const tree = new Map<string, { readonly files: string[]; readonly directories: Set<string> }>()
+  const entriesAt = (dir: string) => {
+    const key = canonicalFileName(dir === '' ? slashed || '/' : `${slashed}/${dir}`)
+    const known = tree.get(key)
+    if (known) return known
+    const made = { files: [], directories: new Set<string>() }
+    tree.set(key, made)
+    return made
+  }
+  for (const path of files) {
+    const segments = path.split('/')
+    let dir = ''
+    for (const segment of segments.slice(0, -1)) {
+      entriesAt(dir).directories.add(segment)
+      dir = dir === '' ? segment : `${dir}/${segment}`
+    }
+    entriesAt(dir).files.push(segments.at(-1)!)
+  }
+  const entriesOf = (dir: string): FileSystemEntries => {
+    const entries = tree.get(canonicalFileName(dir))
+    return entries ? { files: entries.files, directories: [...entries.directories] } : noEntries
+  }
+  return (path, extensions, excludes, includes, depth) =>
+    matchFiles(
+      path,
+      extensions,
+      excludes,
+      includes,
+      ts.sys.useCaseSensitiveFileNames,
+      root,
+      depth,
+      entriesOf,
+      dir => dir
+    )
+}
+
+/**
+ * Reads configs on demand under `root` and remembers each one, so a config is
+ * parsed once per run. `files` answers the configs' include globs.
+ */
+export function compilerSettings(root: string, files: readonly RepoPath[]): CompilerSettings {
+  const commandLines = new Map<string, ts.ParsedCommandLine>()
   const parsed = new Map<string, Parsed | undefined>()
   const extendedConfigCache = new Map<string, ts.ExtendedConfigCacheEntry>()
   const warnings: Warning[] = []
+  const reads = {
+    fileExists: ts.sys.fileExists,
+    readFile: ts.sys.readFile,
+    directoryExists: ts.sys.directoryExists,
+    realpath: ts.sys.realpath,
+    getDirectories: ts.sys.getDirectories,
+    getCurrentDirectory: () => root
+  }
+  const parseHost = {
+    ...reads,
+    useCaseSensitiveFileNames: ts.sys.useCaseSensitiveFileNames,
+    readDirectory: listedDirectories(root, files)
+  }
+  // With no root files, a program reads no source file. Its referenced configs
+  // come from `commandLineOf`, so none is parsed twice, and its current
+  // directory is the root, so a warning's text is the same wherever the
+  // command runs.
+  const programHost: ts.CompilerHost = {
+    ...reads,
+    useCaseSensitiveFileNames: () => ts.sys.useCaseSensitiveFileNames,
+    getCanonicalFileName: canonicalFileName,
+    getNewLine: () => '\n',
+    getSourceFile: () => undefined,
+    getDefaultLibFileName: options => ts.getDefaultLibFilePath(options),
+    writeFile: () => {},
+    getParsedCommandLine: configFile => commandLineOf(configFile, () => {})
+  }
+
+  /** The config file's command line, parsed once per run. `report` hears when the file cannot be read. */
+  function commandLineOf(
+    configFile: string,
+    report: ts.DiagnosticReporter
+  ): ts.ParsedCommandLine | undefined {
+    const known = commandLines.get(configFile)
+    if (known) return known
+    const commandLine = ts.getParsedCommandLineOfConfigFile(
+      configFile,
+      undefined,
+      { ...parseHost, onUnRecoverableConfigFileDiagnostic: report },
+      extendedConfigCache,
+      undefined,
+      frameworkExtensions
+    )
+    if (commandLine) commandLines.set(configFile, commandLine)
+    return commandLine
+  }
 
   function parse(configFile: string): Parsed | undefined {
     if (parsed.has(configFile)) return parsed.get(configFile)
@@ -71,25 +193,18 @@ export function compilerSettings(root: string): CompilerSettings {
         path,
         message: ts.flattenDiagnosticMessageText(diagnostic.messageText, '\n')
       })
-    const commandLine = ts.getParsedCommandLineOfConfigFile(
-      configFile,
-      undefined,
-      { ...ts.sys, onUnRecoverableConfigFileDiagnostic: report },
-      extendedConfigCache,
-      undefined,
-      frameworkExtensions
-    )
+    const commandLine = commandLineOf(configFile, report)
     if (!commandLine) {
       parsed.set(configFile, undefined)
       return undefined
     }
     commandLine.errors.forEach(report)
-    // TypeScript checks options, deprecations included, only when it builds a
-    // program. With no root files, building one reads no source file.
+    // TypeScript checks options, deprecations included, only when it builds a program.
     ts.createProgram({
       rootNames: [],
       options: commandLine.options,
-      projectReferences: commandLine.projectReferences
+      projectReferences: commandLine.projectReferences,
+      host: programHost
     })
       .getOptionsDiagnostics()
       .forEach(report)
@@ -122,7 +237,7 @@ export function compilerSettings(root: string): CompilerSettings {
       const seen = new Set<string>()
       for (let dir = dirname(file); isInside(root, dir); dir = dirname(dir)) {
         const configFile = join(dir, 'tsconfig.json')
-        const found = ts.sys.fileExists(configFile) && claiming(configFile, file, seen)
+        const found = reads.fileExists(configFile) && claiming(configFile, file, seen)
         if (found) return found
         if (dir === root) break
       }

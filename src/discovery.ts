@@ -69,8 +69,8 @@ function selected(path: RepoPath, { include, exclude }: Config): boolean {
 
 export function discover(rootDir: string, config: Config): Discovery {
   const root = resolve(rootDir)
-  const settings = compilerSettings(root)
   const files = repositoryFiles(root)
+  const settings = compilerSettings(root, files)
   const candidates = files.flatMap(path => {
     const language = languageOf(path)
     if (!language || !selected(path, config)) return []
