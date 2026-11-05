@@ -344,12 +344,14 @@ test('html has no links outside a git repository', t => {
 })
 
 const skillPaths = ['.agents/skills/galactica/SKILL.md', '.claude/skills/galactica/SKILL.md']
+const rulePath = '.cursor/rules/galactica.mdc'
+const written = [...skillPaths, rulePath]
 
 test('init installs the skill with the given command, and a second run changes nothing', t => {
   const root = repository(t, { 'package.json': {} })
   const first = galactica(root, 'init', '--command', 'node /opt/galactica/dist/cli.js')
   assert.equal(first.status, 0)
-  assert.equal(first.stdout, skillPaths.map(path => `created ${path}\n`).join(''))
+  assert.equal(first.stdout, written.map(path => `created ${path}\n`).join(''))
   const files = skillPaths.map(path => readFileSync(join(root, path), 'utf8'))
   assert.equal(files[0], files[1])
   assert.match(files[0]!, /^name: galactica$/m)
@@ -364,16 +366,22 @@ test('init installs the skill with the given command, and a second run changes n
     '.claude/skills',
     '.claude/skills/galactica',
     '.claude/skills/galactica/SKILL.md',
+    '.cursor',
+    '.cursor/rules',
+    '.cursor/rules/galactica.mdc',
     'package.json'
   ])
 
   const second = galactica(root, 'init', '--command', 'node /opt/galactica/dist/cli.js')
-  assert.equal(second.stdout, skillPaths.map(path => `unchanged ${path}\n`).join(''))
+  assert.equal(second.stdout, written.map(path => `unchanged ${path}\n`).join(''))
   assert.deepEqual(
     skillPaths.map(path => readFileSync(join(root, path), 'utf8')),
     files
   )
-  assert.equal(galactica(root, 'init').stdout, skillPaths.map(path => `updated ${path}\n`).join(''))
+  assert.equal(
+    galactica(root, 'init').stdout,
+    skillPaths.map(path => `updated ${path}\n`).join('') + `unchanged ${rulePath}\n`
+  )
   assert.match(
     readFileSync(join(root, skillPaths[0]!), 'utf8'),
     /`npx @cognitap\/galactica overview`/
@@ -389,22 +397,23 @@ test('init keeps an edited skill, exits 1 when it keeps every one, and --force o
   assert.equal(one.status, 0)
   assert.equal(
     one.stdout,
-    `updated ${agents}\nkept ${claude}: edited since galactica wrote it, --force overwrites it\n`
+    `updated ${agents}\nkept ${claude}: edited since galactica wrote it, --force overwrites it\nunchanged ${rulePath}\n`
   )
   assert.equal(readFileSync(join(root, claude), 'utf8'), 'Our own notes.\n')
 
   writeFileSync(join(root, agents), 'Our own notes.\n')
+  writeFileSync(join(root, rulePath), 'Our own rule.\n')
   assert.equal(galactica(root, 'init').status, 1)
   const forced = galactica(root, 'init', '--force')
   assert.equal(forced.status, 0)
-  assert.equal(forced.stdout, skillPaths.map(path => `updated ${path}\n`).join(''))
+  assert.equal(forced.stdout, written.map(path => `updated ${path}\n`).join(''))
 })
 
 test('init --root installs into that directory and prints paths from the current one', t => {
   const root = repository(t, { 'packages/app/package.json': {} })
   const { status, stdout } = galactica(join(root, 'packages/app'), 'init', '--root', '../..')
   assert.equal(status, 0)
-  assert.equal(stdout, skillPaths.map(path => `created ../../${path}\n`).join(''))
+  assert.equal(stdout, written.map(path => `created ../../${path}\n`).join(''))
   assert.ok(existsSync(join(root, skillPaths[0]!)))
 })
 
