@@ -4,6 +4,7 @@ import { test } from 'node:test'
 import { graphOf } from '../src/graph.ts'
 import { htmlOf } from '../src/html.ts'
 import { pageData } from '../src/page-data.ts'
+import type { PageSource } from '../src/source-links.ts'
 import { defines, edge, modelOf, type Spec } from './models.ts'
 
 const specs: Readonly<Record<string, Spec>> = {
@@ -51,8 +52,28 @@ test('the stylesheet and the page scripts are inlined, and the title names the r
     readFileSync(new URL(`../src/page/${name}`, import.meta.url), 'utf8')
   assert.ok(html.includes(page('page.css')))
   assert.ok(html.includes(page('search.js')))
-  assert.ok(html.includes(page('page.js').replace(/^import .*\n/m, '')))
+  assert.ok(html.includes(page('links.js')))
+  assert.ok(html.includes(page('page.js').replace(/^import .*\n/gm, '')))
   assert.doesNotMatch(html, /^import /m)
   assert.match(html, /<title>acme · Galactica<\/title>/)
   assert.doesNotMatch(html, /\{\{\w+\}\}/)
+})
+
+const source: PageSource = {
+  template: 'https://github.com/acme/app/blob/abc1234/{path}#L{line}',
+  prefix: '',
+  shortCommit: 'abc1234',
+  unpushed: 0,
+  remote: 'origin',
+  uncommitted: true
+}
+
+test('links come only from the embedded source, never from static markup', () => {
+  const linked = htmlOf(graph, source)
+  const block = /<script\s+type="application\/json"\s+id="galactica-data"\s*>([^]*?)<\/script>/
+  assert.deepEqual(JSON.parse(linked.match(block)![1]!).source, source)
+  const markup = linked.replace(block, '').replace(/<script\b[^>]*>[^]*?<\/script>/g, '')
+  assert.doesNotMatch(markup, /https?:|<a\b|\bhref\b/i)
+  assert.doesNotMatch(html, /github\.com/)
+  assert.equal(JSON.parse(html.match(block)![1]!).source, null)
 })

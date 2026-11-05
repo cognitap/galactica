@@ -79,6 +79,16 @@ The search field finds areas, modules and exported symbols as you type. Press `/
 
 Select a box title, or the circle at the end of a module's row, to see what it uses and what uses it. The page marks its dependencies and its dependents and dims everything else, and a bar at the top gives the counts, the same that `deps` and `uses` give at depth 1, with every test that reaches it while tests are shown. Press Escape or Clear to end the selection. The selection is kept in the address, as `#module=src%2Fcn.ts` or `#area=src%2Fcomponents`, so a link opens the map on the same view.
 
+Each module path and each symbol's line is a link to that file and line in the repository host, at the newest commit the remote is known to have, and opens in a new tab. Galactica reads the `origin` remote, or the first remote by name when there is none, and links to `HEAD` when a remote-tracking ref contains it. Otherwise it links to the merge base of `HEAD` with the branch's upstream, else with `<remote>/HEAD`, `<remote>/main` or `<remote>/master`, using only local refs and never fetching, so fetch first to link to a newer commit. The map is built from the working tree, so a symbol whose file changed after the linked commit may link to a slightly different line. It recognises GitHub remotes in the `https://`, `git@github.com:` and `ssh://` forms. A repository whose root is a folder of a larger repository links through that folder. If the map includes unpushed commits or changes to tracked files, the page header says which commit its links point to and what the map includes beyond it. Without git, a commit, or a GitHub remote, the page shows plain paths. The links are built by the page script from one `source` entry in the embedded data, so the page still loads nothing from the network.
+
+`--source-url <template>` sets the link for another host, with `{commit}`, `{path}` and `{line}` in place, for example GitLab:
+
+```sh
+galactica html --source-url 'https://gitlab.example.com/group/repo/-/blob/{commit}/{path}#L{line}'
+```
+
+The template must start with `http://` or `https://` and contain `{path}`. Each segment of the path is percent-encoded. A link to a module has no line, so the template loses its `#...{line}` fragment. `--source-url none` turns links off.
+
 `init` installs the agent skill in `.agents/skills/galactica/`, which Codex and Cursor read, and in `.claude/skills/galactica/`, which Claude Code reads. It writes those two files and nothing else, and prints each path with whether it was created, updated or unchanged. The skill tells an agent to run `overview` when it starts in an unfamiliar repository, `where` instead of grep, and `uses` before it edits a file, then the tests `uses` lists.
 
 The skill runs `npx @cognitap/galactica` by default. Until Galactica is on npm, pass the command for your checkout:

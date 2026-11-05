@@ -3,10 +3,10 @@ import { spawnSync } from 'node:child_process'
 import { existsSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join, relative } from 'node:path'
-import { after, test } from 'node:test'
+import { after, test, type TestContext } from 'node:test'
 import { commands } from '../src/contract.ts'
 import { fixtureRepo } from './fixtures.ts'
-import { repository } from './temp-repository.ts'
+import { git, gitRepository, repository } from './temp-repository.ts'
 
 const cli = new URL('../dist/cli.js', import.meta.url).pathname
 
@@ -161,6 +161,7 @@ test('html takes no argument and no flag of another command, and other commands 
     ['html', '--depth', '2'],
     ['html', '--root', 'nowhere'],
     ['overview', '--out', 'map.html'],
+    ['overview', '--source-url', 'none'],
     ['html', '--force']
   ]) {
     const { status, stdout, stderr } = galactica(plain, ...args)
@@ -168,6 +169,104 @@ test('html takes no argument and no flag of another command, and other commands 
     assert.equal(stdout, '', args.join(' '))
     assert.match(stderr, /^galactica: /, args.join(' '))
   }
+})
+
+function linkedRepository(t: TestContext, remote: string) {
+  const root = gitRepository(t, { 'package.json': {}, 'src/a.ts': 'export const a = 1\n' })
+  git(root, 'remote', 'add', 'origin', remote)
+  git(root, 'add', '.')
+  git(
+    root,
+    '-c',
+    'user.name=t',
+    '-c',
+    'user.email=t@example.com',
+    '-c',
+    'commit.gpgsign=false',
+    'commit',
+    '--quiet',
+    '-m',
+    'm'
+  )
+  return root
+}
+
+function pageSource(root: string, ...args: string[]) {
+  const out = join(root, 'map.html')
+  const result = galactica(root, 'html', '--out', out, ...args)
+  const page = existsSync(out) ? readFileSync(out, 'utf8') : ''
+  const block = /id="galactica-data"\s*>([^]*?)<\/script>/.exec(page)
+  return { ...result, source: block === null ? undefined : JSON.parse(block[1]!).source }
+}
+
+test('html links to the GitHub remote at the commit it mapped', t => {
+  const root = linkedRepository(t, 'git@github.com:acme/app.git')
+  const { status, source } = pageSource(root)
+  assert.equal(status, 0)
+  assert.match(
+    source.template,
+    /^https:\/\/github\.com\/acme\/app\/blob\/[0-9a-f]{40}\/\{path\}#L\{line\}$/
+  )
+  assert.equal(source.prefix, '')
+  assert.equal(source.uncommitted, false)
+})
+
+test('html notes tracked changes the links cannot show, and ignores untracked files', t => {
+  const root = linkedRepository(t, 'https://github.com/acme/app')
+  writeFileSync(join(root, 'src/new.ts'), '')
+  assert.equal(pageSource(root).source.uncommitted, false)
+  writeFileSync(join(root, 'src/a.ts'), 'export const a = 2\n')
+  assert.equal(pageSource(root).source.uncommitted, true)
+})
+
+test('html --source-url none turns links off', t => {
+  const { status, source } = pageSource(
+    linkedRepository(t, 'https://github.com/acme/app'),
+    '--source-url',
+    'none'
+  )
+  assert.equal(status, 0)
+  assert.equal(source, null)
+})
+
+test('html --source-url sets the template for any host', t => {
+  const gitlab = 'https://gitlab.example.com/group/repo/-/blob/{commit}/{path}#L{line}'
+  const root = linkedRepository(t, 'https://gitlab.example.com/group/repo.git')
+  assert.equal(pageSource(root).source, null)
+  const { status, source } = pageSource(root, '--source-url', gitlab)
+  assert.equal(status, 0)
+  assert.match(
+    source.template,
+    /^https:\/\/gitlab\.example\.com\/group\/repo\/-\/blob\/[0-9a-f]{40}\/\{path\}#L\{line\}$/
+  )
+})
+
+test('html --source-url without {path}, or not on http(s), fails and writes no page', t => {
+  const root = linkedRepository(t, 'https://github.com/acme/app')
+  for (const [template, problem] of [
+    ['https://git.example.com/{commit}', /\{path\}/],
+    ['javascript:{path}', /http/]
+  ] as const) {
+    const { status, stdout, stderr } = galactica(
+      root,
+      'html',
+      '--out',
+      join(root, 'bad.html'),
+      '--source-url',
+      template
+    )
+    assert.equal(status, 1)
+    assert.equal(stdout, '')
+    assert.match(stderr, /^galactica: --source-url: /)
+    assert.match(stderr, problem)
+    assert.equal(existsSync(join(root, 'bad.html')), false)
+  }
+})
+
+test('html has no links outside a git repository', t => {
+  const { status, source } = pageSource(repository(t, { 'package.json': {}, 'src/a.ts': '' }))
+  assert.equal(status, 0)
+  assert.equal(source, null)
 })
 
 const skillPaths = ['.agents/skills/galactica/SKILL.md', '.claude/skills/galactica/SKILL.md']

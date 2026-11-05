@@ -1,3 +1,4 @@
+import { hrefOf, noteOf } from './links.js'
 import { entriesOf, search } from './search.js'
 
 /** @typedef {import('../page-data.ts').PageData} PageData */
@@ -97,6 +98,28 @@ function selectButton(className, label) {
   return button
 }
 
+/**
+ * `node` wrapped in a link to the module, or to a line of it, when the page has
+ * a source to link to. The address is assigned as a property, so it is never parsed as markup.
+ * @template {HTMLElement} T
+ * @param {T} node
+ * @param {string} path
+ * @param {number | undefined} line
+ * @param {string} name the link's accessible name, which includes the path and the line
+ */
+function linked(node, path, line, name) {
+  const { source } = data
+  if (source === null) return node
+  const anchor = /** @type {HTMLAnchorElement} */ (element('a', 'source-link'))
+  anchor.setAttribute('aria-label', name)
+  anchor.href = hrefOf(source, path, line)
+  anchor.target = '_blank'
+  anchor.rel = 'noopener noreferrer'
+  anchor.append(...node.childNodes)
+  node.append(anchor)
+  return node
+}
+
 const relationTag = () => {
   const tag = element('span', 'relation-tag')
   tag.hidden = true
@@ -113,6 +136,7 @@ function moduleItem(module, usualKind) {
   const tag = relationTag()
   const name = element('span', 'module-name')
   name.append(...breakable(module.label))
+  linked(name, module.path, undefined, `Open ${module.path} in the repository`)
   const head = [name, tag]
   if (module.kind !== usualKind) head.push(element('span', 'kind-tag', module.kind))
   head.push(arrows(module.importers, module.imports))
@@ -132,7 +156,13 @@ function moduleItem(module, usualKind) {
     const entry = element('li', 'symbol')
     const kind = symbol.default ? `default ${symbol.kind}` : symbol.kind
     const symbolHead = element('div', 'symbol-head')
-    symbolHead.append(element('span', '', kind), element('span', '', `line ${symbol.line}`))
+    const where = linked(
+      element('span', '', `line ${symbol.line}`),
+      module.path,
+      symbol.line,
+      `Open ${symbol.name} at line ${symbol.line} of ${module.path} in the repository`
+    )
+    symbolHead.append(element('span', '', kind), where)
     entry.append(symbolHead, element('code', 'signature', symbol.signature))
     if (symbol.doc !== undefined) entry.append(element('p', 'doc', symbol.doc))
     symbols.append(entry)
@@ -589,6 +619,11 @@ function selectionOf(fragment) {
 
 function draw() {
   byId('repository').textContent = data.repository
+  const note = data.source === null ? undefined : noteOf(data.source)
+  if (note !== undefined) {
+    byId('source-note').textContent = note
+    byId('source-note').hidden = false
+  }
   legend()
   packageNav()
   const sections = data.packages.map(packageSection)
