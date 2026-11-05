@@ -63,7 +63,7 @@ function frameworkExtraction(
   }
 }
 
-/** `load` gives the framework's compiler module, and is absent when the repository has none. */
+/** `load` gives the framework's compiler module, and is absent when Galactica was installed without it. */
 export function extract(
   path: RepoPath,
   language: Language,

@@ -301,12 +301,18 @@ test('an added file is parsed, and a deleted one leaves the cache', t => {
   assert.equal(readCache(cache, currentStamp()).size, 4)
 })
 
-test('a cache from another Galactica build or TypeScript version is discarded', t => {
+test('a cache from another Galactica build, TypeScript or compiler version is discarded', t => {
   const { cache, run, cold } = cachedRepository(t)
   run()
   const file = join(cache, 'cache.json')
   const written = JSON.parse(readFileSync(file, 'utf8'))
-  for (const other of [{ galactica: '9.9.9' }, { build: 'other' }, { typescript: '1.0.0' }]) {
+  for (const other of [
+    { galactica: '9.9.9' },
+    { build: 'other' },
+    { typescript: '1.0.0' },
+    { vue: 'missing' },
+    { svelte: '4.2.19' }
+  ]) {
     writeFileSync(file, JSON.stringify({ ...written, ...other }))
     const discarded = run()
     assert.deepEqual(discarded.summary.modules, counts(0, 0, 5), JSON.stringify(other))

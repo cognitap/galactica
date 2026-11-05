@@ -57,8 +57,19 @@ export function gitEnvironment(): NodeJS.ProcessEnv {
   )
 }
 
+/**
+ * Options for every command. The repository's own config, which an archive
+ * with its `.git` brings along, can name a program for `core.fsmonitor`, and
+ * git runs it whenever it reads the index. `--no-optional-locks` keeps
+ * `status` from writing the index, which would change the repository and run
+ * its `post-index-change` hook. The other config keys that run a program,
+ * such as `core.sshCommand`, `credential.helper` or `diff.external`, apply to
+ * no command Galactica runs.
+ */
+const safely = ['-c', 'core.fsmonitor=false', '--no-optional-locks']
+
 export function git(root: string, args: readonly string[]) {
-  return spawnSync('git', args, {
+  return spawnSync('git', [...safely, ...args], {
     cwd: root,
     env: gitEnvironment(),
     encoding: 'utf8',

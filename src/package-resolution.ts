@@ -153,7 +153,7 @@ export function splitSpecifier(
  */
 export function workspaceResolver(
   discovery: Discovery,
-  inputs: Inputs = plainInputs(discovery.root, ts.sys)
+  inputs: Inputs = plainInputs(ts.sys)
 ): WorkspaceResolver {
   const modules: ReadonlySet<string> = new Set(discovery.modules.map(module => module.path))
   const manifests = new Map(

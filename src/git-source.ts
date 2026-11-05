@@ -55,6 +55,36 @@ function linkedCommit(root: string, remote: string, head: string): string {
 }
 
 /**
+ * Whether tracked files changed. `status` hashes a file whose stat changed
+ * through the filter driver its attributes name, so each driver the
+ * repository's own config defines is turned off, and when they cannot be
+ * listed the answer is yes. A submodule, which has a config of its own,
+ * counts only by its commit.
+ */
+function uncommitted(root: string): boolean {
+  const filters = git(root, ['config', '--show-scope', '--name-only', '--get-regexp', '^filter\\.'])
+  if (filters.status !== 0 && filters.status !== 1) return true
+  const drivers = new Set(
+    filters.stdout.split('\n').flatMap(line => {
+      const tab = line.indexOf('\t')
+      const scope = line.slice(0, tab)
+      const name = line.slice(tab + 1)
+      const repository = scope === 'local' || scope === 'worktree'
+      const driver = name.slice('filter.'.length, name.lastIndexOf('.'))
+      return repository && driver !== '' ? [driver] : []
+    })
+  )
+  const off = [...drivers].flatMap(driver =>
+    ['clean=', 'process=', 'required=false'].flatMap(setting => [
+      '-c',
+      `filter.${driver}.${setting}`
+    ])
+  )
+  const status = ['status', '--porcelain', '--untracked-files=no', '--ignore-submodules=dirty']
+  return output(root, ...off, ...status) !== ''
+}
+
+/**
  * The page's source links for the repository at `root`, from `template` or else
  * from a GitHub remote. Undefined when there is no commit, no tracked file
  * under `root`, or no template to use.
@@ -71,6 +101,11 @@ export function pageSourceOf(root: string, template?: string): PageSource | unde
   const commit = remote === undefined ? head : linkedCommit(root, remote, head)
   const unpushed = Number(output(root, 'rev-list', '--count', `${commit}..${head}`) ?? 0)
   const prefix = relative(realpathSync(toplevel), realpathSync(root)).split(sep).join('/')
-  const uncommitted = output(root, 'status', '--porcelain', '--untracked-files=no') !== ''
-  return pageSource(chosen, { commit, prefix, uncommitted, unpushed, remote: remote ?? '' })
+  return pageSource(chosen, {
+    commit,
+    prefix,
+    uncommitted: uncommitted(root),
+    unpushed,
+    remote: remote ?? ''
+  })
 }

@@ -15,7 +15,7 @@ import { currentStamp, isRecord, replaceFile, sameStamp, type Stamp } from './ca
 import { fingerprintOf, recordInputs, unchanged, type Fingerprint } from './inputs.ts'
 import { MODEL_FORMAT, type Config, type Model } from './model.ts'
 
-export const MODEL_CACHE_FORMAT = 1
+export const MODEL_CACHE_FORMAT = 2
 
 export interface Options {
   /** The cache folder. Without one, the analysis runs in full and nothing is written. */

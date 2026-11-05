@@ -15,7 +15,13 @@ import {
 import type { RepoPath } from '../src/model.ts'
 import { repository } from './temp-repository.ts'
 
-const stamp = { galactica: '1.2.3', build: 'abc', typescript: '6.0.3' }
+const stamp = {
+  galactica: '1.2.3',
+  build: 'abc',
+  typescript: '6.0.3',
+  vue: '3.5.44',
+  svelte: 'missing'
+}
 
 const entry: CacheEntry = {
   hash: 'f00d',
@@ -68,8 +74,7 @@ const cache: Cache = new Map([
       size: 0,
       symbols: [],
       imports: [],
-      failure: 'Unexpected token',
-      compiler: '3.5.44'
+      failure: 'Unexpected token'
     }
   ]
 ])
@@ -111,17 +116,22 @@ test('the file holds the format, the stamp and the entries by path, sorted', t =
   writeCache(directory, stamp, cache)
   const file = JSON.parse(cacheText(directory))
   assert.equal(file.format, CACHE_FORMAT)
-  assert.deepEqual([file.galactica, file.build, file.typescript], ['1.2.3', 'abc', '6.0.3'])
+  assert.deepEqual(
+    [file.galactica, file.build, file.typescript, file.vue, file.svelte],
+    ['1.2.3', 'abc', '6.0.3', '3.5.44', 'missing']
+  )
   assert.deepEqual(Object.keys(file.modules), ['src/App.vue', 'src/a.ts'])
 })
 
-test('a cache from another format, Galactica build or TypeScript version is discarded whole', t => {
+test('a cache from another format, Galactica build, TypeScript or compiler version is discarded whole', t => {
   const directory = repository(t, {})
   writeCache(directory, stamp, cache)
   for (const other of [
     { ...stamp, galactica: '1.2.4' },
     { ...stamp, build: 'abd' },
-    { ...stamp, typescript: '6.0.4' }
+    { ...stamp, typescript: '6.0.4' },
+    { ...stamp, vue: 'missing' },
+    { ...stamp, svelte: '5.57.3' }
   ]) {
     assert.equal(readCache(directory, other).size, 0)
   }
@@ -152,7 +162,6 @@ test('an entry that does not parse is left out, and the others are kept', t => {
     { ...entry, imports: [{ ...entry.imports[0], resolutionMode: 'both' }] },
     { ...entry, imports: 'none' },
     { ...entry, failure: 1 },
-    { ...entry, compiler: null },
     'entry'
   ]
   for (const value of broken) {

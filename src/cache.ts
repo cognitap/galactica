@@ -24,17 +24,12 @@ import type { Extraction } from './extraction.ts'
 import type { Import, ImportSyntax } from './imports.ts'
 import { compare, type RepoPath, type SymbolFacts } from './model.ts'
 
-export const CACHE_FORMAT = 2
+export const CACHE_FORMAT = 3
 
 export interface CacheEntry extends Extraction {
   readonly hash: string
   readonly mtimeMs: number
   readonly size: number
-  /**
-   * The stamp of the compiler that read a framework file. The entry holds
-   * only while the module's package resolves the same one.
-   */
-  readonly compiler?: string
 }
 
 export type Cache = ReadonlyMap<RepoPath, CacheEntry>
@@ -46,6 +41,9 @@ export interface Stamp {
   readonly build: string
   /** The parser's output depends on its version. */
   readonly typescript: string
+  /** The versions of the framework compilers, or `missing` when Galactica was installed without one. */
+  readonly vue: string
+  readonly svelte: string
 }
 
 const here = dirname(fileURLToPath(import.meta.url))
@@ -63,15 +61,24 @@ function buildHash(): string {
 
 const versionOf = (manifest: string) => String(JSON.parse(readFileSync(manifest, 'utf8')).version)
 
-// Read from its package.json, so a warm run knows the stamp without loading TypeScript.
-const typescriptVersion = () =>
-  versionOf(createRequire(import.meta.url).resolve('typescript/package.json'))
+const require = createRequire(import.meta.url)
+
+// Read from its package.json, so a warm run knows the stamp without loading the package.
+function dependencyVersion(name: string): string {
+  try {
+    return versionOf(require.resolve(`${name}/package.json`))
+  } catch {
+    return 'missing'
+  }
+}
 
 export function currentStamp(): Stamp {
   return {
     galactica: versionOf(join(here, '..', 'package.json')),
     build: buildHash(),
-    typescript: typescriptVersion()
+    typescript: dependencyVersion('typescript'),
+    vue: dependencyVersion('vue'),
+    svelte: dependencyVersion('svelte')
   }
 }
 
@@ -186,11 +193,11 @@ const isOptionalString = (value: unknown): value is string | undefined =>
 
 function entryOf(value: unknown): CacheEntry | undefined {
   if (!isRecord(value)) return undefined
-  const { hash, mtimeMs, size, failure, compiler } = value
+  const { hash, mtimeMs, size, failure } = value
   const symbols = every(value.symbols, symbolOf)
   const imports = every(value.imports, importOf)
   if (!isString(hash) || typeof mtimeMs !== 'number' || typeof size !== 'number') return undefined
-  if (!isOptionalString(failure) || !isOptionalString(compiler)) return undefined
+  if (!isOptionalString(failure)) return undefined
   return (
     symbols &&
     imports && {
@@ -199,8 +206,7 @@ function entryOf(value: unknown): CacheEntry | undefined {
       size,
       symbols,
       imports,
-      ...(failure === undefined ? {} : { failure }),
-      ...(compiler === undefined ? {} : { compiler })
+      ...(failure === undefined ? {} : { failure })
     }
   )
 }
@@ -208,7 +214,9 @@ function entryOf(value: unknown): CacheEntry | undefined {
 export const sameStamp = (file: Unknown, stamp: Stamp) =>
   file.galactica === stamp.galactica &&
   file.build === stamp.build &&
-  file.typescript === stamp.typescript
+  file.typescript === stamp.typescript &&
+  file.vue === stamp.vue &&
+  file.svelte === stamp.svelte
 
 /** The cache in `directory`, empty unless its format and stamp match. An entry that does not parse is left out. */
 export function readCache(directory: string, stamp: Stamp): Cache {
