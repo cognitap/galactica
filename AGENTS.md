@@ -76,3 +76,12 @@ Galactica analyzes a JavaScript or TypeScript repository into one internal model
 `pnpm check` runs format, lint, typecheck and tests. Run it before every commit.
 
 `pnpm fixtures:update` rewrites the implemented aspects of every expected file from the analyzer's output. Run it when a change to the output is intended, and review the diff under `tests/fixtures` as part of the change. When an issue implements an aspect, give the aspect a check in `tests/fixtures.ts` and remove the cases it finishes from `pendingIn`.
+
+## Releases
+
+Follow [RELEASE_POLICY.md](RELEASE_POLICY.md):
+
+1. Open PR `Release Galactica <version>`: run `pnpm version patch --no-git-tag-version` (`minor` for a breaking change during `0.x`), move Unreleased notes under `## <version>`, commit, and run `pnpm release:prepare`.
+2. Squash-merge after CI passes, then run the **Release Galactica** workflow on `main` with `publish`.
+3. Verify `pnpm view @cognitap/galactica@<version> dist.integrity` matches `release.json` (never rerun `publish` for an existing version).
+4. Create GitHub release `v<version>` titled `Galactica <version>` at `sourceCommit`.
