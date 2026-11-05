@@ -36,6 +36,7 @@ Each `expected.json` is the spec for the analyzer. It holds the `Model` from `sr
 - A specifier that a `paths` alias matches resolves through the alias, as TypeScript resolves it, even when it also names a workspace package or self-reference.
 - A bare specifier that names no workspace package or self-reference is `external`, with the package name and no subpath. A Node.js built-in is `external` as `node:<name>`, with or without the prefix in the specifier. A relative or `paths` specifier that resolves to no file is `unresolved`.
 - Any other specifier resolves as TypeScript resolves it with the module's tsconfig, in the mode its syntax and file format give. A fixture with no `tsconfig.json` resolves as TypeScript does with `moduleResolution: "bundler"` and `allowJs`. A specifier that names a module by its exact path, such as `./Counter.vue`, resolves to it.
+- A specifier with a `?` query, such as Vite's `./worker?worker` or `./logo.svg?raw`, that resolves to nothing whole resolves as the specifier before the `?`. When that resolves to nothing too, the import is `unresolved` with the whole specifier.
 - An import of a repository file that is no module, such as a stylesheet, a JSON file or a declaration file, yields no edge.
 
 ## Derived data

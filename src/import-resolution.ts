@@ -160,36 +160,49 @@ export function importResolver(
     return name ? { kind: 'external', name } : { kind: 'unresolved', specifier }
   }
 
+  function resolveWhole(
+    module: DiscoveredModule,
+    specifier: string,
+    mode: ts.ResolutionMode
+  ): Resolution {
+    const options = compilerOptionsOf(discovery, module)
+    const aliased = options.paths !== undefined && pathsMatch(options.paths, specifier)
+    const member = aliased ? undefined : workspace.resolve(specifier)
+    if (member) return member.kind === 'module' ? member : { kind: 'unresolved', specifier }
+    if (isBuiltin(specifier)) {
+      return { kind: 'external', name: `node:${specifier.replace(/^node:/, '').split('/')[0]}` }
+    }
+    const { resolvedModule } = ts.resolveModuleName(
+      specifier,
+      join(root, module.path),
+      options,
+      host,
+      cacheOf(module, options),
+      undefined,
+      mode
+    )
+    if (!resolvedModule) return unresolvedByTypeScript(module, specifier, options)
+    const file = resolvedModule.resolvedFileName
+    const external = resolvedModule.isExternalLibraryImport
+      ? (packageNamed(specifier, options) ?? packageOfFile(file))
+      : undefined
+    if (external) return { kind: 'external', name: external }
+    return inRepository(file) ?? { kind: 'unresolved', specifier }
+  }
+
   return {
     formatOf(module) {
       const options = compilerOptionsOf(discovery, module)
       const packageJsons = cacheOf(module, options).getPackageJsonInfoCache()
       return ts.getImpliedNodeFormatForFile(join(root, module.path), packageJsons, host, options)
     },
+    /** A bundler such as Vite reads `./worker?worker` as the file `./worker` with a query, so a specifier that resolves to nothing whole resolves without its query. */
     resolve(module, specifier, mode) {
-      const options = compilerOptionsOf(discovery, module)
-      const aliased = options.paths !== undefined && pathsMatch(options.paths, specifier)
-      const member = aliased ? undefined : workspace.resolve(specifier)
-      if (member) return member.kind === 'module' ? member : { kind: 'unresolved', specifier }
-      if (isBuiltin(specifier)) {
-        return { kind: 'external', name: `node:${specifier.replace(/^node:/, '').split('/')[0]}` }
-      }
-      const { resolvedModule } = ts.resolveModuleName(
-        specifier,
-        join(root, module.path),
-        options,
-        host,
-        cacheOf(module, options),
-        undefined,
-        mode
-      )
-      if (!resolvedModule) return unresolvedByTypeScript(module, specifier, options)
-      const file = resolvedModule.resolvedFileName
-      const external = resolvedModule.isExternalLibraryImport
-        ? (packageNamed(specifier, options) ?? packageOfFile(file))
-        : undefined
-      if (external) return { kind: 'external', name: external }
-      return inRepository(file) ?? { kind: 'unresolved', specifier }
+      const whole = resolveWhole(module, specifier, mode)
+      const query = specifier.indexOf('?')
+      if (whole.kind !== 'unresolved' || query < 0) return whole
+      const path = resolveWhole(module, specifier.slice(0, query), mode)
+      return path.kind === 'unresolved' ? whole : path
     },
     warnings: () => workspace.warnings()
   }
