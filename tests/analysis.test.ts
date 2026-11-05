@@ -113,6 +113,51 @@ test('each import resolves in the mode TypeScript gives its syntax and file', t 
   ])
 })
 
+test('an import of a name a module imports and exports leads to the module that defines it', t => {
+  const root = repository(t, {
+    'src/main.ts': [
+      "import { a, renamed, Def, ns, type T } from './index'",
+      "import chained from './outer'"
+    ].join('\n'),
+    'src/index.ts': [
+      "import { a, b } from './a'",
+      "import Def from './Def'",
+      "import * as ns from './ns'",
+      "import type { T } from './types'",
+      'export { a, b as renamed, Def, ns, T }'
+    ].join('\n'),
+    'src/outer.ts': "import { inner } from './index-inner'\nexport default inner",
+    'src/index-inner.ts': "import { c } from './a'\nexport { c as inner }",
+    'src/a.ts': 'export const a = 1\nexport const b = 2\nexport const c = 3',
+    'src/Def.ts': 'export default function Def() {}',
+    'src/ns.ts': 'export const n = 1',
+    'src/types.ts': 'export type T = string'
+  })
+  const main = analyzeRepository(root).model.modules['src/main.ts' as RepoPath]!
+  assert.deepEqual(
+    main.edges.map(({ to, line, names, typeOnly, via }) => ({
+      to: to.kind === 'module' ? to.path : to,
+      line,
+      names,
+      typeOnly,
+      via
+    })),
+    [
+      { to: 'src/Def.ts', line: 1, names: ['default'], typeOnly: false, via: ['src/index.ts'] },
+      { to: 'src/a.ts', line: 1, names: ['a', 'b'], typeOnly: false, via: ['src/index.ts'] },
+      { to: 'src/ns.ts', line: 1, names: ['*'], typeOnly: false, via: ['src/index.ts'] },
+      { to: 'src/types.ts', line: 1, names: ['T'], typeOnly: false, via: ['src/index.ts'] },
+      {
+        to: 'src/a.ts',
+        line: 2,
+        names: ['c'],
+        typeOnly: false,
+        via: ['src/outer.ts', 'src/index-inner.ts']
+      }
+    ]
+  )
+})
+
 test('the summary counts unresolved edges and skipped imports, and collects warnings', t => {
   const root = repository(t, {
     'package.json': { name: 'root', workspaces: ['packages/*'] },

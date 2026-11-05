@@ -272,3 +272,140 @@ test('the resolution mode of each import is the one TypeScript reads from the mo
     }
   }
 })
+
+const passedOn = (lines: readonly string[]) =>
+  imports(lines)
+    .filter(({ form }) => form === 'reexport')
+    .map(({ specifier, syntax, line, names, renames, typeOnly }) => ({
+      specifier,
+      syntax,
+      line,
+      names,
+      renames,
+      typeOnly
+    }))
+
+test('exporting an imported name re-exports it from the module it came from, at the export', () => {
+  assert.deepEqual(
+    passedOn([
+      "import { a, b as local } from './named'",
+      "import def from './default'",
+      "import * as ns from './namespace'",
+      "import x = require('./equals')",
+      'export { a, local as c, def, ns, x }'
+    ]),
+    [
+      {
+        specifier: './named',
+        syntax: 'declaration',
+        line: 5,
+        names: ['a', 'b'],
+        renames: { c: 'b' },
+        typeOnly: false
+      },
+      {
+        specifier: './default',
+        syntax: 'declaration',
+        line: 5,
+        names: ['default'],
+        renames: { def: 'default' },
+        typeOnly: false
+      },
+      {
+        specifier: './namespace',
+        syntax: 'declaration',
+        line: 5,
+        names: ['*'],
+        renames: { ns: '*' },
+        typeOnly: false
+      },
+      {
+        specifier: './equals',
+        syntax: 'import-equals',
+        line: 5,
+        names: ['*'],
+        renames: { x: '*' },
+        typeOnly: false
+      }
+    ]
+  )
+})
+
+test('the import itself stays an import', () => {
+  assert.deepEqual(
+    imports(["import { a } from './a'", 'export { a }']).map(({ form, names, line }) => ({
+      form,
+      names,
+      line
+    })),
+    [
+      { form: 'import', names: ['a'], line: 1 },
+      { form: 'reexport', names: ['a'], line: 2 }
+    ]
+  )
+})
+
+test('export default of an imported name re-exports what the import took as the default', () => {
+  assert.deepEqual(
+    passedOn([
+      "import { a } from './named'",
+      "import App from './App'",
+      "import * as all from './all'",
+      'export default a',
+      'export { App as default }',
+      'export default all'
+    ]).map(({ specifier, line, names, renames }) => ({ specifier, line, names, renames })),
+    [
+      { specifier: './named', line: 4, names: ['a'], renames: { default: 'a' } },
+      { specifier: './App', line: 5, names: ['default'], renames: undefined },
+      { specifier: './all', line: 6, names: ['*'], renames: { default: '*' } }
+    ]
+  )
+})
+
+test('a re-exported import is type-only when the import or the export is', () => {
+  assert.deepEqual(
+    passedOn([
+      "import type { A } from './import-type'",
+      "import { type B, c } from './inline'",
+      "import { D } from './export-type'",
+      "import { e } from './value'",
+      'export { A, B, c }',
+      'export type { D }',
+      'export { type e }'
+    ]).map(({ specifier, names, typeOnly }) => ({ specifier, names, typeOnly })),
+    [
+      { specifier: './import-type', names: ['A'], typeOnly: true },
+      { specifier: './inline', names: ['B', 'c'], typeOnly: false },
+      { specifier: './export-type', names: ['D'], typeOnly: true },
+      { specifier: './value', names: ['e'], typeOnly: true }
+    ]
+  )
+})
+
+test('exporting a local declaration, an unknown name, or inside a module block re-exports nothing', () => {
+  assert.deepEqual(
+    passedOn([
+      "import { a } from './a'",
+      'const own = 1',
+      'export { own, missing }',
+      'export default own',
+      'export = a',
+      "declare module 'other' { export { a } }"
+    ]),
+    []
+  )
+})
+
+test('the resolution-mode of a type-only import carries over to its re-export', () => {
+  assert.deepEqual(
+    imports([
+      "import type { T } from './t' with { 'resolution-mode': 'require' }",
+      'export type { T }'
+    ]).map(({ form, resolutionMode }) => ({ form, resolutionMode })),
+    [
+      { form: 'import', resolutionMode: 'require' },
+      { form: 'reexport', resolutionMode: 'require' }
+    ]
+  )
+})
