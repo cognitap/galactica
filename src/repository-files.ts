@@ -56,7 +56,7 @@ export function gitEnvironment(): NodeJS.ProcessEnv {
   )
 }
 
-function git(root: string, args: readonly string[]) {
+export function git(root: string, args: readonly string[]) {
   return spawnSync('git', args, {
     cwd: root,
     env: gitEnvironment(),

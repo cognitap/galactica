@@ -20,3 +20,12 @@ export function hrefOf(source, path, line) {
     .replaceAll('{path}', () => encoded)
     .replaceAll('{line}', () => (line === undefined ? '' : String(line)))
 }
+
+/**
+ * The header note for a map that includes changes the links cannot show.
+ * @param {PageSource} source
+ */
+export const noteOf = source =>
+  source.uncommitted
+    ? `Links point to commit ${source.shortCommit}; this map also includes uncommitted changes.`
+    : undefined

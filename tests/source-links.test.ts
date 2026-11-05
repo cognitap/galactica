@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
-import { hrefOf } from '../src/page/links.js'
+import { hrefOf, noteOf } from '../src/page/links.js'
 import { chosenRemote, githubTemplate, pageSource, templateProblem } from '../src/source-links.ts'
 
 const github = (owner: string, repository: string) =>
@@ -119,4 +119,12 @@ test('a template without a hash fragment fills {line} or leaves it empty', () =>
 
 test('a replacement pattern in a path is taken literally', () => {
   assert.equal(hrefOf(source('', 'https://h/{path}'), "a$&$'.ts"), "https://h/a%24%26%24'.ts")
+})
+
+test('the header says which commit the links point to only when tracked files changed', () => {
+  assert.equal(noteOf(source()), undefined)
+  assert.equal(
+    noteOf({ ...source(), shortCommit: 'a8b474d', uncommitted: true }),
+    'Links point to commit a8b474d; this map also includes uncommitted changes.'
+  )
 })

@@ -253,3 +253,15 @@ test('an area at a package directory answers for the area, not for the package',
   assert.deepEqual(root.usedBy, [])
   assert.notDeepEqual(relations(root), cliRelations('.'))
 })
+
+test('the page carries the source its links are built from, or null', () => {
+  const source = {
+    template: 'https://github.com/acme/app/blob/abc1234/{path}#L{line}',
+    prefix: 'web',
+    shortCommit: 'abc1234',
+    uncommitted: false
+  }
+  const graph = graphOf(modelOf({ 'src/a.ts': {} }))
+  assert.equal(pageData(graph).source, null)
+  assert.deepEqual(pageData(graph, source).source, source)
+})

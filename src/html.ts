@@ -6,6 +6,7 @@
 import { readFileSync } from 'node:fs'
 import type { Graph } from './model.ts'
 import { pageData, type PageData } from './page-data.ts'
+import type { PageSource } from './source-links.ts'
 
 const pageFile = (name: string) => readFileSync(new URL(`./page/${name}`, import.meta.url), 'utf8')
 
@@ -26,12 +27,12 @@ const pageScript = () =>
     (_, name: string) => pageFile(name)
   )
 
-export function htmlOf(graph: Graph): string {
+export function htmlOf(graph: Graph, source: PageSource | null = null): string {
   const slots: Readonly<Record<string, string>> = {
     title: escapeHtml(`${graph.repository.name} · Galactica`),
     style: pageFile('page.css'),
     script: pageScript(),
-    data: embedded(pageData(graph))
+    data: embedded(pageData(graph, source))
   }
   return pageFile('page.html').replaceAll(/\{\{(\w+)\}\}/g, (_, slot: string) => slots[slot]!)
 }

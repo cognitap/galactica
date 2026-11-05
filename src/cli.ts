@@ -7,6 +7,7 @@ import { analyzeRepository } from './analysis.ts'
 import { cacheDirectory } from './cache.ts'
 import { commandOptions, commandTable, type Input } from './commands.ts'
 import { SCHEMA_VERSION, type Command, type Failure } from './contract.ts'
+import { pageSourceOf } from './git-source.ts'
 import { graphOf } from './graph.ts'
 import { htmlOf } from './html.ts'
 import { toRepoPath, type RepoPath } from './model.ts'
@@ -214,7 +215,7 @@ function html(argv: readonly string[], cwd: string): Result {
   if ('code' in input) return input
   const { values, root } = input
   const out = resolve(cwd, values.out ?? 'galactica.html')
-  const page = htmlOf(graphAt(root, values['no-cache']))
+  const page = htmlOf(graphAt(root, values['no-cache']), pageSourceOf(root) ?? null)
   try {
     writeFileSync(out, page)
   } catch (error) {

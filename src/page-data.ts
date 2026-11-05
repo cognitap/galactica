@@ -9,6 +9,7 @@ import { compare, type AreaPath, type Graph, type RepoPath, type SymbolFacts } f
 import { depsOf, usesOf } from './queries.ts'
 import { orderRows } from './row-order.ts'
 import { isSourceOrConfig } from './source-file.ts'
+import type { PageSource } from './source-links.ts'
 import { areaSubject, moduleSubject, type Resolved } from './subjects.ts'
 
 /** What `uses` and `deps` answer at depth 1, as module indexes in ascending order. */
@@ -71,6 +72,8 @@ export interface PageData {
   readonly packages: readonly PagePackage[]
   readonly areas: readonly PageArea[]
   readonly modules: readonly PageModule[]
+  /** What the page builds links to source from, or null for plain paths. */
+  readonly source: PageSource | null
 }
 
 function relativeTo(dir: string, path: string): string {
@@ -128,7 +131,7 @@ function relationsOf(
   }
 }
 
-export function pageData(graph: Graph): PageData {
+export function pageData(graph: Graph, source: PageSource | null = null): PageData {
   const packageNames = [...graph.packages]
     .sort(([a, { layer: layerA }], [b, { layer: layerB }]) => layerB - layerA || compare(a, b))
     .map(([name]) => name)
@@ -203,5 +206,5 @@ export function pageData(graph: Graph): PageData {
     return { name, dir, layer, rows, areaCycles, moduleCycles }
   })
 
-  return { repository: graph.repository.name, folders, packages, areas, modules }
+  return { repository: graph.repository.name, folders, packages, areas, modules, source }
 }
