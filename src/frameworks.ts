@@ -12,7 +12,7 @@ import { join } from 'node:path'
 import type { Warning } from './compiler-settings.ts'
 import type { Language } from './contract.ts'
 import { parseRepoPath, type RepoPath } from './model.ts'
-import { isScriptLanguage, type ScriptLanguage } from './syntax.ts'
+import { isScriptLanguage, type ScriptLanguage } from './source-file.ts'
 
 export type FrameworkLanguage = Exclude<Language, ScriptLanguage>
 

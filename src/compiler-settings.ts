@@ -7,6 +7,7 @@
 
 import { dirname, isAbsolute, join, relative, sep } from 'node:path'
 import ts from 'typescript'
+import type { Inputs } from './inputs.ts'
 import { toRepoPath, type RepoPath } from './model.ts'
 
 export const defaultCompilerOptions: ts.CompilerOptions = {
@@ -133,17 +134,21 @@ function listedDirectories(
  * Reads configs on demand under `root` and remembers each one, so a config is
  * parsed once per run. `files` answers the configs' include globs.
  */
-export function compilerSettings(root: string, files: readonly RepoPath[]): CompilerSettings {
+export function compilerSettings(
+  root: string,
+  files: readonly RepoPath[],
+  inputs: Inputs
+): CompilerSettings {
   const commandLines = new Map<string, ts.ParsedCommandLine>()
   const parsed = new Map<string, Parsed | undefined>()
   const extendedConfigCache = new Map<string, ts.ExtendedConfigCacheEntry>()
   const warnings: Warning[] = []
   const reads = {
-    fileExists: ts.sys.fileExists,
-    readFile: ts.sys.readFile,
-    directoryExists: ts.sys.directoryExists,
-    realpath: ts.sys.realpath,
-    getDirectories: ts.sys.getDirectories,
+    fileExists: inputs.fileExists,
+    readFile: inputs.readFile,
+    directoryExists: inputs.directoryExists,
+    realpath: inputs.realpath,
+    getDirectories: inputs.getDirectories,
     getCurrentDirectory: () => root
   }
   const parseHost = {

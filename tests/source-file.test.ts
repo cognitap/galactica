@@ -2,7 +2,7 @@ import assert from 'node:assert/strict'
 import { test } from 'node:test'
 import { languages } from '../src/contract.ts'
 import { emptyConfig, parseRepoPath } from '../src/model.ts'
-import { kindOf, languageOf } from '../src/source-file.ts'
+import { isScriptLanguage, kindOf, languageOf } from '../src/source-file.ts'
 
 const kind = (path: string) => kindOf(parseRepoPath(path), emptyConfig)
 const language = (path: string) => languageOf(parseRepoPath(path))
@@ -69,4 +69,10 @@ test('test wins over story, and story wins over config', () => {
   assert.equal(kind('tests/Price.stories.tsx'), 'test')
   assert.equal(kind('.storybook/Intro.stories.tsx'), 'story')
   assert.equal(kind('tests/vitest.config.ts'), 'test')
+})
+
+test('framework languages are no script languages', () => {
+  assert.equal(isScriptLanguage('tsx'), true)
+  assert.equal(isScriptLanguage('cjs'), true)
+  assert.equal(isScriptLanguage('vue'), false)
 })

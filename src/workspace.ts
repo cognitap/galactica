@@ -4,9 +4,9 @@
  * package.json `workspaces` field that npm, Yarn and Bun read.
  */
 
-import { readFileSync } from 'node:fs'
 import { join, posix } from 'node:path'
 import type { Warning } from './compiler-settings.ts'
+import type { Inputs } from './inputs.ts'
 import { parseRepoPath, type Model, type PackageName, type RepoPath } from './model.ts'
 
 /** Globs over package directories. A leading `!` excludes. */
@@ -17,18 +17,14 @@ export interface WorkspacePackage {
   readonly dir: RepoPath
 }
 
-function readText(file: string): string | undefined {
-  try {
-    return readFileSync(file, 'utf8')
-  } catch (error) {
-    if ((error as NodeJS.ErrnoException).code === 'ENOENT') return undefined
-    throw error
-  }
-}
-
 /** A JSON file's value, undefined when it is absent, and a warning when it does not parse. */
-export function readJson(root: string, path: RepoPath, warnings: Warning[]): unknown {
-  const text = readText(join(root, path))
+export function readJson(
+  inputs: Inputs,
+  root: string,
+  path: RepoPath,
+  warnings: Warning[]
+): unknown {
+  const text = inputs.readFile(join(root, path))
   if (text === undefined) return undefined
   try {
     return JSON.parse(text)
@@ -113,12 +109,13 @@ function workspacesField(manifest: unknown): unknown {
 
 /** The first workspace source that names packages, or undefined in a single-package repository. */
 export function workspacePatterns(
+  inputs: Inputs,
   root: string,
   manifest: unknown,
   warnings: Warning[]
 ): WorkspacePatterns | undefined {
   const yamlPath = parseRepoPath('pnpm-workspace.yaml')
-  const yaml = readText(join(root, yamlPath))
+  const yaml = inputs.readFile(join(root, yamlPath))
   if (yaml !== undefined) {
     try {
       const patterns = pnpmWorkspacePatterns(yaml)
@@ -146,6 +143,7 @@ function normalizePattern(pattern: string): string {
  * as packages named by that package.json. Sorted by name.
  */
 export function workspacePackages(
+  inputs: Inputs,
   root: string,
   files: readonly RepoPath[],
   patterns: WorkspacePatterns,
@@ -165,7 +163,7 @@ export function workspacePackages(
   const byName = new Map<PackageName, WorkspacePackage>()
   for (const dir of dirs) {
     const path = parseRepoPath(`${dir}/package.json`)
-    const manifest = readJson(root, path, warnings)
+    const manifest = readJson(inputs, root, path, warnings)
     const name = nameOf(manifest)
     if (name === undefined) {
       if (manifest !== undefined) {

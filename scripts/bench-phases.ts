@@ -14,26 +14,29 @@ const dist = (name: string) => new URL(`../dist/${name}.js`, import.meta.url).hr
 const [root, command, subject = ''] = process.argv.slice(2) as [string, Command, string?]
 
 const start = performance.now()
-const [{ cacheDirectory }, { commandTable }, { loadConfig }, graph, model, rendering, files] =
-  await Promise.all([
-    import(dist('cache')) as Promise<typeof import('../src/cache.ts')>,
-    import(dist('commands')) as Promise<typeof import('../src/commands.ts')>,
-    import(dist('config')) as Promise<typeof import('../src/config.ts')>,
-    import(dist('graph')) as Promise<typeof import('../src/graph.ts')>,
-    import(dist('model')) as Promise<typeof import('../src/model.ts')>,
-    import(dist('render')) as Promise<typeof import('../src/render.ts')>,
-    import(dist('repository-files')) as Promise<typeof import('../src/repository-files.ts')>
-  ])
+const [
+  { cacheDirectory },
+  { commandTable },
+  { loadConfig },
+  graph,
+  model,
+  { analyze },
+  rendering,
+  files
+] = await Promise.all([
+  import(dist('cache')) as Promise<typeof import('../src/cache.ts')>,
+  import(dist('commands')) as Promise<typeof import('../src/commands.ts')>,
+  import(dist('config')) as Promise<typeof import('../src/config.ts')>,
+  import(dist('graph')) as Promise<typeof import('../src/graph.ts')>,
+  import(dist('model')) as Promise<typeof import('../src/model.ts')>,
+  import(dist('model-cache')) as Promise<typeof import('../src/model-cache.ts')>,
+  import(dist('render')) as Promise<typeof import('../src/render.ts')>,
+  import(dist('repository-files')) as Promise<typeof import('../src/repository-files.ts')>
+])
 const galacticaLoaded = performance.now()
-const { analyzeRepository } = (await import(
-  dist('analysis')
-)) as typeof import('../src/analysis.ts')
-const typescriptLoaded = performance.now()
 
 const config = loadConfig(root)
-const { model: analyzed, summary } = analyzeRepository(root, config, {
-  cache: cacheDirectory(root)
-})
+const { model: analyzed, summary } = await analyze(root, config, { cache: cacheDirectory(root) })
 const analysisDone = performance.now()
 const built = graph.graphOf(analyzed, config)
 const graphDone = performance.now()
@@ -41,8 +44,8 @@ const input = { argument: subject, depth: 1, all: false, cwd: model.toRepoPath(r
 const text = rendering.render(commandTable[command].run(built, input))
 const commandDone = performance.now()
 
-const { durations } = summary
-const phases = Object.values(durations).reduce((sum, value) => sum + value, 0)
+const { typescript, ...durations } = summary.durations
+const phases = Object.values(summary.durations).reduce((sum, value) => sum + value, 0)
 
 /** The source module that defines symbols with the most importers, the first by path among equals. */
 const busiest = [...built.modules.values()]
@@ -53,10 +56,10 @@ const busiest = [...built.modules.values()]
 console.log(
   JSON.stringify({
     phases: {
-      typescript: typescriptLoaded - galacticaLoaded,
+      typescript,
       galactica: galacticaLoaded - start,
       ...durations,
-      cache: analysisDone - typescriptLoaded - phases,
+      cache: analysisDone - galacticaLoaded - phases,
       graph: graphDone - analysisDone,
       command: commandDone - graphDone
     },

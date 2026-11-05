@@ -9,6 +9,7 @@ import { dirname, isAbsolute, join, relative, sep } from 'node:path'
 import ts from 'typescript'
 import type { Warning } from './compiler-settings.ts'
 import { compilerOptionsOf, type DiscoveredModule, type Discovery } from './discovery.ts'
+import { plainInputs, type Inputs } from './inputs.ts'
 import { toRepoPath, type RepoPath, type Target } from './model.ts'
 import { splitSpecifier, workspaceResolver } from './package-resolution.ts'
 
@@ -42,13 +43,13 @@ function memoized<T>(cache: Map<string, T>, compute: (key: string) => T): (key: 
   }
 }
 
-function moduleResolutionHost(root: string): ts.ModuleResolutionHost {
+function moduleResolutionHost(root: string, inputs: Inputs): ts.ModuleResolutionHost {
   return {
-    fileExists: memoized(new Map(), ts.sys.fileExists),
-    directoryExists: memoized(new Map(), ts.sys.directoryExists),
-    readFile: ts.sys.readFile,
-    realpath: ts.sys.realpath,
-    getDirectories: ts.sys.getDirectories,
+    fileExists: memoized(new Map(), inputs.fileExists),
+    directoryExists: memoized(new Map(), inputs.directoryExists),
+    readFile: inputs.readFile,
+    realpath: inputs.realpath,
+    getDirectories: inputs.getDirectories,
     getCurrentDirectory: () => root,
     useCaseSensitiveFileNames: ts.sys.useCaseSensitiveFileNames
   }
@@ -105,11 +106,14 @@ function packageNamed(specifier: string, options: ts.CompilerOptions): string | 
  * resolution cache per config and remembers every file and directory lookup,
  * so each is made once per run.
  */
-export function importResolver(discovery: Discovery): ImportResolver {
+export function importResolver(
+  discovery: Discovery,
+  inputs: Inputs = plainInputs(discovery.root, ts.sys)
+): ImportResolver {
   const { root } = discovery
   const modules: ReadonlySet<string> = new Set(discovery.modules.map(module => module.path))
-  const workspace = workspaceResolver(discovery)
-  const host = moduleResolutionHost(root)
+  const workspace = workspaceResolver(discovery, inputs)
+  const host = moduleResolutionHost(root, inputs)
   const caches = new Map<RepoPath | null, ts.ModuleResolutionCache>()
 
   function cacheOf(module: DiscoveredModule, options: ts.CompilerOptions) {

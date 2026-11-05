@@ -4,7 +4,7 @@
  */
 
 import { basename, dirname, join, posix, resolve } from 'node:path'
-import type ts from 'typescript'
+import ts from 'typescript'
 import {
   compilerSettings,
   defaultCompilerOptions,
@@ -12,6 +12,7 @@ import {
   type Warning
 } from './compiler-settings.ts'
 import type { Language, ModuleKind } from './contract.ts'
+import { plainInputs, type Inputs } from './inputs.ts'
 import {
   parseRepoPath,
   toRepoPath,
@@ -67,10 +68,14 @@ function selected(path: RepoPath, { include, exclude }: Config): boolean {
   return (include === undefined || include.some(matches)) && !exclude.some(matches)
 }
 
-export function discover(rootDir: string, config: Config): Discovery {
+export function discover(
+  rootDir: string,
+  config: Config,
+  inputs: Inputs = plainInputs(resolve(rootDir), ts.sys)
+): Discovery {
   const root = resolve(rootDir)
-  const files = repositoryFiles(root)
-  const settings = compilerSettings(root, files)
+  const files = repositoryFiles(root, inputs)
+  const settings = compilerSettings(root, files, inputs)
   const candidates = files.flatMap(path => {
     const language = languageOf(path)
     if (!language || !selected(path, config)) return []
@@ -79,10 +84,10 @@ export function discover(rootDir: string, config: Config): Discovery {
   })
 
   const warnings: Warning[] = []
-  const manifest = readJson(root, parseRepoPath('package.json'), warnings)
+  const manifest = readJson(inputs, root, parseRepoPath('package.json'), warnings)
   const name = nameOf(manifest) ?? (basename(root) as PackageName)
-  const patterns = workspacePatterns(root, manifest, warnings)
-  const members = patterns ? workspacePackages(root, files, patterns, warnings) : []
+  const patterns = workspacePatterns(inputs, root, manifest, warnings)
+  const members = patterns ? workspacePackages(inputs, root, files, patterns, warnings) : []
   const packageDirs = new Set<string>(['.', ...members.map(member => member.dir)])
   for (const path of files) {
     if (/^tsconfig.*\.json$/.test(basename(path)) && packageDirs.has(dirname(path))) {

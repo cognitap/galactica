@@ -17,7 +17,7 @@ import {
 } from 'node:fs'
 import { createRequire } from 'node:module'
 import { homedir } from 'node:os'
-import { dirname, extname, isAbsolute, join, resolve } from 'node:path'
+import { basename, dirname, extname, isAbsolute, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { symbolKinds } from './contract.ts'
 import type { Extraction } from './extraction.ts'
@@ -113,7 +113,7 @@ const cacheFile = (directory: string) => join(directory, 'cache.json')
 
 type Unknown = Readonly<Record<string, unknown>>
 
-const isRecord = (value: unknown): value is Unknown =>
+export const isRecord = (value: unknown): value is Unknown =>
   typeof value === 'object' && value !== null && !Array.isArray(value)
 
 const isString = (value: unknown): value is string => typeof value === 'string'
@@ -205,7 +205,7 @@ function entryOf(value: unknown): CacheEntry | undefined {
   )
 }
 
-const sameStamp = (file: Unknown, stamp: Stamp) =>
+export const sameStamp = (file: Unknown, stamp: Stamp) =>
   file.galactica === stamp.galactica &&
   file.build === stamp.build &&
   file.typescript === stamp.typescript
@@ -229,21 +229,28 @@ export function readCache(directory: string, stamp: Stamp): Cache {
 }
 
 /**
- * Replaces the cache in `directory` by renaming a complete file over it, so a
- * reader sees the old cache or the new one, never part of one. Of two runs
- * that write at once the last rename wins, and either cache is valid.
+ * Replaces `file` by renaming a complete file over it, so a reader sees the
+ * old file or the new one, never part of one. Of two runs that write at once
+ * the last rename wins, and either file is valid. Never throws.
  */
-export function writeCache(directory: string, stamp: Stamp, cache: Cache): void {
-  const modules = Object.fromEntries([...cache].sort(([a], [b]) => compare(a, b)))
-  const text = JSON.stringify({ format: CACHE_FORMAT, ...stamp, modules })
-  const temporary = join(directory, `cache.${process.pid}.${randomBytes(4).toString('hex')}.tmp`)
+export function replaceFile(file: string, text: string): void {
+  const directory = dirname(file)
+  const temporary = join(
+    directory,
+    `${basename(file)}.${process.pid}.${randomBytes(4).toString('hex')}.tmp`
+  )
   try {
     mkdirSync(directory, { recursive: true })
     writeFileSync(temporary, text)
-    renameSync(temporary, cacheFile(directory))
+    renameSync(temporary, file)
   } catch {
     try {
       rmSync(temporary, { force: true })
     } catch {}
   }
+}
+
+export function writeCache(directory: string, stamp: Stamp, cache: Cache): void {
+  const modules = Object.fromEntries([...cache].sort(([a], [b]) => compare(a, b)))
+  replaceFile(cacheFile(directory), JSON.stringify({ format: CACHE_FORMAT, ...stamp, modules }))
 }

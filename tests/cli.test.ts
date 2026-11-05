@@ -449,7 +449,11 @@ test('a command keeps its cache under node_modules/.cache/galactica, and --no-ca
   assert.equal(warm.stdout, uncached.stdout)
   assert.deepEqual(
     filesUnder(root),
-    [...before, join('node_modules', '.cache', 'galactica', 'cache.json')].sort()
+    [
+      ...before,
+      join('node_modules', '.cache', 'galactica', 'cache.json'),
+      join('node_modules', '.cache', 'galactica', 'model.json')
+    ].sort()
   )
   assert.equal(galactica(root, 'html', '--no-cache', '--out', join(home, 'map.html')).status, 0)
 })

@@ -11,6 +11,7 @@ import { pageSourceOf } from './git-source.ts'
 import { graphOf } from './graph.ts'
 import { htmlOf } from './html.ts'
 import { toRepoPath, type Config, type Graph, type RepoPath } from './model.ts'
+import { analyze } from './model-cache.ts'
 import { render } from './render.ts'
 import { templateProblem } from './source-links.ts'
 import { defaultCommand, installSkill, skillFile, skillTemplate } from './skill.ts'
@@ -131,10 +132,7 @@ function insideRoot(root: string, cwd: string): RepoPath | undefined {
   }
 }
 
-/**
- * The config and graph of the repository at `root`, or what is wrong with its
- * config. The analysis, and TypeScript with it, loads only here.
- */
+/** The config and graph of the repository at `root`, or what is wrong with its config. */
 async function analyzed(
   root: string,
   noCache: boolean | undefined
@@ -142,8 +140,7 @@ async function analyzed(
   try {
     const config = loadConfig(root)
     const options = noCache ? {} : { cache: cacheDirectory(root) }
-    const { analyzeRepository } = await import('./analysis.ts')
-    return { config, graph: graphOf(analyzeRepository(root, config, options).model, config) }
+    return { config, graph: graphOf((await analyze(root, config, options)).model, config) }
   } catch (error) {
     if (error instanceof ConfigError) return { problem: error.message }
     throw error
