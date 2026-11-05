@@ -1,8 +1,8 @@
 /**
  * What an analysis takes from the machine beyond its modules' bytes, and
  * whether any of it has changed since. A full run records every file it
- * stats or reads, every directory whose entries decided a probe, the
- * repository's listing and the framework compilers it found. A warm run
+ * stats or reads, every directory whose entries decided a probe, and the
+ * repository's listing. A warm run
  * checks the record with stats alone, so the derived model is reused only
  * when every input is as it was, and nothing is read, TypeScript included,
  * to find that out.
@@ -12,9 +12,7 @@ import { createHash } from 'node:crypto'
 import { readdirSync, statSync, type Dirent } from 'node:fs'
 import { dirname, isAbsolute, join, relative, sep } from 'node:path'
 import type ts from 'typescript'
-import { languages, type Language } from './contract.ts'
-import { compilerResolver, type Compiler } from './frameworks.ts'
-import type { Config, RepoPath } from './model.ts'
+import type { Config } from './model.ts'
 import { gitListing } from './repository-files.ts'
 
 export interface FileStat {
@@ -35,11 +33,10 @@ export interface Inputs {
   readonly stat: (path: string) => FileStat
   /** What `git ls-files` prints for the root, or undefined when git does not list it. */
   readonly gitListing: (root: string) => string | undefined
-  readonly compilerOf: (language: Language, dir: RepoPath) => Compiler | undefined
 }
 
 /** The machine as it is, read through TypeScript's `sys` where TypeScript reads. */
-export function plainInputs(root: string, sys: ts.System): Inputs {
+export function plainInputs(sys: ts.System): Inputs {
   return {
     fileExists: sys.fileExists,
     directoryExists: sys.directoryExists,
@@ -48,8 +45,7 @@ export function plainInputs(root: string, sys: ts.System): Inputs {
     getDirectories: sys.getDirectories,
     readdir: path => readdirSync(path, { withFileTypes: true }),
     stat: path => statSync(path),
-    gitListing,
-    compilerOf: compilerResolver(root)
+    gitListing
   }
 }
 
@@ -72,7 +68,6 @@ export interface Fingerprint {
     path: string,
     stat: readonly [mtimeMs: number, size: number] | null
   ])[]
-  readonly compilers: readonly (readonly [language: Language, dir: RepoPath, stamp: string])[]
 }
 
 export interface Recorder {
@@ -124,10 +119,9 @@ const racy = (mtimeMs: number, start: number) => mtimeMs % 1000 === 0 && mtimeMs
 /** Reads as `plainInputs` does and records each read before it happens, so a change during the run reads as a change. */
 export function recordInputs(root: string, sys: ts.System, config: Config): Recorder {
   const start = Date.now()
-  const plain = plainInputs(root, sys)
+  const plain = plainInputs(sys)
   const directories = new Map<string, number | null>()
   const files = new Map<string, FileStat | null>()
-  const compilers = new Map<string, Fingerprint['compilers'][number]>()
   let git: string | null = null
 
   const directory = (path: string) => {
@@ -187,11 +181,6 @@ export function recordInputs(root: string, sys: ts.System, config: Config): Reco
         if (path !== '') directory(dirname(join(listedRoot, path)))
       }
       return listing
-    },
-    compilerOf(language, dir) {
-      const compiler = plain.compilerOf(language, dir)
-      if (compiler) compilers.set(`${language}\0${dir}`, [language, dir, compiler.stamp])
-      return compiler
     }
   }
 
@@ -207,8 +196,7 @@ export function recordInputs(root: string, sys: ts.System, config: Config): Reco
         files: [...files].map(([path, stat]) => [
           shorten(root, path),
           stat && [stat.mtimeMs, stat.size]
-        ]),
-        compilers: [...compilers.values()]
+        ])
       }
     }
   }
@@ -228,10 +216,6 @@ export function unchanged(root: string, fingerprint: Fingerprint, config: Config
   } catch {
     return false
   }
-  const compilerOf = compilerResolver(root)
-  for (const [language, dir, stamp] of fingerprint.compilers) {
-    if (compilerOf(language, dir)?.stamp !== stamp) return false
-  }
   const listing = gitListing(root)
   if (fingerprint.git === null) return listing === undefined
   return listing !== undefined && sha256(listing) === fingerprint.git
@@ -247,9 +231,6 @@ const isNumber = (value: unknown): value is number => typeof value === 'number'
 const isTuple = (value: unknown, length: number): value is readonly unknown[] =>
   Array.isArray(value) && value.length === length
 
-const isLanguage = (value: unknown): value is Language =>
-  (languages as readonly unknown[]).includes(value)
-
 const isDirectory = (value: unknown): value is Fingerprint['directories'][number] =>
   isTuple(value, 2) && isString(value[0]) && (value[1] === null || isNumber(value[1]))
 
@@ -258,16 +239,12 @@ const isFile = (value: unknown): value is Fingerprint['files'][number] =>
   isString(value[0]) &&
   (value[1] === null || (isTuple(value[1], 2) && value[1].every(isNumber)))
 
-const isCompiler = (value: unknown): value is Fingerprint['compilers'][number] =>
-  isTuple(value, 3) && isLanguage(value[0]) && isString(value[1]) && isString(value[2])
-
 /** The fingerprint a cache file holds, or undefined when it has another shape. */
 export function fingerprintOf(value: unknown): Fingerprint | undefined {
   if (!isRecord(value)) return undefined
-  const { config, git, directories, files, compilers } = value
+  const { config, git, directories, files } = value
   if (!isString(config) || !(git === null || isString(git))) return undefined
   if (!Array.isArray(directories) || !directories.every(isDirectory)) return undefined
   if (!Array.isArray(files) || !files.every(isFile)) return undefined
-  if (!Array.isArray(compilers) || !compilers.every(isCompiler)) return undefined
-  return { config, git, directories, files, compilers }
+  return { config, git, directories, files }
 }

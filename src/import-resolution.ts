@@ -108,7 +108,7 @@ function packageNamed(specifier: string, options: ts.CompilerOptions): string | 
  */
 export function importResolver(
   discovery: Discovery,
-  inputs: Inputs = plainInputs(discovery.root, ts.sys)
+  inputs: Inputs = plainInputs(ts.sys)
 ): ImportResolver {
   const { root } = discovery
   const modules: ReadonlySet<string> = new Set(discovery.modules.map(module => module.path))

@@ -2,16 +2,14 @@
  * What a framework file holds for the TypeScript extraction: its script
  * blocks, each with the lines of the file before it. Each framework is one
  * entry of the table, which says what compiler, if any, finds its blocks.
- * A compiler comes from the repository being mapped, from the package that
- * has the file, else from the root.
+ * A compiler is Galactica's own optional dependency. Requiring one from the
+ * repository being mapped would run that repository's code.
  */
 
-import { readFileSync } from 'node:fs'
 import { createRequire } from 'node:module'
-import { join } from 'node:path'
 import type { Warning } from './compiler-settings.ts'
 import type { Language } from './contract.ts'
-import { parseRepoPath, type RepoPath } from './model.ts'
+import type { RepoPath } from './model.ts'
 import { isScriptLanguage, type ScriptLanguage } from './source-file.ts'
 
 export type FrameworkLanguage = Exclude<Language, ScriptLanguage>
@@ -25,14 +23,9 @@ export interface ScriptBlock {
   readonly exports: boolean
 }
 
-/** The package entry that parses a framework's files. */
-interface CompilerEntry {
-  readonly package: string
-  readonly entry: string
-}
-
 interface Framework {
-  readonly compiler?: CompilerEntry
+  /** The module that parses the framework's files. */
+  readonly compiler?: string
   /** Throws when the compiler throws, or gives output of another shape. */
   readonly blocks: (text: string, path: RepoPath, compiler: unknown) => readonly ScriptBlock[]
 }
@@ -119,9 +112,8 @@ const fence = /^﻿?\s*---\r?\n/
 const closingFence = /^---\r?$/m
 
 /**
- * The frontmatter, read as text. `@astrojs/compiler` is nested under `astro`
- * in a pnpm install and cannot be resolved from the package that has the
- * file, and the frontmatter is all the extraction reads.
+ * The frontmatter, read as text. It is all the extraction reads, so
+ * Galactica ships no Astro compiler for it.
  */
 function astroBlocks(text: string): readonly ScriptBlock[] {
   const open = fence.exec(text)
@@ -140,8 +132,8 @@ function astroBlocks(text: string): readonly ScriptBlock[] {
 }
 
 const frameworks: Readonly<Record<FrameworkLanguage, Framework>> = {
-  vue: { compiler: { package: 'vue', entry: 'vue/compiler-sfc' }, blocks: vueBlocks },
-  svelte: { compiler: { package: 'svelte', entry: 'svelte/compiler' }, blocks: svelteBlocks },
+  vue: { compiler: 'vue/compiler-sfc', blocks: vueBlocks },
+  svelte: { compiler: 'svelte/compiler', blocks: svelteBlocks },
   astro: { blocks: astroBlocks }
 }
 
@@ -161,69 +153,52 @@ export function scriptBlocksOf(
   return [...framework.blocks(text, path, load?.())].sort((a, b) => a.offset - b.offset)
 }
 
-/** The compiler a package's framework files of one language are read with. */
+/** The compiler a language's files are read with. */
 export interface Compiler {
   readonly entry: string
-  /** Its version, or `missing`, which decides whether a cached extraction still holds. */
-  readonly stamp: string
-  /** Requires the compiler module. Absent when it is missing. */
+  /** Requires the compiler module. Absent when Galactica was installed without it. */
   readonly load?: () => unknown
 }
 
-function resolveCompiler({ package: name, entry }: CompilerEntry, from: string): Compiler {
-  const require = createRequire(join(from, 'package.json'))
-  const file = require.resolve(entry)
-  const manifest = JSON.parse(readFileSync(require.resolve(`${name}/package.json`), 'utf8'))
-  return { entry, stamp: String(manifest.version), load: () => require(file) }
-}
+const require = createRequire(import.meta.url)
+const compilers = new Map<FrameworkLanguage, Compiler>()
 
-/**
- * The compiler for a module of `language` in the package at `dir`, resolved
- * once per language and package. Undefined when the language needs none.
- */
-export function compilerResolver(
-  root: string
-): (language: Language, dir: RepoPath) => Compiler | undefined {
-  const resolved = new Map<string, Compiler>()
-  return (language, dir) => {
-    const entry = isScriptLanguage(language) ? undefined : frameworks[language].compiler
-    if (!entry) return undefined
-    const key = `${language}\0${dir}`
-    const known = resolved.get(key)
-    if (known) return known
-    let compiler: Compiler = { entry: entry.entry, stamp: 'missing' }
-    for (const from of new Set([join(root, dir), root])) {
-      try {
-        compiler = resolveCompiler(entry, from)
-        break
-      } catch {}
-    }
-    resolved.set(key, compiler)
-    return compiler
+/** Galactica's own compiler for `language`, resolved once. Undefined when the language needs none. */
+export function compilerOf(language: Language): Compiler | undefined {
+  if (isScriptLanguage(language)) return undefined
+  const entry = frameworks[language].compiler
+  if (entry === undefined) return undefined
+  let compiler = compilers.get(language)
+  if (!compiler) {
+    let file: string | undefined
+    try {
+      file = require.resolve(entry)
+    } catch {}
+    compiler = file === undefined ? { entry } : { entry, load: () => require(file) }
+    compilers.set(language, compiler)
   }
+  return compiler
 }
 
 /** A framework module its compiler did not read, because it is missing or failed with `failure`. */
 export interface Unread {
   readonly path: RepoPath
   readonly language: Language
-  /** The directory of the module's package. */
-  readonly dir: RepoPath
   readonly compiler: Compiler
   readonly failure?: string
 }
 
-/** One warning per compiler and package, on the package's manifest. */
+/** One warning per language, on its first unread module. */
 export function unreadWarnings(unread: readonly Unread[]): readonly Warning[] {
-  const groups = Map.groupBy(unread, ({ compiler, dir }) => `${compiler.entry}\0${dir}`)
+  const groups = Map.groupBy(unread, ({ language }) => language)
   return [...groups.values()].map(modules => {
-    const [{ path, language, dir, compiler, failure }] = modules as [Unread, ...Unread[]]
+    const [{ path, language, compiler, failure }] = modules as [Unread, ...Unread[]]
     const cause =
       failure === undefined
-        ? `${compiler.entry} not found`
+        ? `${compiler.entry} is not installed with Galactica`
         : `${compiler.entry} failed on ${path}: ${failure}`
     const files =
       modules.length === 1 ? `1 .${language} file has` : `${modules.length} .${language} files have`
-    return { path: parseRepoPath(`${dir}/package.json`), message: `${cause}; ${files} no imports` }
+    return { path, message: `${cause}; ${files} no imports` }
   })
 }

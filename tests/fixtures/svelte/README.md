@@ -1,1 +1,1 @@
-Reading `src/Counter.svelte` needs `svelte/compiler`. The fixture installs nothing, so Galactica resolves it from the root of this fixture and finds the `svelte` that Galactica itself has as a devDependency.
+Reading `src/Counter.svelte` needs `svelte/compiler`. Galactica reads it with its own copy, from its optional dependency on `svelte`, and never with a compiler the mapped repository installs, so the fixture installs nothing.

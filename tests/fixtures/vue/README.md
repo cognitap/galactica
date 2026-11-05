@@ -1,1 +1,1 @@
-Reading `src/Counter.vue` needs `vue/compiler-sfc`. The fixture installs nothing, so Galactica resolves it from the root of this fixture and finds the `vue` that Galactica itself has as a devDependency.
+Reading `src/Counter.vue` needs `vue/compiler-sfc`. Galactica reads it with its own copy, from its optional dependency on `vue`, and never with a compiler the mapped repository installs, so the fixture installs nothing.

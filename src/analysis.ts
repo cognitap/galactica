@@ -11,14 +11,14 @@
  */
 
 import { readFileSync } from 'node:fs'
-import { join, resolve } from 'node:path'
+import { join } from 'node:path'
 import { performance } from 'node:perf_hooks'
 import ts from 'typescript'
 import { resolveBarrels } from './barrels.ts'
 import { compilerOptionsOf, discover, type DiscoveredModule, type Warning } from './discovery.ts'
 import { currentStamp, readCache, writeCache, type Cache, type CacheEntry } from './cache.ts'
 import { extract, hashOf } from './extraction.ts'
-import { unreadWarnings, type Compiler, type Unread } from './frameworks.ts'
+import { compilerOf, unreadWarnings, type Unread } from './frameworks.ts'
 import { importResolver, type ImportResolver } from './import-resolution.ts'
 import { plainInputs, type Inputs } from './inputs.ts'
 import { resolutionModeOf } from './imports.ts'
@@ -111,29 +111,26 @@ function resolveModule(
 type Source = keyof Summary['modules']
 
 /**
- * The module's entry, from `cached` when it was read with the same compiler
- * and the module's size and mtime, or else its hash, are unchanged. The stat
- * comes before the read, so a file written after the read has a newer mtime
- * than the entry records.
+ * The module's entry, from `cached` when the module's size and mtime, or
+ * else its hash, are unchanged. The stat comes before the read, so a file
+ * written after the read has a newer mtime than the entry records.
  */
 function entryOf(
   root: string,
   { path, language }: DiscoveredModule,
   cached: CacheEntry | undefined,
-  compiler: Compiler | undefined,
+  load: (() => unknown) | undefined,
   clock: Clock,
   inputs: Inputs
 ): readonly [CacheEntry, Source] {
   const file = join(root, path)
   const { mtimeMs, size } = inputs.stat(file)
-  const old = cached?.compiler === compiler?.stamp ? cached : undefined
-  if (old && old.mtimeMs === mtimeMs && old.size === size) return [old, 'reused']
+  if (cached && cached.mtimeMs === mtimeMs && cached.size === size) return [cached, 'reused']
   const bytes = readFileSync(file)
   const hash = hashOf(bytes)
-  if (old?.hash === hash) return [{ ...old, mtimeMs, size }, 'reread']
-  const extraction = timed(clock, 'parse', () => extract(path, language, bytes, compiler?.load))
-  const stamp = compiler ? { compiler: compiler.stamp } : {}
-  return [{ hash, mtimeMs, size, ...extraction, ...stamp }, 'parsed']
+  if (cached?.hash === hash) return [{ ...cached, mtimeMs, size }, 'reread']
+  const extraction = timed(clock, 'parse', () => extract(path, language, bytes, load))
+  return [{ hash, mtimeMs, size, ...extraction }, 'parsed']
 }
 
 export interface Options {
@@ -147,7 +144,7 @@ export interface Options {
 export function analyzeRepository(
   rootDir: string,
   config: Config,
-  { cache, inputs = plainInputs(resolve(rootDir), ts.sys) }: Options = {}
+  { cache, inputs = plainInputs(ts.sys) }: Options = {}
 ): Analysis {
   const clock: Clock = { typescript: 0, discovery: 0, parse: 0, resolution: 0, barrels: 0 }
   const discovery = timed(clock, 'discovery', () => discover(rootDir, config, inputs))
@@ -158,13 +155,12 @@ export function analyzeRepository(
   const unread: Unread[] = []
   for (const module of discovery.modules) {
     const { path, language } = module
-    const dir = discovery.packages[module.package]!.dir
-    const compiler = inputs.compilerOf(language, dir)
+    const compiler = compilerOf(language)
     const [entry, source] = entryOf(
       discovery.root,
       module,
       cached.get(path),
-      compiler,
+      compiler?.load,
       clock,
       inputs
     )
@@ -172,7 +168,7 @@ export function analyzeRepository(
     counts[source]++
     const { failure } = entry
     if (compiler && (!compiler.load || failure !== undefined)) {
-      unread.push({ path, language, dir, compiler, ...(failure === undefined ? {} : { failure }) })
+      unread.push({ path, language, compiler, ...(failure === undefined ? {} : { failure }) })
     }
   }
   const changed = counts.reread + counts.parsed > 0 || cached.size !== entries.size

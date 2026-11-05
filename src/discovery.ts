@@ -71,7 +71,7 @@ function selected(path: RepoPath, { include, exclude }: Config): boolean {
 export function discover(
   rootDir: string,
   config: Config,
-  inputs: Inputs = plainInputs(resolve(rootDir), ts.sys)
+  inputs: Inputs = plainInputs(ts.sys)
 ): Discovery {
   const root = resolve(rootDir)
   const files = repositoryFiles(root, inputs)
