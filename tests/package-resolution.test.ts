@@ -345,6 +345,55 @@ test('of builds whose outDirs both hold a target, the first that reaches a modul
   )
 })
 
+test('bundler output with no build config maps to the same path under src', t => {
+  const exports = {
+    '.': { types: './dist/index.d.mts', import: './dist/index.mjs' },
+    './runner': './dist/node/runner.js',
+    './util': { require: './build/cjs/util.cjs', import: './build/esm/util.js' },
+    './gone': './dist/gone.js',
+    './linked': './linked.js'
+  }
+  assert.deepEqual(
+    resolutions(
+      t,
+      { exports },
+      { 'src/index.ts': '', 'src/runner/index.ts': '', 'src/util.ts': '' },
+      ['pkg', 'pkg/runner', 'pkg/util', 'pkg/gone', 'pkg/linked']
+    ),
+    {
+      pkg: 'packages/pkg/src/index.ts',
+      'pkg/runner': 'packages/pkg/src/runner/index.ts',
+      'pkg/util': 'packages/pkg/src/util.ts',
+      'pkg/gone': 'unresolved: missing',
+      'pkg/linked': 'unresolved: missing'
+    }
+  )
+})
+
+test('a bundle of the package root named after the package maps to src/index', t => {
+  assert.deepEqual(
+    resolutions(
+      t,
+      { main: 'dist/pkg.cjs.js', module: 'dist/pkg.esm-bundler.js' },
+      { 'src/index.ts': '' },
+      ['pkg', 'pkg/dist/pkg.esm-browser.js']
+    ),
+    { pkg: 'packages/pkg/src/index.ts', 'pkg/dist/pkg.esm-browser.js': 'unresolved: missing' }
+  )
+})
+
+test('a target the package states wins over a guess from another condition', t => {
+  assert.deepEqual(
+    resolutions(
+      t,
+      { exports: { import: './dist/index.js', '@acme/source': './src/main.ts' } },
+      { 'src/index.ts': '', 'src/main.ts': '' },
+      ['pkg']
+    ),
+    { pkg: 'packages/pkg/src/main.ts' }
+  )
+})
+
 test('a target that reaches no module is missing', t => {
   assert.deepEqual(
     resolutions(

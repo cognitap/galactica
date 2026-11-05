@@ -1,0 +1,128 @@
+{
+  "format": 2,
+  "repository": { "name": "bundled-packages" },
+  "packages": {
+    "@demo/app": { "dir": "packages/app" },
+    "@demo/kit": { "dir": "packages/kit" },
+    "@demo/probe": { "dir": "packages/probe" },
+    "@demo/widget": { "dir": "packages/widget" }
+  },
+  "modules": {
+    "packages/app/src/main.ts": {
+      "path": "packages/app/src/main.ts",
+      "symbols": [
+        {
+          "name": "app",
+          "kind": "const",
+          "line": 7,
+          "default": false,
+          "signature": "const app = mount(...)"
+        }
+      ],
+      "edges": [
+        {
+          "to": { "kind": "module", "path": "packages/kit/src/index.ts" },
+          "line": 1,
+          "form": "import",
+          "names": ["createKit"],
+          "typeOnly": false,
+          "dynamic": false,
+          "loadTime": ["createKit"],
+          "via": []
+        },
+        {
+          "to": { "kind": "module", "path": "packages/kit/src/runner/index.ts" },
+          "line": 2,
+          "form": "import",
+          "names": ["run"],
+          "typeOnly": false,
+          "dynamic": false,
+          "loadTime": ["run"],
+          "via": []
+        },
+        {
+          "to": { "kind": "unresolved", "specifier": "@demo/kit/gone" },
+          "line": 3,
+          "form": "import",
+          "names": ["gone"],
+          "typeOnly": false,
+          "dynamic": false,
+          "loadTime": ["gone"],
+          "via": []
+        },
+        {
+          "to": { "kind": "module", "path": "packages/widget/src/index.ts" },
+          "line": 4,
+          "form": "import",
+          "names": ["mount"],
+          "typeOnly": false,
+          "dynamic": false,
+          "loadTime": ["mount"],
+          "via": []
+        },
+        {
+          "to": { "kind": "module", "path": "packages/probe/src/probe.ts" },
+          "line": 5,
+          "form": "import",
+          "names": ["probe"],
+          "typeOnly": false,
+          "dynamic": false,
+          "loadTime": ["probe"],
+          "via": []
+        }
+      ]
+    },
+    "packages/kit/src/index.ts": {
+      "path": "packages/kit/src/index.ts",
+      "symbols": [
+        {
+          "name": "createKit",
+          "kind": "function",
+          "line": 1,
+          "default": false,
+          "signature": "function createKit(input: unknown): unknown"
+        }
+      ],
+      "edges": []
+    },
+    "packages/kit/src/runner/index.ts": {
+      "path": "packages/kit/src/runner/index.ts",
+      "symbols": [
+        {
+          "name": "run",
+          "kind": "function",
+          "line": 1,
+          "default": false,
+          "signature": "function run(kit: unknown): unknown"
+        }
+      ],
+      "edges": []
+    },
+    "packages/probe/src/probe.ts": {
+      "path": "packages/probe/src/probe.ts",
+      "symbols": [
+        {
+          "name": "probe",
+          "kind": "function",
+          "line": 1,
+          "default": false,
+          "signature": "function probe(value: unknown): unknown"
+        }
+      ],
+      "edges": []
+    },
+    "packages/widget/src/index.ts": {
+      "path": "packages/widget/src/index.ts",
+      "symbols": [
+        {
+          "name": "mount",
+          "kind": "function",
+          "line": 1,
+          "default": false,
+          "signature": "function mount(app: unknown): unknown"
+        }
+      ],
+      "edges": []
+    }
+  }
+}

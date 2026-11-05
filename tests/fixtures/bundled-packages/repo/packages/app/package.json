@@ -1,0 +1,10 @@
+{
+  "name": "@demo/app",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "@demo/kit": "workspace:*",
+    "@demo/probe": "workspace:*",
+    "@demo/widget": "workspace:*"
+  }
+}

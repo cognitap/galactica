@@ -1,0 +1,15 @@
+{
+  "name": "@demo/kit",
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.mts",
+      "import": "./dist/index.mjs"
+    },
+    "./runner": "./dist/node/runner.js",
+    "./gone": "./dist/gone.js"
+  },
+  "scripts": {
+    "build": "tsdown"
+  }
+}
