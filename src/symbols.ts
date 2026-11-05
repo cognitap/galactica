@@ -5,6 +5,7 @@
 
 import ts from 'typescript'
 import type { SymbolKind } from './contract.ts'
+import { bindingsOf } from './imports.ts'
 import type { SymbolFacts } from './model.ts'
 
 const maxLength = 160
@@ -66,6 +67,7 @@ interface Scope {
   readonly locals: ReadonlyMap<string, Declaration>
   /** Every top-level function declaration of a name, so overloads become one symbol. */
   readonly functions: ReadonlyMap<string, readonly ts.FunctionDeclaration[]>
+  readonly imported: ReadonlySet<string>
 }
 
 /** A symbol before its exported name and default flag are known. */
@@ -568,9 +570,13 @@ function exportedSpecifiers(node: ts.ExportDeclaration, scope: Scope): readonly 
   })
 }
 
-/** `export default value` and `export = value`. */
+/** `export default value` and `export = value`. An imported name as the default is a re-export. */
 function exportedAssignment(node: ts.ExportAssignment, scope: Scope): readonly Exported[] {
-  return [exportedValue('default', unwrapped(node.expression), node, scope)]
+  const { expression } = node
+  if (!node.isExportEquals && ts.isIdentifier(expression) && scope.imported.has(expression.text)) {
+    return []
+  }
+  return [exportedValue('default', unwrapped(expression), node, scope)]
 }
 
 const isModuleExports = (node: ts.Node): boolean =>
@@ -646,7 +652,7 @@ function scopeOf(source: ts.SourceFile): Scope {
       functions.set(name, [...(functions.get(name) ?? []), declaration])
     }
   }
-  return { source, locals, functions }
+  return { source, locals, functions, imported: new Set(bindingsOf(source).keys()) }
 }
 
 function compare(a: string, b: string): number {

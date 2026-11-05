@@ -22,6 +22,8 @@ export interface Import extends Omit<Edge, 'to' | 'via'> {
 /** What an import takes, before its line is known. */
 interface Taken {
   readonly specifier: ts.Expression | undefined
+  /** Where the line is read when it is not the specifier's. */
+  readonly at?: ts.Node
   readonly syntax: ImportSyntax
   readonly form: Edge['form']
   readonly names: readonly string[]
@@ -68,14 +70,25 @@ function fromImportDeclaration(node: ts.ImportDeclaration): Taken {
 const byKey = ([a]: readonly [string, string], [b]: readonly [string, string]) =>
   a < b ? -1 : a > b ? 1 : 0
 
+/** A name a module passes on, as it exports it and as its source module exports it. */
+interface Passed {
+  readonly exported: string
+  readonly taken: string
+}
+
+const passedBy = (specifier: ts.ExportSpecifier): Passed => ({
+  exported: specifier.name.text,
+  taken: nameOf(specifier)
+})
+
 /** Without an entry for each name passed on unrenamed, `{ a as b, a }` would read as `{ a as b }`. */
-function renamesOf(specifiers: readonly ts.ExportSpecifier[]): Edge['renames'] {
+function renamesOf(passed: readonly Passed[]): Edge['renames'] {
   const renamed = new Set(
-    specifiers.filter(specifier => nameOf(specifier) !== specifier.name.text).map(nameOf)
+    passed.filter(({ exported, taken }) => exported !== taken).map(({ taken }) => taken)
   )
-  const entries = specifiers
-    .filter(specifier => renamed.has(nameOf(specifier)))
-    .map(specifier => [specifier.name.text, nameOf(specifier)] as const)
+  const entries = passed
+    .filter(({ taken }) => renamed.has(taken))
+    .map(({ exported, taken }) => [exported, taken] as const)
   return entries.length > 0 ? Object.fromEntries(entries.sort(byKey)) : undefined
 }
 
@@ -92,7 +105,7 @@ function fromExportDeclaration(node: ts.ExportDeclaration): Taken | undefined {
       clause === undefined
         ? undefined
         : ts.isNamedExports(clause)
-          ? renamesOf(named)
+          ? renamesOf(named.map(passedBy))
           : { [clause.name.text]: '*' },
     typeOnly: node.isTypeOnly || allTypeOnly(named),
     dynamic: false
@@ -168,6 +181,86 @@ function fromCall(call: ts.CallExpression, dynamic: boolean): Taken {
   }
 }
 
+/** A name a top-level import binds in the module, with the import it comes from. */
+export interface Binding {
+  readonly specifier: ts.Expression
+  readonly syntax: ImportSyntax
+  /** As the imported module exports it. */
+  readonly taken: string
+  readonly typeOnly: boolean
+}
+
+export function bindingsOf(source: ts.SourceFile): ReadonlyMap<string, Binding> {
+  const bindings = new Map<string, Binding>()
+  for (const statement of source.statements) {
+    if (ts.isImportEqualsDeclaration(statement)) {
+      const reference = statement.moduleReference
+      if (!ts.isExternalModuleReference(reference)) continue
+      bindings.set(statement.name.text, {
+        specifier: reference.expression,
+        syntax: 'import-equals',
+        taken: '*',
+        typeOnly: statement.isTypeOnly
+      })
+    }
+    if (!ts.isImportDeclaration(statement) || !statement.importClause) continue
+    const clause = statement.importClause
+    const typeOnly = clause.phaseModifier === ts.SyntaxKind.TypeKeyword
+    const bind = (name: ts.Identifier, taken: string, inlineType = false) =>
+      bindings.set(name.text, {
+        specifier: statement.moduleSpecifier,
+        syntax: 'declaration',
+        taken,
+        typeOnly: typeOnly || inlineType
+      })
+    if (clause.name) bind(clause.name, 'default')
+    const named = clause.namedBindings
+    if (named && ts.isNamespaceImport(named)) bind(named.name, '*')
+    for (const element of named && ts.isNamedImports(named) ? named.elements : []) {
+      bind(element.name, nameOf(element), element.isTypeOnly)
+    }
+  }
+  return bindings
+}
+
+interface PassedOn extends Passed {
+  readonly binding: Binding
+  readonly typeOnly: boolean
+}
+
+/** What `export { local }` and `export default local` at the top level pass on of the imported bindings they name. */
+function passedOn(node: ts.Node, bindings: ReadonlyMap<string, Binding>): readonly PassedOn[] {
+  if (node.parent?.kind !== ts.SyntaxKind.SourceFile) return []
+  if (ts.isExportAssignment(node) && !node.isExportEquals && ts.isIdentifier(node.expression)) {
+    const binding = bindings.get(node.expression.text)
+    if (binding === undefined) return []
+    return [{ exported: 'default', taken: binding.taken, binding, typeOnly: binding.typeOnly }]
+  }
+  if (!ts.isExportDeclaration(node) || node.moduleSpecifier) return []
+  const clause = node.exportClause
+  return (clause && ts.isNamedExports(clause) ? clause.elements : []).flatMap(specifier => {
+    const binding = bindings.get(nameOf(specifier))
+    if (binding === undefined) return []
+    const typeOnly = node.isTypeOnly || specifier.isTypeOnly || binding.typeOnly
+    return [{ exported: specifier.name.text, taken: binding.taken, binding, typeOnly }]
+  })
+}
+
+/** One re-export for each import whose bindings `node` passes on, at the line of `node`. */
+function reexportsOf(node: ts.Node, bindings: ReadonlyMap<string, Binding>): readonly Taken[] {
+  const byImport = Map.groupBy(passedOn(node, bindings), ({ binding }) => binding.specifier)
+  return [...byImport].map(([specifier, passed]) => ({
+    specifier,
+    at: node,
+    syntax: passed[0]!.binding.syntax,
+    form: 'reexport',
+    names: passed.map(({ taken }) => taken),
+    renames: renamesOf(passed),
+    typeOnly: passed.every(({ typeOnly }) => typeOnly),
+    dynamic: false
+  }))
+}
+
 const rules = [
   when(ts.isImportDeclaration, fromImportDeclaration),
   when(ts.isExportDeclaration, fromExportDeclaration),
@@ -176,12 +269,12 @@ const rules = [
   when(isImportCall, call => fromCall(call, true))
 ]
 
-function takenBy(node: ts.Node): Taken | undefined {
+function takenBy(node: ts.Node, bindings: ReadonlyMap<string, Binding>): readonly Taken[] {
   for (const rule of rules) {
     const taken = rule(node)
-    if (taken !== undefined) return taken
+    if (taken !== undefined) return [taken]
   }
-  return undefined
+  return reexportsOf(node, bindings)
 }
 
 const sortedNames = (names: readonly string[]) =>
@@ -209,17 +302,19 @@ function overrideOf(
 
 /** The module's imports in source order. Specifiers that are no string literal are skipped. */
 export function importsOf(source: ts.SourceFile): readonly Import[] {
+  const bindings = bindingsOf(source)
   const imports: Import[] = []
   const visit = (node: ts.Node): void => {
-    const taken = takenBy(node)
-    const specifier = taken?.specifier
-    if (taken && specifier && ts.isStringLiteralLike(specifier)) {
+    for (const taken of takenBy(node, bindings)) {
+      const specifier = taken.specifier
+      if (!specifier || !ts.isStringLiteralLike(specifier)) continue
       const resolutionMode = overrideOf(source, specifier)
+      const at = taken.at ?? specifier
       imports.push({
         specifier: specifier.text,
         syntax: taken.syntax,
         ...(resolutionMode === undefined ? {} : { resolutionMode }),
-        line: source.getLineAndCharacterOfPosition(specifier.getStart(source)).line + 1,
+        line: source.getLineAndCharacterOfPosition(at.getStart(source)).line + 1,
         form: taken.form,
         names: sortedNames(taken.names),
         ...(taken.renames === undefined ? {} : { renames: taken.renames }),
