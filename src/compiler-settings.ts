@@ -143,6 +143,15 @@ export function compilerSettings(
   const parsed = new Map<string, Parsed | undefined>()
   const extendedConfigCache = new Map<string, ts.ExtendedConfigCacheEntry>()
   const warnings: Warning[] = []
+  const rootPrefix = `${root.replaceAll('\\', '/')}/`
+  /** One line, with the paths under the root relative to it, so the text is the same in every clone. */
+  const messageOf = (diagnostic: ts.Diagnostic) =>
+    ts
+      .flattenDiagnosticMessageText(diagnostic.messageText, '\n')
+      .split('\n')
+      .map(line => line.trim())
+      .join(' ')
+      .replaceAll(rootPrefix, '')
   const reads = {
     fileExists: inputs.fileExists,
     readFile: inputs.readFile,
@@ -194,10 +203,7 @@ export function compilerSettings(
     if (parsed.has(configFile)) return parsed.get(configFile)
     const path = toRepoPath(root, configFile)
     const report = (diagnostic: ts.Diagnostic) =>
-      warnings.push({
-        path,
-        message: ts.flattenDiagnosticMessageText(diagnostic.messageText, '\n')
-      })
+      warnings.push({ path, message: messageOf(diagnostic) })
     const commandLine = commandLineOf(configFile, report)
     if (!commandLine) {
       parsed.set(configFile, undefined)

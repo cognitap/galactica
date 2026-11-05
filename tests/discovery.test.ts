@@ -307,7 +307,7 @@ test('framework files belong to the config whose include matches them', t => {
 const rootDirWarning = {
   path: 'packages/lib/tsconfig.json',
   message:
-    "The common source directory of 'tsconfig.json' is '../..'. The 'rootDir' setting must be explicitly set to this or another path to adjust your output's file layout.\n  Visit https://aka.ms/ts6 for migration information."
+    "The common source directory of 'tsconfig.json' is '../..'. The 'rootDir' setting must be explicitly set to this or another path to adjust your output's file layout. Visit https://aka.ms/ts6 for migration information."
 }
 
 test('a missing project reference warns, and a referenced config keeps its own warnings', t => {
@@ -328,10 +328,10 @@ test('a missing project reference warns, and a referenced config keeps its own w
   const discovery = discover(root, emptyConfig)
   assert.deepEqual(discovery.warnings, [
     rootDirWarning,
-    { path: 'tsconfig.json', message: `File '${join(root, 'packages/missing')}' not found.` },
+    { path: 'tsconfig.json', message: "File 'packages/missing' not found." },
     {
       path: 'tsconfig.json',
-      message: `Referenced project '${join(root, 'packages/lib')}' must have setting "composite": true.`
+      message: `Referenced project 'packages/lib' must have setting "composite": true.`
     }
   ])
   assert.deepEqual(configs(discovery), {
