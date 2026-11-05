@@ -38,6 +38,7 @@ const cases = [
   'import-query',
   'commonjs',
   'monorepo',
+  'bundled-packages',
   'vue',
   'svelte',
   'astro'

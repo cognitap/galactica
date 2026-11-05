@@ -1,0 +1,9 @@
+{
+  "name": "@demo/widget",
+  "main": "dist/widget.cjs.js",
+  "module": "dist/widget.esm-bundler.js",
+  "types": "dist/widget.d.ts",
+  "scripts": {
+    "build": "rollup -c"
+  }
+}

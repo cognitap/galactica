@@ -4,6 +4,9 @@
 
 ## Unreleased
 
+- A workspace import resolves through an export condition the repository defines for its own source, such as Vitest's `__vitest_source__` or TanStack Query's `@tanstack/custom-condition`, when the standard conditions reach no module.
+- An import of a workspace package that a bundler such as tsup, tsdown, unbuild, Rollup or Vite builds reaches its source: a target such as `dist/node/index.js` or `build/modern/index.js` with no tsconfig `outDir` maps to the same file under `src`. In Vite's repository, the 180 imports of `vite`, 4 of `vite/module-runner` and 8 of `@vitejs/plugin-legacy` that stayed unresolved now reach `packages/vite/src` and `packages/plugin-legacy/src`.
+
 ## 0.1.3
 
 - Add `cycles`, which lists each import cycle with its modules in dependency order and every import that closes it, as `path:line` with the names it takes. It marks each import `used at load time` or `used later`, lists cycles with a load-time import first, and marks `break here` on the imports to cut, with the usual fixes.

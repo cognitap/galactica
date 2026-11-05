@@ -1,0 +1,13 @@
+{
+  "name": "@demo/probe",
+  "type": "module",
+  "exports": {
+    ".": {
+      "@demo/source": "./src/probe.ts",
+      "import": "./build/modern/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsup"
+  }
+}

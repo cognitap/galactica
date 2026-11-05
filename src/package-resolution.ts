@@ -1,7 +1,8 @@
 /**
  * Which source module a bare specifier reaches when it names a workspace
  * package: through the package's `exports`, or its entry fields when it has
- * none, and from a build output path back to the source TypeScript compiled.
+ * none, and from a build output path back to the source TypeScript compiled,
+ * else to the source a bundler most likely built it from.
  */
 
 import { isAbsolute, join, posix, relative, sep } from 'node:path'
@@ -32,8 +33,36 @@ const reasons: Readonly<Record<UnresolvedReason, string>> = {
   'build-output': 'the target is build output with no source module'
 }
 
-/** Most preferred first, whatever order a package.json lists them in. */
-const conditions = ['source', 'types', 'import', 'module', 'require', 'node', 'default'] as const
+/**
+ * Most preferred first, whatever order a package.json lists them in. Any other
+ * condition, such as a repository's own condition for its source, comes after
+ * these in the order listed.
+ */
+const conditions: readonly string[] = [
+  'source',
+  'types',
+  'import',
+  'module',
+  'require',
+  'node',
+  'default'
+]
+
+/** Folders bundlers write to. A target under one that is no module is build output. */
+const outDirs: ReadonlySet<string> = new Set(['dist', 'build', 'lib', 'out', 'esm', 'cjs'])
+
+/** Folders within the output that split one build by format or platform. */
+const formatDirs: ReadonlySet<string> = new Set([
+  'esm',
+  'cjs',
+  'es',
+  'mjs',
+  'modern',
+  'legacy',
+  'node',
+  'browser',
+  'types'
+])
 
 /** The package.json fields that name the entry point of a package without `exports`. */
 const entryFields = ['types', 'typings', 'module', 'main'] as const
@@ -69,6 +98,27 @@ function candidates(path: string): readonly string[] {
   ]
 }
 
+/**
+ * The sources, relative to the package and without extension, that a bundler
+ * most likely built `target` from, most specific first: the same path under
+ * `src`, then with each format folder dropped. A bundle of the package root
+ * named after the package, as Rollup names one, is built from `src/index`.
+ */
+function bundledSources(target: string, packageName: string, subpath: string): readonly string[] {
+  const [outDir, ...parts] = target.split('/')
+  if (outDir === undefined || !outDirs.has(outDir) || parts.length === 0) return []
+  const file = parts.pop()!.replace(/(\.d)?\.[cm]?[jt]sx?$/, '')
+  const sources = [[...parts, file].join('/')]
+  while (parts[0] !== undefined && formatDirs.has(parts[0])) {
+    parts.shift()
+    sources.push([...parts, file].join('/'))
+  }
+  if (subpath === '.' && file.split('.')[0] === packageName.replace(/^@[^/]+\//, '')) {
+    sources.push('index')
+  }
+  return sources.map(source => `src/${source}`)
+}
+
 function unresolved(reason: UnresolvedReason): WorkspaceResolution {
   return { kind: 'unresolved', reason }
 }
@@ -101,9 +151,10 @@ function resolveTarget(
   const options: readonly unknown[] = Array.isArray(target)
     ? target
     : isRecord(target)
-      ? conditions
-          .filter(condition => Object.hasOwn(target, condition))
-          .map(condition => target[condition])
+      ? [
+          ...conditions.filter(condition => Object.hasOwn(target, condition)),
+          ...Object.keys(target).filter(condition => !conditions.includes(condition))
+        ].map(condition => target[condition])
       : []
   return firstModule(options, option => resolveTarget(option, star, locate))
 }
@@ -191,17 +242,29 @@ export function workspaceResolver(
     return unresolved('build-output')
   }
 
-  function locateIn(dir: RepoPath) {
+  /** With `guess`, a target no build config accounts for maps to its likely bundled source. */
+  function locateIn(dir: RepoPath, packageName: string, subpath: string, guess: boolean) {
     return (target: string): WorkspaceResolution => {
       const path = posix.normalize(posix.join(dir, target))
       if (path === '..' || path.startsWith('../')) return unresolved('missing')
       const found = asModule(path)
-      return found ? { kind: 'module', path: found } : fromBuild(path)
+      if (found) return { kind: 'module', path: found }
+      const built = fromBuild(path)
+      if (built.kind === 'module' || !guess) return built
+      const source = bundledSources(posix.relative(dir, path), packageName, subpath)
+        .map(source => asModule(posix.join(dir, source)))
+        .find(source => source !== undefined)
+      return source ? { kind: 'module', path: source } : built
     }
   }
 
-  function resolvePackage(manifest: unknown, dir: RepoPath, subpath: string): WorkspaceResolution {
-    const locate = locateIn(dir)
+  function resolvePackage(
+    { manifest, dir }: { readonly manifest: unknown; readonly dir: RepoPath },
+    packageName: string,
+    subpath: string,
+    guess: boolean
+  ): WorkspaceResolution {
+    const locate = locateIn(dir, packageName, subpath, guess)
     const exports = isRecord(manifest) ? manifest.exports : undefined
     if (exports !== undefined) {
       const entry = exportsEntry(exports, subpath)
@@ -220,7 +283,10 @@ export function workspaceResolver(
       const parts = splitSpecifier(specifier)
       const owner = parts && manifests.get(parts.name as PackageName)
       if (!parts || !owner) return undefined
-      const result = resolvePackage(owner.manifest, owner.dir, parts.subpath)
+      // Every exact target first, so that a guess never overrides what the package states.
+      const result = firstModule([false, true], guess =>
+        resolvePackage(owner, parts.name, parts.subpath, guess)
+      )
       if (result.kind === 'module') return result
       const key = `${parts.name}\0${result.reason}`
       if (!warned.has(key)) {

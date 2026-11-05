@@ -89,23 +89,32 @@ test('a subpath map resolves each subpath, scoped names included', t => {
   })
 })
 
-test('conditions resolve in the order source, types, import, module, require, node, default', t => {
+test('conditions resolve in the order source, types, import, module, require, node, default, then as listed', t => {
   const exports = {
     './a': { default: './dist/a.js', require: './src/a.cts', source: './src/a.ts' },
     './b': { default: './src/other.ts', node: { require: './src/b.cts', import: './src/b.ts' } },
-    './c': { browser: './src/browser.ts' }
+    './c': { browser: './src/browser.ts', '@acme/source': './src/c.ts' },
+    './d': { '@acme/source': './src/a.cts', default: './src/other.ts' }
   }
   assert.deepEqual(
     resolutions(
       t,
       { exports },
-      { 'src/a.ts': '', 'src/a.cts': '', 'src/b.ts': '', 'src/b.cts': '', 'src/other.ts': '' },
-      ['pkg/a', 'pkg/b', 'pkg/c']
+      {
+        'src/a.ts': '',
+        'src/a.cts': '',
+        'src/b.ts': '',
+        'src/b.cts': '',
+        'src/c.ts': '',
+        'src/other.ts': ''
+      },
+      ['pkg/a', 'pkg/b', 'pkg/c', 'pkg/d']
     ),
     {
       'pkg/a': 'packages/pkg/src/a.ts',
       'pkg/b': 'packages/pkg/src/b.ts',
-      'pkg/c': 'unresolved: no-export'
+      'pkg/c': 'packages/pkg/src/c.ts',
+      'pkg/d': 'packages/pkg/src/other.ts'
     }
   )
 })
@@ -333,6 +342,55 @@ test('of builds whose outDirs both hold a target, the first that reaches a modul
       ['pkg', 'pkg/tool']
     ),
     { pkg: 'packages/pkg/src/index.ts', 'pkg/tool': 'packages/pkg/scripts/tool.ts' }
+  )
+})
+
+test('bundler output with no build config maps to the same path under src', t => {
+  const exports = {
+    '.': { types: './dist/index.d.mts', import: './dist/index.mjs' },
+    './runner': './dist/node/runner.js',
+    './util': { require: './build/cjs/util.cjs', import: './build/esm/util.js' },
+    './gone': './dist/gone.js',
+    './linked': './linked.js'
+  }
+  assert.deepEqual(
+    resolutions(
+      t,
+      { exports },
+      { 'src/index.ts': '', 'src/runner/index.ts': '', 'src/util.ts': '' },
+      ['pkg', 'pkg/runner', 'pkg/util', 'pkg/gone', 'pkg/linked']
+    ),
+    {
+      pkg: 'packages/pkg/src/index.ts',
+      'pkg/runner': 'packages/pkg/src/runner/index.ts',
+      'pkg/util': 'packages/pkg/src/util.ts',
+      'pkg/gone': 'unresolved: missing',
+      'pkg/linked': 'unresolved: missing'
+    }
+  )
+})
+
+test('a bundle of the package root named after the package maps to src/index', t => {
+  assert.deepEqual(
+    resolutions(
+      t,
+      { main: 'dist/pkg.cjs.js', module: 'dist/pkg.esm-bundler.js' },
+      { 'src/index.ts': '' },
+      ['pkg', 'pkg/dist/pkg.esm-browser.js']
+    ),
+    { pkg: 'packages/pkg/src/index.ts', 'pkg/dist/pkg.esm-browser.js': 'unresolved: missing' }
+  )
+})
+
+test('a target the package states wins over a guess from another condition', t => {
+  assert.deepEqual(
+    resolutions(
+      t,
+      { exports: { import: './dist/index.js', '@acme/source': './src/main.ts' } },
+      { 'src/index.ts': '', 'src/main.ts': '' },
+      ['pkg']
+    ),
+    { pkg: 'packages/pkg/src/main.ts' }
   )
 })
 
