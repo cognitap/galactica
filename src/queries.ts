@@ -16,6 +16,7 @@ import {
   type Uses,
   type Where
 } from './contract.ts'
+import { cyclesWhere } from './cycles.ts'
 import { compare, type Graph, type RepoPath, type SymbolFacts } from './model.ts'
 import { resolveModule, resolveSubject, type Miss, type Resolved } from './subjects.ts'
 
@@ -130,6 +131,9 @@ function reach(
     .sort((a, b) => a.distance - b.distance || compare(a.path, b.path))
 }
 
+const cyclesOf = (graph: Graph, { members }: Resolved) =>
+  cyclesWhere(graph, cycle => cycle.some(path => members.has(path)))
+
 const ownPackage = (subject: Subject) =>
   subject.kind === 'package' ? subject.name : subject.package
 
@@ -162,7 +166,8 @@ export function usesOf(graph: Graph, resolved: Resolved, depth: number): Uses {
     subject: resolved.subject,
     depth,
     modules: dependents.filter(module => module.kind !== 'test' && module.distance <= depth),
-    tests: dependents.filter(module => module.kind === 'test')
+    tests: dependents.filter(module => module.kind === 'test'),
+    cycles: cyclesOf(graph, resolved)
   }
 }
 
@@ -208,6 +213,7 @@ export function depsOf(graph: Graph, resolved: Resolved, depth: number): Deps {
     ),
     unresolved: [...unresolved.values()].sort(
       (a, b) => compare(a.from, b.from) || compare(a.specifier, b.specifier)
-    )
+    ),
+    cycles: cyclesOf(graph, resolved)
   }
 }

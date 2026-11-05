@@ -5,6 +5,9 @@
 
 import type {
   Command,
+  Cycle,
+  CycleImport,
+  Cycles,
   Deps,
   Failure,
   Outline,
@@ -117,11 +120,32 @@ function renderOutline({ module, symbols }: Outline): readonly string[] {
   ]
 }
 
-function renderUses({ subject, depth, modules, tests }: Uses): readonly string[] {
+const useLabel = (cycle: Cycle) => (cycle.loadTime ? 'used at load time' : 'used later')
+
+/** Other members a subject's cycle line names before it counts the rest. */
+const MEMBERS_SHOWN = 3
+
+/** One line per cycle the subject is in, so an agent sees it before editing. */
+function cycleLines(cycles: readonly Cycle[], subject: Subject): readonly string[] {
+  return cycles.map(cycle => {
+    const module = subject.kind === 'module' ? subject.path : undefined
+    const others = cycle.modules.filter(path => path !== module)
+    const shown = others.slice(0, MEMBERS_SHOWN).join(', ')
+    const more = others.length > MEMBERS_SHOWN ? ` and ${others.length - MEMBERS_SHOWN} more` : ''
+    const members =
+      module === undefined
+        ? `of ${plural(cycle.modules.length, 'module')} (${shown}${more})`
+        : `with ${shown}${more}`
+    return `in an import cycle ${members}, ${useLabel(cycle)}: galactica cycles shows where to break it`
+  })
+}
+
+function renderUses({ subject, depth, modules, tests, cycles }: Uses): readonly string[] {
   return [
     `${subjectLabel(subject)}: ${plural(modules.length, 'dependent')} within depth ${depth}, ${plural(tests.length, 'test')}`,
     ...(modules.length === 0 ? ['no dependents'] : capped(modules.map(reachedLine))),
-    ...(tests.length === 0 ? ['no tests'] : ['tests:', ...capped(tests.map(reachedLine))])
+    ...(tests.length === 0 ? ['no tests'] : ['tests:', ...capped(tests.map(reachedLine))]),
+    ...cycleLines(cycles, subject)
   ]
 }
 
@@ -131,7 +155,8 @@ function renderDeps({
   modules,
   packages,
   external,
-  unresolved
+  unresolved,
+  cycles
 }: Deps): readonly string[] {
   return [
     `${subjectLabel(subject)}: ${plural(modules.length, 'dependency', 'dependencies')} within depth ${depth}, ${plural(external.length, 'external package')}, ${plural(unresolved.length, 'unresolved import')}`,
@@ -143,7 +168,41 @@ function renderDeps({
       : [
           'unresolved:',
           ...capped(unresolved.map(({ from, specifier }) => `${from}  ${specifier}`))
-        ])
+        ]),
+    ...cycleLines(cycles, subject)
+  ]
+}
+
+function importLine({ from, line, to, names, via, use, break: cut }: CycleImport): string {
+  return [
+    `${from}:${line} -> ${to}`,
+    ...(via.length === 0 ? [] : [`via ${via.join(', ')}`]),
+    listOr(names, 'side effect only'),
+    use === 'load-time' ? 'used at load time' : 'used later',
+    ...(cut ? ['break here'] : [])
+  ].join('  ')
+}
+
+/** Imports to cut first, then those used at load time, so the cap never hides them. */
+const importRank = ({ break: cut, use }: CycleImport) =>
+  (cut ? 0 : 2) + (use === 'load-time' ? 0 : 1)
+
+function renderCycles({ cycles }: Cycles): readonly string[] {
+  if (cycles.length === 0) return ['no import cycles']
+  const loading = cycles.filter(cycle => cycle.loadTime).length
+  return [
+    `${plural(cycles.length, 'import cycle')}, ${loading} used at load time`,
+    ...cycles.flatMap((cycle, index) => [
+      `cycle ${index + 1}: ${plural(cycle.modules.length, 'module')}, ${useLabel(cycle)}, in dependency order:`,
+      ...capped(cycle.modules.map(path => `  ${path}`)),
+      `imports (${cycle.imports.filter(({ break: cut }) => cut).length} to break):`,
+      ...capped(
+        cycle.imports
+          .toSorted((a, b) => importRank(a) - importRank(b))
+          .map(entry => `  ${importLine(entry)}`)
+      )
+    ]),
+    'break here marks the imports that point back up the order, bringing in the fewest names. To cut one: move what both modules need into a third, lower module, pass a callback instead of importing, or merge modules that cannot be separated.'
   ]
 }
 
@@ -156,7 +215,8 @@ const renderers: Renderers = {
   where: renderWhere,
   outline: renderOutline,
   uses: renderUses,
-  deps: renderDeps
+  deps: renderDeps,
+  cycles: renderCycles
 }
 
 export function render(result: Output | Failure): string {

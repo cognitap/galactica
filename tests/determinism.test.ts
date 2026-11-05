@@ -22,8 +22,8 @@ import {
 const scratch = mkdtempSync(join(tmpdir(), 'galactica-determinism-'))
 after(() => rmSync(scratch, { recursive: true, force: true }))
 const subjects = 2
-/** Workspace packages, barrels, an import cycle, tests and stories, and a framework compiler. */
-const representative = ['monorepo', 'barrels', 'cycle', 'tests-and-stories', 'vue']
+/** Workspace packages, barrels, import cycles, tests and stories, and a framework compiler. */
+const representative = ['monorepo', 'barrels', 'cycle', 'cycle-kinds', 'tests-and-stories', 'vue']
 
 /**
  * Each fixture maps to the same bytes from its root with a cold cache, warm

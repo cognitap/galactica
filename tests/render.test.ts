@@ -120,6 +120,39 @@ test('uses and deps print a header, one module per line, and say when a list is 
   )
 })
 
+test('cycles text lists each cycle, its modules and its imports, those to break first', () => {
+  const cyclic = graphOf(
+    modelOf({
+      'src/a.ts': { edges: [edge('src/b.ts', { line: 2, names: ['b', 'c'], loadTime: ['b'] })] },
+      'src/b.ts': {
+        edges: [edge('src/a.ts', { line: 4, names: ['a'], via: ['src/index.ts' as RepoPath] })]
+      },
+      'src/index.ts': { edges: [edge('src/a.ts', { form: 'reexport', names: ['a'] })] }
+    }),
+    emptyConfig
+  )
+  const run = (command: 'cycles' | 'uses', argument = '') =>
+    render(commandTable[command].run({ graph: cyclic, warnings: [] }, input(argument)))
+  assert.equal(
+    run('cycles'),
+    [
+      '1 import cycle, 1 used at load time',
+      'cycle 1: 2 modules, used at load time, in dependency order:',
+      '  src/a.ts',
+      '  src/b.ts',
+      'imports (1 to break):',
+      '  src/b.ts:4 -> src/a.ts  via src/index.ts  a  used later  break here',
+      '  src/a.ts:2 -> src/b.ts  b, c  used at load time',
+      'break here marks the imports that point back up the order, bringing in the fewest names. To cut one: move what both modules need into a third, lower module, pass a callback instead of importing, or merge modules that cannot be separated.'
+    ].join('\n')
+  )
+  assert.match(
+    run('uses', 'src/a.ts'),
+    /\nin an import cycle with src\/b\.ts, used at load time: galactica cycles shows where to break it$/
+  )
+  assert.equal(text('cycles'), 'no import cycles')
+})
+
 test('a long list stops after the limit and points at --json', () => {
   const specs = Object.fromEntries(
     Array.from({ length: LIST_LIMIT + 3 }, (_, index) => [

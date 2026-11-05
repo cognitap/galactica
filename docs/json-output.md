@@ -24,7 +24,7 @@ For agent and tool authors. Every command except `html` and `init` prints one JS
 
 ## overview
 
-Packages are sorted by name. Areas are sorted by layer, lowest first, then by path. Layer 0 depends on no other area in its package, and areas in one import cycle share a layer. `all` is true when `--all` was given. `top` lists the most imported source and config modules of the area, never tests or stories, so an area of only tests and stories has an empty `top`. It is sorted by `importers` descending, then path. It holds five entries, or all of them with `--all`. `importers` counts the modules other than tests and stories that import the module itself. An import through a barrel counts for the module that defines the name, not for the barrel. `exports` lists the names the module exports, in line order. `cycles` counts import cycles among source modules. `unresolved` counts imports that resolved to nothing.
+Packages are sorted by name. Areas are sorted by layer, lowest first, then by path. Layer 0 depends on no other area in its package, and areas in one import cycle share a layer. `all` is true when `--all` was given. `top` lists the most imported source and config modules of the area, never tests or stories, so an area of only tests and stories has an empty `top`. It is sorted by `importers` descending, then path. It holds five entries, or all of them with `--all`. `importers` counts the modules other than tests and stories that import the module itself. An import through a barrel counts for the module that defines the name, not for the barrel. `exports` lists the names the module exports, in line order. `cycles` counts import cycles among source and config modules, which the `cycles` command lists. `unresolved` counts imports that resolved to nothing.
 
 `warnings` lists every problem the analysis worked around, sorted by `path`, then `message`. `path` is the file the problem is in, such as a `package.json` without a name, a second package with a name another package already has, or a `tsconfig.json` TypeScript reports an error in. `message` is one line, and names files under the root by their path from the root. The text of `overview` gives only their number. Galactica 0.1.0 printed no `warnings`.
 
@@ -125,6 +125,8 @@ Packages are sorted by name. Areas are sorted by layer, lowest first, then by pa
 
 `tests` lists every test module that depends on the subject at any distance, whatever `--depth` is, because the question is which tests to run. It has the same order as `modules`.
 
+`cycles` lists the import cycles that a module of the subject is in, each as the `cycles` command gives it, in the same order. It is empty when the subject is in no cycle. `deps` has the same field. Galactica 0.1.2 printed no `cycles` in `uses` and `deps`.
+
 ```json
 {
   "schemaVersion": 1,
@@ -150,7 +152,8 @@ Packages are sorted by name. Areas are sorted by layer, lowest first, then by pa
       "distance": 2,
       "names": []
     }
-  ]
+  ],
+  "cycles": []
 }
 ```
 
@@ -180,6 +183,52 @@ The subject has one of three shapes: `{ "kind": "module", "path", "package" }`, 
   ],
   "packages": ["@acme/tokens"],
   "external": ["clsx", "react"],
-  "unresolved": [{ "from": "packages/ui/src/legacy.ts", "specifier": "./gone" }]
+  "unresolved": [{ "from": "packages/ui/src/legacy.ts", "specifier": "./gone" }],
+  "cycles": []
+}
+```
+
+## cycles
+
+`galactica cycles --json`
+
+`cycles` lists each import cycle among source and config modules: modules that import each other in a loop, so that none of them loads before the others. Type-only imports load nothing and do not count, and neither do re-exports, since an import through a barrel points at the module that defines the name. Each cycle is all the modules that reach each other, so one cycle can hold several loops. The list holds as many cycles as `overview` counts. Cycles with an import used at load time come first. Within each group, cycles are sorted by their first module in path order.
+
+`imports` lists every import from one module of the cycle to another, sorted by `from`, `line`, then `to`. `line` is the line of the import in `from`. `names` lists what it takes, as `to` exports them: `"*"` for a namespace import or a `require()` whose result is used whole, and none for a side-effect import. `via` lists the barrels it passes through, importer side first.
+
+`use` is `load-time` when `from` reads one of `names` in code that runs while it loads, and `later` when it reads them only inside functions. Code that runs at load time is the top-level statements and initializers, including `export default` expressions, class bodies apart from methods, constructors and instance fields, static blocks, decorators, `extends` clauses, functions called where they are defined, and the body of a top-level function or class that such code calls by name. In a cycle, a name read at load time can come from a module that has not finished loading: it throws "Cannot access before initialization" in an ES module and is `undefined` in CommonJS. A `require()` in top-level code is used at load time unless it binds a name that only functions read. A dynamic `import()` is always `later`. The script of a Vue `<script setup>`, a Svelte instance script and Astro frontmatter run per component, so their imports are `later`. `loadTime` is true when any import of the cycle is used at load time.
+
+`modules` lists the modules in dependency order. Every import goes from a module to one later in the list, except the imports with `break` set, which point back up. Cutting every import marked `break` leaves no cycle among the modules. Within a cycle every module shares one layer, so the order extends the layer order: an import used at load time means its target must load first, so it points down; among the rest, the order leaves the fewest imported names pointing up, a side-effect import counting as none. Where that still ties, the module that more modules of the repository import is the lower one. The order comes from a greedy heuristic, so it is not always the smallest set of imports to cut, and it is the same on every run.
+
+```json
+{
+  "schemaVersion": 1,
+  "command": "cycles",
+  "cycles": [
+    {
+      "modules": ["src/load/plugins.ts", "src/load/config.ts"],
+      "loadTime": true,
+      "imports": [
+        {
+          "from": "src/load/config.ts",
+          "to": "src/load/plugins.ts",
+          "line": 1,
+          "names": ["plugins"],
+          "via": [],
+          "use": "later",
+          "break": true
+        },
+        {
+          "from": "src/load/plugins.ts",
+          "to": "src/load/config.ts",
+          "line": 1,
+          "names": ["defaults"],
+          "via": [],
+          "use": "load-time",
+          "break": false
+        }
+      ]
+    }
+  ]
 }
 ```

@@ -1,0 +1,246 @@
+{
+  "format": 2,
+  "repository": { "name": "cycle-kinds" },
+  "packages": {
+    "cycle-kinds": { "dir": "." }
+  },
+  "modules": {
+    "src/barrel/index.ts": {
+      "path": "src/barrel/index.ts",
+      "symbols": [],
+      "edges": [
+        {
+          "to": { "kind": "module", "path": "src/barrel/store.ts" },
+          "line": 1,
+          "form": "reexport",
+          "names": ["Store"],
+          "typeOnly": false,
+          "dynamic": false,
+          "via": []
+        },
+        {
+          "to": { "kind": "module", "path": "src/barrel/log.ts" },
+          "line": 2,
+          "form": "reexport",
+          "names": ["log"],
+          "typeOnly": false,
+          "dynamic": false,
+          "via": []
+        }
+      ]
+    },
+    "src/barrel/log.ts": {
+      "path": "src/barrel/log.ts",
+      "symbols": [
+        {
+          "name": "log",
+          "kind": "function",
+          "line": 3,
+          "default": false,
+          "signature": "function log(message: string): void"
+        },
+        {
+          "name": "newStore",
+          "kind": "function",
+          "line": 7,
+          "default": false,
+          "signature": "function newStore(): Store"
+        }
+      ],
+      "edges": [
+        {
+          "to": { "kind": "module", "path": "src/barrel/store.ts" },
+          "line": 1,
+          "form": "import",
+          "names": ["Store"],
+          "typeOnly": false,
+          "dynamic": false,
+          "via": ["src/barrel/index.ts"]
+        }
+      ]
+    },
+    "src/barrel/store.ts": {
+      "path": "src/barrel/store.ts",
+      "symbols": [
+        {
+          "name": "Store",
+          "kind": "class",
+          "line": 3,
+          "default": false,
+          "signature": "class Store"
+        }
+      ],
+      "edges": [
+        {
+          "to": { "kind": "module", "path": "src/barrel/log.ts" },
+          "line": 1,
+          "form": "import",
+          "names": ["log"],
+          "typeOnly": false,
+          "dynamic": false,
+          "via": ["src/barrel/index.ts"]
+        }
+      ]
+    },
+    "src/later/order.ts": {
+      "path": "src/later/order.ts",
+      "symbols": [
+        {
+          "name": "placeOrder",
+          "kind": "function",
+          "line": 3,
+          "default": false,
+          "signature": "function placeOrder(userName: string): string"
+        }
+      ],
+      "edges": [
+        {
+          "to": { "kind": "module", "path": "src/later/user.ts" },
+          "line": 1,
+          "form": "import",
+          "names": ["findUser"],
+          "typeOnly": false,
+          "dynamic": false,
+          "via": []
+        }
+      ]
+    },
+    "src/later/user.ts": {
+      "path": "src/later/user.ts",
+      "symbols": [
+        {
+          "name": "findUser",
+          "kind": "function",
+          "line": 3,
+          "default": false,
+          "signature": "function findUser(name: string): string"
+        },
+        {
+          "name": "reorder",
+          "kind": "function",
+          "line": 7,
+          "default": false,
+          "signature": "function reorder(name: string): string"
+        }
+      ],
+      "edges": [
+        {
+          "to": { "kind": "module", "path": "src/later/order.ts" },
+          "line": 1,
+          "form": "import",
+          "names": ["placeOrder"],
+          "typeOnly": false,
+          "dynamic": false,
+          "via": []
+        }
+      ]
+    },
+    "src/load/config.ts": {
+      "path": "src/load/config.ts",
+      "symbols": [
+        {
+          "name": "defaults",
+          "kind": "const",
+          "line": 3,
+          "default": false,
+          "signature": "const defaults = {...}"
+        },
+        {
+          "name": "resolveConfig",
+          "kind": "function",
+          "line": 5,
+          "default": false,
+          "signature": "function resolveConfig()"
+        }
+      ],
+      "edges": [
+        {
+          "to": { "kind": "module", "path": "src/load/plugins.ts" },
+          "line": 1,
+          "form": "import",
+          "names": ["plugins"],
+          "typeOnly": false,
+          "dynamic": false,
+          "via": []
+        }
+      ]
+    },
+    "src/load/plugins.ts": {
+      "path": "src/load/plugins.ts",
+      "symbols": [
+        {
+          "name": "plugins",
+          "kind": "const",
+          "line": 3,
+          "default": false,
+          "signature": "const plugins = [...]"
+        }
+      ],
+      "edges": [
+        {
+          "to": { "kind": "module", "path": "src/load/config.ts" },
+          "line": 1,
+          "form": "import",
+          "names": ["defaults"],
+          "typeOnly": false,
+          "dynamic": false,
+          "loadTime": ["defaults"],
+          "via": []
+        }
+      ]
+    },
+    "src/types/circle.ts": {
+      "path": "src/types/circle.ts",
+      "symbols": [
+        {
+          "name": "Circle",
+          "kind": "interface",
+          "line": 3,
+          "default": false,
+          "signature": "interface Circle extends Shape"
+        }
+      ],
+      "edges": [
+        {
+          "to": { "kind": "module", "path": "src/types/shape.ts" },
+          "line": 1,
+          "form": "import",
+          "names": ["Shape"],
+          "typeOnly": true,
+          "dynamic": false,
+          "via": []
+        }
+      ]
+    },
+    "src/types/shape.ts": {
+      "path": "src/types/shape.ts",
+      "symbols": [
+        {
+          "name": "Shape",
+          "kind": "interface",
+          "line": 3,
+          "default": false,
+          "signature": "interface Shape"
+        },
+        {
+          "name": "isCircle",
+          "kind": "function",
+          "line": 7,
+          "default": false,
+          "signature": "function isCircle(shape: Shape): shape is Circle"
+        }
+      ],
+      "edges": [
+        {
+          "to": { "kind": "module", "path": "src/types/circle.ts" },
+          "line": 1,
+          "form": "import",
+          "names": ["Circle"],
+          "typeOnly": true,
+          "dynamic": false,
+          "via": []
+        }
+      ]
+    }
+  }
+}

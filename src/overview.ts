@@ -15,7 +15,7 @@ export const TOP = 5
  * import that only passes through a barrel counts for the module that defines
  * the name, not for the barrel.
  */
-function importersOf(graph: Graph, path: RepoPath): number {
+export function importersOf(graph: Graph, path: RepoPath): number {
   const importers = graph.incoming
     .get(path)!
     .filter(({ from, through }) => !through && isSourceOrConfig(graph.modules.get(from)!.kind))

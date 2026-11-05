@@ -4,6 +4,9 @@
 
 ## Unreleased
 
+- Add `cycles`, which lists each import cycle with its modules in dependency order and every import that closes it, as `path:line` with the names it takes. It marks each import `used at load time` or `used later`, lists cycles with a load-time import first, and marks `break here` on the imports to cut, with the usual fixes.
+- `uses` and `deps` end with one line for each import cycle the subject is in, and their `--json` gains a `cycles` field.
+
 ## 0.1.2
 
 - An import whose name npm could not publish, such as SvelteKit's `$lib/...` without `.svelte-kit`, or `virtual:` and `astro:` modules a bundler provides, counts as unresolved instead of as an external package with that name.

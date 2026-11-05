@@ -1,0 +1,7 @@
+{
+  "cycles": [
+    ["src/barrel/log.ts", "src/barrel/store.ts"],
+    ["src/later/order.ts", "src/later/user.ts"],
+    ["src/load/config.ts", "src/load/plugins.ts"]
+  ]
+}

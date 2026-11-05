@@ -32,6 +32,7 @@ The examples below write `galactica` for `npx @cognitap/galactica`.
 | `outline <file>` | What does this file contain?                                        |
 | `uses <file>`    | What depends on this, and which tests should run after I change it? |
 | `deps <file>`    | What does this depend on?                                           |
+| `cycles`         | Which modules import each other in a loop, and where do I cut it?   |
 | `html`           | Write the human map as one HTML file.                               |
 | `init`           | Install the agent skill into this repository.                       |
 
@@ -96,6 +97,28 @@ src/cn.ts (module): 1 dependency within depth 1, 1 external package, 0 unresolve
 packages: none
 external: cn
 unresolved: none
+```
+
+`cycles` lists each import cycle among the modules that run, with its modules in dependency order and every import between them. Each import is marked `used at load time` when the importer reads the name in top-level code, which can fail while the cycle loads, or `used later` when only functions read it. Cycles with a load-time import come first. `break here` marks the imports that point back up the order: cutting all of them ends the cycle, and the order keeps load-time imports and cuts the fewest names it can. `uses` and `deps` end with a line for each cycle the subject is in. On [Vite](https://github.com/vitejs/vite) at `4835128`:
+
+```text
+$ galactica cycles
+16 import cycles, 7 used at load time
+…
+cycle 5: 2 modules, used at load time, in dependency order:
+  playground/hmr/entry-cycle/entry-cycle.js
+  playground/hmr/entry-cycle/dep.js
+imports (1 to break):
+  playground/hmr/entry-cycle/dep.js:1 -> playground/hmr/entry-cycle/entry-cycle.js  name  used later  break here
+  playground/hmr/entry-cycle/entry-cycle.js:1 -> playground/hmr/entry-cycle/dep.js  describe  used at load time
+…
+cycle 8: 2 modules, used later, in dependency order:
+  packages/vite/src/node/packages.ts
+  packages/vite/src/node/utils.ts
+imports (1 to break):
+  packages/vite/src/node/utils.ts:48 -> packages/vite/src/node/packages.ts  PackageCache, findNearestPackageData  used later  break here
+  packages/vite/src/node/packages.ts:13 -> packages/vite/src/node/utils.ts  createFilter, isInNodeModules, normalizePath, safeRealpathSync, stripBomTag, tryStatSync  used later
+…
 ```
 
 `html` writes the map for people to `galactica.html` in the current directory, or to the file `--out` names, and prints the path and size. `--open` opens the file in the default browser. The page is one file that loads nothing from the network, so it opens from disk and can be shared as an attachment. Each package is a section, highest in the dependency order first. Inside it, each area is a box in a row by layer: the bottom row imports no other area, and each row above imports only from rows below, except areas marked as a cycle. A box is wider when its modules export more symbols, and its colour marks its top-level folder. An area of more than eight modules starts collapsed to its counts, and its module count expands it. Each module expands to list its exported symbols with their signatures and docs. The Show buttons filter the map by kind: source and config modules show at first, and tests and stories stay hidden until you show them. A module's kind comes from its name and folder, or from `kinds` in the config. Search still finds what the filter hides, marks it, and shows its kind when you choose it. To leave generated files out of the map, list them in `exclude`. On Radiant, the page is about 440 KB and takes under a second to write.
