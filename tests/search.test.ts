@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
 import { graphOf } from '../src/graph.ts'
+import { emptyConfig } from '../src/model.ts'
 import { pageData } from '../src/page-data.ts'
 import { entriesOf, search, type SearchEntry } from '../src/page/search.js'
 import { defines, modelOf } from './models.ts'
@@ -19,7 +20,8 @@ const page = pageData(
       'src/forms/button-group.ts': {},
       'src/cn.ts': { symbols: [defines('cn')] },
       'tests/button.test.ts': {}
-    })
+    }),
+    emptyConfig
   )
 )
 const entries = entriesOf(page)

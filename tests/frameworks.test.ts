@@ -3,7 +3,7 @@ import { mkdirSync, writeFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { test } from 'node:test'
 import { analyzeRepository } from '../src/analysis.ts'
-import type { RepoPath } from '../src/model.ts'
+import { emptyConfig, type RepoPath } from '../src/model.ts'
 import { repository, type Files } from './temp-repository.ts'
 
 /** A stand-in `vue` package whose compiler reads every file as a `<script setup>` importing `specifier`. */
@@ -51,7 +51,7 @@ const workspace: Files = {
 }
 
 test('without a compiler, each package warns once, and its files keep their component', t => {
-  const { model, summary } = analyzeRepository(repository(t, workspace))
+  const { model, summary } = analyzeRepository(repository(t, workspace), emptyConfig)
   assert.deepEqual(summary.warnings, [
     {
       path: 'packages/docs/package.json',
@@ -74,7 +74,7 @@ test('the compiler comes from the package that has the file, else from the root'
     ...fakeVue('', '1.0.0', './from-root'),
     ...fakeVue('packages/web/', '2.0.0', './from-web')
   })
-  const { model, summary } = analyzeRepository(root)
+  const { model, summary } = analyzeRepository(root, emptyConfig)
   const targets = (path: string) =>
     model.modules[path as RepoPath]!.edges.map(edge => edge.to.kind === 'module' && edge.to.path)
   assert.deepEqual(targets('packages/web/src/App.vue'), ['packages/web/src/from-web.ts'])
@@ -96,7 +96,7 @@ test('a compiler that throws leaves the file its component, and warns once with 
       'svelte/compiler failed on src/A.svelte: Unexpected token; 2 .svelte files have no imports'
   }
   for (const run of ['cold', 'warm']) {
-    const { model, summary } = analyzeRepository(root, { cache })
+    const { model, summary } = analyzeRepository(root, emptyConfig, { cache })
     assert.deepEqual(summary.warnings, [warning], run)
     assert.deepEqual(model.modules['src/A.svelte' as RepoPath]!.symbols, [component('A')], run)
   }
@@ -120,7 +120,7 @@ test('a cached framework file is parsed again when its compiler is installed or 
     }
   }
   const run = () => {
-    const { model, summary } = analyzeRepository(root, { cache })
+    const { model, summary } = analyzeRepository(root, emptyConfig, { cache })
     return [summary.modules.parsed, model.modules['src/App.vue' as RepoPath]!.edges.length]
   }
   assert.deepEqual(run(), [3, 0])

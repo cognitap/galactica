@@ -3,6 +3,7 @@ import { readFileSync } from 'node:fs'
 import { test } from 'node:test'
 import { graphOf } from '../src/graph.ts'
 import { htmlOf } from '../src/html.ts'
+import { emptyConfig } from '../src/model.ts'
 import { pageData } from '../src/page-data.ts'
 import type { PageSource } from '../src/source-links.ts'
 import { defines, edge, modelOf, type Spec } from './models.ts'
@@ -22,12 +23,12 @@ const specs: Readonly<Record<string, Spec>> = {
   'src/lib/parse.ts': {}
 }
 
-const graph = graphOf(modelOf(specs))
+const graph = graphOf(modelOf(specs), emptyConfig)
 const html = htmlOf(graph)
 
 test('the page is byte-identical for the same repository', () => {
   const reordered = Object.fromEntries(Object.entries(specs).toReversed())
-  assert.equal(htmlOf(graphOf(modelOf(reordered))), html)
+  assert.equal(htmlOf(graphOf(modelOf(reordered), emptyConfig)), html)
 })
 
 test('the page loads nothing from the network', () => {

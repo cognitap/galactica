@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
 import { graphOf } from '../src/graph.ts'
-import type { RepoPath } from '../src/model.ts'
+import { emptyConfig, type RepoPath } from '../src/model.ts'
 import { overview } from '../src/overview.ts'
 import { defines, edge, edgeTo, modelOf } from './models.ts'
 
@@ -27,7 +27,8 @@ const monorepo = graphOf(
       }
     },
     { '@acme/ui': 'packages/ui', '@acme/app': 'packages/app' }
-  )
+  ),
+  emptyConfig
 )
 
 test('overview lists packages by name and areas by layer, then path', () => {
@@ -78,7 +79,8 @@ test('top leaves out tests and stories, and is empty for an area of only those',
       'src/cn.test.ts': { edges: [edge('src/cn.ts')] },
       'src/specs/a.test.ts': { edges: [edge('src/cn.ts')] },
       'src/specs/a.stories.tsx': { edges: [edge('src/cn.ts')] }
-    })
+    }),
+    emptyConfig
   )
   for (const all of [false, true]) {
     const areas = overview(graph, all).packages[0].areas
@@ -92,7 +94,7 @@ test('top holds five modules per area, or all of them with --all', () => {
   const specs = Object.fromEntries(
     ['a', 'b', 'c', 'd', 'e', 'f', 'g'].map(name => [`src/${name}.ts`, {}])
   )
-  const graph = graphOf(modelOf(specs))
+  const graph = graphOf(modelOf(specs), emptyConfig)
   assert.equal(overview(graph, false).packages[0].areas[0].top.length, 5)
   assert.equal(overview(graph, true).packages[0].areas[0].top.length, 7)
 })
@@ -102,7 +104,8 @@ test('overview counts module cycles', () => {
     modelOf({
       'src/a.ts': { edges: [edge('src/b.ts')] },
       'src/b.ts': { edges: [edge('src/a.ts')] }
-    })
+    }),
+    emptyConfig
   )
   assert.equal(overview(graph, false).cycles, 1)
 })

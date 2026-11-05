@@ -2,6 +2,7 @@ import assert from 'node:assert/strict'
 import { test } from 'node:test'
 import { graphOf } from '../src/graph.ts'
 import {
+  emptyConfig,
   MODEL_FORMAT,
   type Edge,
   type Model,
@@ -48,7 +49,8 @@ function modelOf(specs: Readonly<Record<string, Spec>>): Model {
 
 test('each module is placed in its package and area, with its kind and language', () => {
   const graph = graphOf(
-    modelOf({ 'src/ui/Price.tsx': {}, 'src/ui/Price.stories.tsx': {}, 'vite.config.mjs': {} })
+    modelOf({ 'src/ui/Price.tsx': {}, 'src/ui/Price.stories.tsx': {}, 'vite.config.mjs': {} }),
+    emptyConfig
   )
   assert.deepEqual(graph.paths, ['src/ui/Price.stories.tsx', 'src/ui/Price.tsx', 'vite.config.mjs'])
   const summary = [...graph.modules].map(
@@ -79,7 +81,8 @@ test('incoming lists each importer, and marks the barrels an edge only routed th
       'src/app.ts': { edges: [direct] },
       'src/index.ts': { edges: [reexport] },
       'src/ui/Button.tsx': {}
-    })
+    }),
+    emptyConfig
   )
   assert.deepEqual(graph.incoming.get('src/ui/Button.tsx' as RepoPath), [
     { from: 'src/app.ts', edge: direct, through: false },
@@ -98,7 +101,8 @@ test('symbols map each name to its definitions by module path, then line', () =>
       'src/b.ts': { symbols: [defines('format', 3), defines('Price', 5)] },
       'src/a.ts': { symbols: [defines('format', 9)] },
       'src/b/c.ts': { symbols: [defines('format', 1)] }
-    })
+    }),
+    emptyConfig
   )
   assert.deepEqual([...graph.symbols.keys()], ['Price', 'format'])
   assert.deepEqual(
@@ -118,7 +122,8 @@ test('the graph carries the layers and cycles of its model', () => {
       'src/orders/tax.ts': {},
       'src/users/user.ts': { edges: [edge('src/orders/order.ts')] },
       'src/users/name.ts': {}
-    })
+    }),
+    emptyConfig
   )
   assert.deepEqual(
     [...graph.areas.values()].map(area => [area.path, area.layer]),

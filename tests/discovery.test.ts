@@ -5,6 +5,9 @@ import { test } from 'node:test'
 import ts from 'typescript'
 import { defaultCompilerOptions } from '../src/compiler-settings.ts'
 import { compilerOptionsOf, discover, type Discovery } from '../src/discovery.ts'
+import { ConfigError, loadConfig } from '../src/config.ts'
+import { emptyConfig } from '../src/model.ts'
+import { validConfigs } from './config-examples.ts'
 import { git, gitRepository, repository } from './temp-repository.ts'
 
 const paths = (discovery: Discovery) => discovery.modules.map(module => module.path)
@@ -22,13 +25,65 @@ test('modules are the files with a module extension, sorted, with language and k
     'vite.config.mjs': ''
   })
   assert.deepEqual(
-    discover(root).modules.map(({ path, language, kind }) => [path, language, kind]),
+    discover(root, emptyConfig).modules.map(({ path, language, kind }) => [path, language, kind]),
     [
       ['src/a.test.ts', 'ts', 'test'],
       ['src/a.ts', 'ts', 'source'],
       ['src/b.tsx', 'tsx', 'source'],
       ['vite.config.mjs', 'mjs', 'config']
     ]
+  )
+})
+
+test('include and exclude narrow the modules to those matching an include and no exclude', t => {
+  const root = repository(t, {
+    'galactica.config.json': validConfigs.selection,
+    'src/a.ts': '',
+    'src/generated/schema.ts': '',
+    'scripts/build.ts': '',
+    'docs/example.ts': '',
+    'vite.config.ts': ''
+  })
+  assert.deepEqual(paths(discover(root, loadConfig(root))), ['scripts/build.ts', 'src/a.ts'])
+})
+
+test('include adds no file that git ignores or that lies in a skipped directory', t => {
+  const root = gitRepository(t, {
+    'galactica.config.json': validConfigs.everything,
+    '.gitignore': 'output/\n',
+    'output/report.ts': '',
+    'dist/index.js': '',
+    'src/a.ts': ''
+  })
+  assert.deepEqual(paths(discover(root, loadConfig(root))), ['src/a.ts'])
+})
+
+test('a module matching the globs of a configured kind takes it before the built-in rules', t => {
+  const root = repository(t, {
+    'galactica.config.json': validConfigs.storybookExamples,
+    '.storybook/examples/KbdExamples.tsx': '',
+    '.storybook/preview.tsx': '',
+    'src/Kbd.stories.tsx': ''
+  })
+  const kinds = discover(root, loadConfig(root)).modules.map(({ path, kind }) => [path, kind])
+  assert.deepEqual(kinds, [
+    ['.storybook/examples/KbdExamples.tsx', 'story'],
+    ['.storybook/preview.tsx', 'config'],
+    ['src/Kbd.stories.tsx', 'story']
+  ])
+})
+
+test('a module matching the globs of two kinds makes the config invalid', t => {
+  const root = repository(t, {
+    'galactica.config.json': validConfigs.kindClash,
+    'src/Kbd.example.tsx': ''
+  })
+  assert.throws(
+    () => discover(root, loadConfig(root)),
+    error =>
+      error instanceof ConfigError &&
+      error.message ===
+        'galactica.config.json: kinds.test[0]: src/Kbd.example.tsx also matches kinds.story[0]; a module has one kind'
   )
 })
 
@@ -44,7 +99,7 @@ test('in a git work tree, ignored files are skipped and untracked ones are kept'
   })
   git(root, 'add', 'src/tracked.ts', 'src/gone.ts')
   rmSync(join(root, 'src/gone.ts'))
-  assert.deepEqual(paths(discover(root)), ['src/tracked.ts', 'src/untracked.ts'])
+  assert.deepEqual(paths(discover(root, emptyConfig)), ['src/tracked.ts', 'src/untracked.ts'])
 })
 
 test('a GIT_DIR inherited from a hook or rebase --exec does not redirect git', t => {
@@ -57,7 +112,7 @@ test('a GIT_DIR inherited from a hook or rebase --exec does not redirect git', t
     if (inherited === undefined) delete process.env.GIT_DIR
     else process.env.GIT_DIR = inherited
   })
-  assert.deepEqual(paths(discover(root)), ['kept.ts', 'vendor.ts'])
+  assert.deepEqual(paths(discover(root, emptyConfig)), ['kept.ts', 'vendor.ts'])
   const fresh = gitRepository(t, { 'fresh.ts': '' })
   assert.ok(existsSync(join(fresh, '.git')), 'the helper initialises its own repository')
 })
@@ -73,7 +128,7 @@ test('build output and installed packages are skipped, even when git tracks them
     'storybook-static/main.js': ''
   })
   git(root, 'add', '--force', '.')
-  assert.deepEqual(paths(discover(root)), ['src/main.ts'])
+  assert.deepEqual(paths(discover(root, emptyConfig)), ['src/main.ts'])
 })
 
 test('a config outDir is skipped as build output', t => {
@@ -82,7 +137,7 @@ test('a config outDir is skipped as build output', t => {
     'src/main.ts': '',
     'lib/main.js': ''
   })
-  assert.deepEqual(paths(discover(root)), ['src/main.ts'])
+  assert.deepEqual(paths(discover(root, emptyConfig)), ['src/main.ts'])
 })
 
 test('the outDir of a package build config that owns no module is skipped too', t => {
@@ -92,7 +147,7 @@ test('the outDir of a package build config that owns no module is skipped too', 
     'src/main.ts': '',
     'emitted/main.js': ''
   })
-  assert.deepEqual(paths(discover(root)), ['src/main.ts'])
+  assert.deepEqual(paths(discover(root, emptyConfig)), ['src/main.ts'])
 })
 
 test('an outDir that holds the config itself marks no build output', t => {
@@ -100,7 +155,7 @@ test('an outDir that holds the config itself marks no build output', t => {
     'tsconfig.json': { compilerOptions: { outDir: '.' } },
     'src/main.ts': ''
   })
-  assert.deepEqual(paths(discover(root)), ['src/main.ts'])
+  assert.deepEqual(paths(discover(root, emptyConfig)), ['src/main.ts'])
 })
 
 test('outside a git work tree, a walk lists the files, without reading .gitignore', t => {
@@ -111,7 +166,7 @@ test('outside a git work tree, a walk lists the files, without reading .gitignor
     'node_modules/pkg/index.js': '',
     'coverage/lcov.js': ''
   })
-  assert.deepEqual(paths(discover(root)), ['output/report.ts', 'src/main.ts'])
+  assert.deepEqual(paths(discover(root, emptyConfig)), ['output/report.ts', 'src/main.ts'])
 })
 
 test('a repository inside an ignored folder of another repository is walked', t => {
@@ -121,7 +176,7 @@ test('a repository inside an ignored folder of another repository is walked', t 
     'nested/output/b.ts': '',
     'nested/node_modules/pkg/index.js': ''
   })
-  assert.deepEqual(paths(discover(join(outer, 'nested'))), ['output/b.ts', 'src/a.ts'])
+  assert.deepEqual(paths(discover(join(outer, 'nested'), emptyConfig)), ['output/b.ts', 'src/a.ts'])
 })
 
 test('a repository that is its own work tree inside an ignored folder still uses git', t => {
@@ -131,7 +186,7 @@ test('a repository that is its own work tree inside an ignored folder still uses
   writeFileSync(join(inner, '.gitignore'), 'output/\n')
   mkdirSync(join(inner, 'output'))
   writeFileSync(join(inner, 'output/b.ts'), '')
-  assert.deepEqual(paths(discover(inner)), ['src/a.ts'])
+  assert.deepEqual(paths(discover(inner, emptyConfig)), ['src/a.ts'])
 })
 
 test('a folder of a repository that is not ignored lists files through the parent git', t => {
@@ -140,15 +195,15 @@ test('a folder of a repository that is not ignored lists files through the paren
     'packages/x/src/a.ts': '',
     'packages/x/generated/b.ts': ''
   })
-  assert.deepEqual(paths(discover(join(outer, 'packages/x'))), ['src/a.ts'])
+  assert.deepEqual(paths(discover(join(outer, 'packages/x'), emptyConfig)), ['src/a.ts'])
 })
 
 test('the repository and its one package are named by the root package.json', t => {
   const named = repository(t, { 'package.json': { name: '@acme/app' } })
-  assert.deepEqual(discover(named).repository, { name: '@acme/app' })
-  assert.deepEqual(discover(named).packages, { '@acme/app': { dir: '.' } })
+  assert.deepEqual(discover(named, emptyConfig).repository, { name: '@acme/app' })
+  assert.deepEqual(discover(named, emptyConfig).packages, { '@acme/app': { dir: '.' } })
   const unnamed = repository(t, { 'src/main.ts': '' })
-  assert.deepEqual(discover(unnamed).repository, { name: basename(unnamed) })
+  assert.deepEqual(discover(unnamed, emptyConfig).repository, { name: basename(unnamed) })
 })
 
 test('the nearest tsconfig.json that includes a module owns it', t => {
@@ -160,7 +215,7 @@ test('the nearest tsconfig.json that includes a module owns it', t => {
     'packages/ui/stories/Button.stories.tsx': '',
     'scripts/release.ts': ''
   })
-  assert.deepEqual(configs(discover(root)), {
+  assert.deepEqual(configs(discover(root, emptyConfig)), {
     'packages/ui/src/Button.tsx': 'packages/ui/tsconfig.json',
     'packages/ui/stories/Button.stories.tsx': 'tsconfig.json',
     'scripts/release.ts': null,
@@ -188,7 +243,7 @@ test('a solution-style config hands each module to the reference that includes i
     'vite.config.ts': '',
     'scripts/release.mjs': ''
   })
-  const discovery = discover(root)
+  const discovery = discover(root, emptyConfig)
   assert.deepEqual(configs(discovery), {
     'scripts/release.mjs': null,
     'src/App.tsx': 'tsconfig.app.json',
@@ -212,7 +267,7 @@ test('options follow an extends chain', t => {
     'packages/app/tsconfig.json': { extends: '../../configs/react.json', include: ['src'] },
     'packages/app/src/main.tsx': ''
   })
-  const discovery = discover(root)
+  const discovery = discover(root, emptyConfig)
   const [module] = discovery.modules
   assert.equal(module?.config, 'packages/app/tsconfig.json')
   const options = compilerOptionsOf(discovery, module!)
@@ -227,7 +282,7 @@ test('a module no config includes gets bundler defaults that allow JavaScript', 
     'src/main.ts': '',
     'src/legacy.cjs': 'module.exports = {}'
   })
-  const discovery = discover(root)
+  const discovery = discover(root, emptyConfig)
   const legacy = discovery.modules.find(module => module.path === 'src/legacy.cjs')!
   assert.equal(legacy.config, null)
   assert.deepEqual(compilerOptionsOf(discovery, legacy), defaultCompilerOptions)
@@ -240,7 +295,7 @@ test('framework files belong to the config whose include matches them', t => {
     'src/Card.svelte': '',
     'src/Page.astro': ''
   })
-  assert.deepEqual(Object.values(configs(discover(root))), [
+  assert.deepEqual(Object.values(configs(discover(root, emptyConfig))), [
     'tsconfig.json',
     'tsconfig.json',
     'tsconfig.json'
@@ -256,7 +311,7 @@ test('config problems become warnings, and the options TypeScript still honours 
     'src/main.ts': '',
     'package.json': '{ "name": '
   })
-  const discovery = discover(root)
+  const discovery = discover(root, emptyConfig)
   assert.deepEqual(
     discovery.warnings.map(({ path, message }) => [
       path,

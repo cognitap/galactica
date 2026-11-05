@@ -13,6 +13,10 @@ export const validConfigs = {
     sourceUrl: gitlab
   },
   storybookExamples: { kinds: { story: ['.storybook/examples/**'] } },
+  selection: { include: ['src/**', 'scripts/**'], exclude: ['src/generated/**'] },
+  everything: { include: ['**'] },
+  warmChange: { exclude: ['src/legacy.cjs'], kinds: { test: ['src/b.ts'] } },
+  kindClash: { kinds: { story: ['**/*.example.tsx'], test: ['src/**'] } },
   sourceUrlNone: { sourceUrl: 'none' },
   rootArea: { areas: { 'src/**': '.' } },
   trailingSlash: { areas: { 'src/a/**': 'src/a/' } }

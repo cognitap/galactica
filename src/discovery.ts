@@ -3,7 +3,7 @@
  * run before any file is parsed.
  */
 
-import { basename, dirname, join, resolve } from 'node:path'
+import { basename, dirname, join, posix, resolve } from 'node:path'
 import type ts from 'typescript'
 import {
   compilerSettings,
@@ -12,7 +12,14 @@ import {
   type Warning
 } from './compiler-settings.ts'
 import type { Language, ModuleKind } from './contract.ts'
-import { parseRepoPath, toRepoPath, type Model, type PackageName, type RepoPath } from './model.ts'
+import {
+  parseRepoPath,
+  toRepoPath,
+  type Config,
+  type Model,
+  type PackageName,
+  type RepoPath
+} from './model.ts'
 import { repositoryFiles } from './repository-files.ts'
 import { kindOf, languageOf } from './source-file.ts'
 import { nameOf, packageOf, readJson, workspacePackages, workspacePatterns } from './workspace.ts'
@@ -54,15 +61,21 @@ function compare(a: string, b: string): number {
   return a < b ? -1 : a > b ? 1 : 0
 }
 
-export function discover(rootDir: string): Discovery {
+/** Whether the config's `include` and `exclude` keep the module at `path`. */
+function selected(path: RepoPath, { include, exclude }: Config): boolean {
+  const matches = (glob: string) => posix.matchesGlob(path, glob)
+  return (include === undefined || include.some(matches)) && !exclude.some(matches)
+}
+
+export function discover(rootDir: string, config: Config): Discovery {
   const root = resolve(rootDir)
   const settings = compilerSettings(root)
   const files = repositoryFiles(root)
   const candidates = files.flatMap(path => {
     const language = languageOf(path)
-    if (!language) return []
-    const config = settings.configOf(join(root, path))
-    return [{ path, language, kind: kindOf(path), config: config?.path ?? null }]
+    if (!language || !selected(path, config)) return []
+    const tsconfig = settings.configOf(join(root, path))
+    return [{ path, language, kind: kindOf(path, config), config: tsconfig?.path ?? null }]
   })
 
   const warnings: Warning[] = []

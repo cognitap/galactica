@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
 import { graphOf } from '../src/graph.ts'
-import type { RepoPath } from '../src/model.ts'
+import { emptyConfig, type RepoPath } from '../src/model.ts'
 import { readingsOf, resolveModule, resolveSubject, similarPaths } from '../src/subjects.ts'
 import { modelOf } from './models.ts'
 
@@ -18,7 +18,8 @@ const monorepo = graphOf(
       'packages/app/src/routes/about.ts': {}
     },
     { '@acme/ui': 'packages/ui', '@acme/app': 'packages/app' }
-  )
+  ),
+  emptyConfig
 )
 
 const root = '.' as RepoPath
@@ -83,7 +84,7 @@ test('an area or a package stands for its source and config modules', () => {
 })
 
 test('two readings that name different subjects of one rule are ambiguous', () => {
-  const graph = graphOf(modelOf({ 'src/cn.ts': {}, 'src/src/cn.ts': {} }))
+  const graph = graphOf(modelOf({ 'src/cn.ts': {}, 'src/src/cn.ts': {} }), emptyConfig)
   const result = resolveSubject(graph, 'src/cn.ts', at('src'))
   assert.deepEqual(result, {
     error: {

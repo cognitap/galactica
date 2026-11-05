@@ -2,7 +2,7 @@ import assert from 'node:assert/strict'
 import { test } from 'node:test'
 import type { Reached } from '../src/contract.ts'
 import { graphOf } from '../src/graph.ts'
-import type { RepoPath } from '../src/model.ts'
+import { emptyConfig, type RepoPath } from '../src/model.ts'
 import { deps, outline, uses, where } from '../src/queries.ts'
 import { defines, edge, edgeTo, modelOf } from './models.ts'
 
@@ -44,7 +44,8 @@ const app = graphOf(
       ]
     },
     'tests/cn.test.ts': { edges: [edge('src/cn.ts', { names: ['cn'] })] }
-  })
+  }),
+  emptyConfig
 )
 
 const summary = (modules: readonly Reached[]) =>
@@ -178,7 +179,8 @@ test('deps of an area and a package leave out what its tests and stories import'
         'lib/helpers.ts': {}
       },
       { ui: 'ui', lib: 'lib' }
-    )
+    ),
+    emptyConfig
   )
   for (const subject of ['ui/src', 'ui']) {
     const result = deps(graph, subject, root, 1)
@@ -238,7 +240,8 @@ test('deps of a package lists the other packages it reaches', () => {
         'packages/tokens/index.ts': {}
       },
       { '@acme/app': 'packages/app', '@acme/ui': 'packages/ui', '@acme/tokens': 'packages/tokens' }
-    )
+    ),
+    emptyConfig
   )
   const result = deps(graph, '@acme/app', root, 2)
   assert.ok(result.command === 'deps' && !('error' in result))

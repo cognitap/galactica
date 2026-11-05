@@ -140,7 +140,7 @@ function analyzed(
   try {
     const config = loadConfig(root)
     const options = noCache ? {} : { cache: cacheDirectory(root) }
-    return { config, graph: graphOf(analyzeRepository(root, options).model) }
+    return { config, graph: graphOf(analyzeRepository(root, config, options).model, config) }
   } catch (error) {
     if (error instanceof ConfigError) return { problem: error.message }
     throw error

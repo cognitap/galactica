@@ -2,7 +2,7 @@ import assert from 'node:assert/strict'
 import { test } from 'node:test'
 import type { Deps, Failure, Uses } from '../src/contract.ts'
 import { graphOf } from '../src/graph.ts'
-import type { RepoPath } from '../src/model.ts'
+import { emptyConfig, type RepoPath } from '../src/model.ts'
 import { pageData, type PageData, type PageRelations } from '../src/page-data.ts'
 import { deps, uses } from '../src/queries.ts'
 import { defines, edge, modelOf } from './models.ts'
@@ -32,7 +32,8 @@ const monorepo = pageData(
         'packages/core/src/index.test.ts': { edges: [edge('packages/core/src/index.ts')] }
       },
       { '@m/app': 'packages/app', '@m/core': 'packages/core' }
-    )
+    ),
+    emptyConfig
   )
 )
 
@@ -120,7 +121,8 @@ test('area cycles carry their closing imports, and module cycles are listed', ()
         'src/users/user.ts': { edges: [edge('src/orders/order.ts', { line: 7 })] },
         'src/users/name.ts': {},
         'src/main.ts': {}
-      })
+      }),
+      emptyConfig
     )
   )
   const [acme] = page.packages
@@ -167,7 +169,8 @@ test('areas in a row are ordered so the imports between rows cross less', () => 
         'src/x/two.ts': {},
         'src/y/one.ts': {},
         'src/y/two.ts': {}
-      })
+      }),
+      emptyConfig
     )
   )
   assert.deepEqual(
@@ -198,7 +201,8 @@ const app = graphOf(
     'src/ui/Card.test.tsx': { edges: [edge('src/ui/Card.tsx')] },
     'tests/cn.test.ts': { edges: [edge('src/cn.ts', { names: ['cn'] })] },
     'vite.config.ts': { edges: [edge('src/app/main.ts')] }
-  })
+  }),
+  emptyConfig
 )
 const appPage = pageData(app)
 
@@ -263,7 +267,7 @@ test('the page carries the source its links are built from, or null', () => {
     remote: 'origin',
     uncommitted: false
   }
-  const graph = graphOf(modelOf({ 'src/a.ts': {} }))
+  const graph = graphOf(modelOf({ 'src/a.ts': {} }), emptyConfig)
   assert.equal(pageData(graph).source, null)
   assert.deepEqual(pageData(graph, source).source, source)
 })
