@@ -263,6 +263,26 @@ test('html --source-url without {path}, or not on http(s), fails and writes no p
   }
 })
 
+test('an invalid galactica.config.json fails every command with one line naming the key', t => {
+  const root = repository(t, {
+    'package.json': {},
+    'src/a.ts': '',
+    'galactica.config.json': { kinds: { storyy: ['.storybook/**'] } }
+  })
+  const message =
+    'galactica.config.json: kinds.storyy: unknown kind; expected source, test, story or config'
+  for (const args of [['overview'], ['html', '--out', join(root, 'map.html')]]) {
+    const { status, stdout, stderr } = galactica(root, ...args)
+    assert.equal(status, 1, args[0])
+    assert.equal(stdout, '', args[0])
+    assert.equal(stderr, `galactica: ${message}\n`, args[0])
+  }
+  assert.equal(existsSync(join(root, 'map.html')), false)
+  const json = galactica(root, 'where', 'a', '--json')
+  assert.equal(json.status, 1)
+  assert.deepEqual(JSON.parse(json.stdout).error, { code: 'usage', message })
+})
+
 test('html has no links outside a git repository', t => {
   const { status, source } = pageSource(repository(t, { 'package.json': {}, 'src/a.ts': '' }))
   assert.equal(status, 0)

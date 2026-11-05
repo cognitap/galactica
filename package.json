@@ -18,6 +18,7 @@
     "LICENSE",
     "CHANGELOG.md",
     "dist",
+    "schema",
     "skills"
   ],
   "type": "module",

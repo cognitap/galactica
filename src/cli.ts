@@ -6,11 +6,12 @@ import { parseArgs, type ParseArgsOptionsConfig } from 'node:util'
 import { analyzeRepository } from './analysis.ts'
 import { cacheDirectory } from './cache.ts'
 import { commandOptions, commandTable, type Input } from './commands.ts'
-import { SCHEMA_VERSION, type Command, type Failure } from './contract.ts'
+import { ConfigError, loadConfig } from './config.ts'
+import { SCHEMA_VERSION, type Command, type Failure, type Output } from './contract.ts'
 import { pageSourceOf } from './git-source.ts'
 import { graphOf } from './graph.ts'
 import { htmlOf } from './html.ts'
-import { toRepoPath, type RepoPath } from './model.ts'
+import { toRepoPath, type Config, type Graph, type RepoPath } from './model.ts'
 import { render } from './render.ts'
 import { templateProblem } from './source-links.ts'
 import { defaultCommand, installSkill, skillFile, skillTemplate } from './skill.ts'
@@ -131,9 +132,19 @@ function insideRoot(root: string, cwd: string): RepoPath | undefined {
   }
 }
 
-function graphAt(root: string, noCache: boolean | undefined) {
-  const options = noCache ? {} : { cache: cacheDirectory(root) }
-  return graphOf(analyzeRepository(root, options).model)
+/** The config and graph of the repository at `root`, or what is wrong with its config. */
+function analyzed(
+  root: string,
+  noCache: boolean | undefined
+): { readonly config: Config; readonly graph: Graph } | { readonly problem: string } {
+  try {
+    const config = loadConfig(root)
+    const options = noCache ? {} : { cache: cacheDirectory(root) }
+    return { config, graph: graphOf(analyzeRepository(root, options).model) }
+  } catch (error) {
+    if (error instanceof ConfigError) return { problem: error.message }
+    throw error
+  }
 }
 
 function rootOf(cwd: string, given: string | undefined): string | undefined {
@@ -174,6 +185,18 @@ function inputOf(command: Command, argv: readonly string[], cwd: string) {
     cwd: insideRoot(root, cwd)
   }
   return { root, json: values.json ?? false, noCache: values['no-cache'], input }
+}
+
+/** The command's output, or a usage failure for a problem with the config. */
+function answer(
+  command: Command,
+  root: string,
+  noCache: boolean | undefined,
+  input: Input
+): Output | Failure {
+  const repository = analyzed(root, noCache)
+  if ('problem' in repository) return usageFailure(command, repository.problem)
+  return commandTable[command].run(repository.graph, input)
 }
 
 const failure = (message: string): Result => ({
@@ -225,9 +248,11 @@ function html(argv: readonly string[], cwd: string): Result {
   const problem =
     template === undefined || template === 'none' ? undefined : templateProblem(template)
   if (problem !== undefined) return failure(`--source-url: ${problem}`)
+  const repository = analyzed(root, values['no-cache'])
+  if ('problem' in repository) return failure(repository.problem)
   const out = resolve(cwd, values.out ?? 'galactica.html')
   const source = template === 'none' ? null : (pageSourceOf(root, template) ?? null)
-  const page = htmlOf(graphAt(root, values['no-cache']), source)
+  const page = htmlOf(repository.graph, source)
   try {
     writeFileSync(out, page)
   } catch (error) {
@@ -284,9 +309,7 @@ export function run(argv: readonly string[], cwd: string): Result {
   const parsed = inputOf(name, argv, cwd)
   const json = 'error' in parsed ? argv.includes('--json') : parsed.json
   const output =
-    'error' in parsed
-      ? parsed
-      : commandTable[name].run(graphAt(parsed.root, parsed.noCache), parsed.input)
+    'error' in parsed ? parsed : answer(name, parsed.root, parsed.noCache, parsed.input)
   const failed = 'error' in output
   if (json) return { code: failed ? 1 : 0, stdout: JSON.stringify(output, null, 2), stderr: '' }
   return failed
