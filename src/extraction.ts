@@ -44,12 +44,12 @@ function frameworkExtraction(
   path: RepoPath,
   language: FrameworkLanguage,
   text: string,
-  compiler: unknown
+  load: (() => unknown) | undefined
 ): Extraction {
   const component = componentOf(path)
   let blocks: readonly ScriptBlock[]
   try {
-    blocks = scriptBlocksOf(language, path, text, compiler)
+    blocks = scriptBlocksOf(language, path, text, load)
   } catch (error) {
     const failure = (error instanceof Error ? error.message : String(error)).split('\n')[0]!
     return { symbols: [component], imports: [], failure }
@@ -62,15 +62,15 @@ function frameworkExtraction(
   }
 }
 
-/** `compiler` is the framework's compiler module, undefined when the repository has none. */
+/** `load` gives the framework's compiler module, and is absent when the repository has none. */
 export function extract(
   path: RepoPath,
   language: Language,
   bytes: Buffer,
-  compiler?: unknown
+  load?: () => unknown
 ): Extraction {
   const text = bytes.toString('utf8')
-  if (!isScriptLanguage(language)) return frameworkExtraction(path, language, text, compiler)
+  if (!isScriptLanguage(language)) return frameworkExtraction(path, language, text, load)
   const source = parseScript(path, language, text)
   return { symbols: symbolsOf(source), imports: importsOf(source) }
 }

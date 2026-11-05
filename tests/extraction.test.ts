@@ -6,8 +6,8 @@ import { extract, type Extraction } from '../src/extraction.ts'
 import type { RepoPath } from '../src/model.ts'
 
 const require = createRequire(import.meta.url)
-const vue: unknown = require('vue/compiler-sfc')
-const svelte: unknown = require('svelte/compiler')
+const vue = () => require('vue/compiler-sfc')
+const svelte = () => require('svelte/compiler')
 
 const component = (name: string) => ({
   name,
@@ -17,8 +17,8 @@ const component = (name: string) => ({
   signature: `component ${name}`
 })
 
-const read = (path: string, language: Language, lines: readonly string[], compiler?: unknown) =>
-  extract(path as RepoPath, language, Buffer.from(lines.join('\n')), compiler)
+const read = (path: string, language: Language, lines: readonly string[], load?: () => unknown) =>
+  extract(path as RepoPath, language, Buffer.from(lines.join('\n')), load)
 
 const brief = ({ symbols, imports, failure }: Extraction) => ({
   symbols: symbols.map(({ name, line, kind }) => [name, line, kind]),
@@ -194,11 +194,11 @@ test('without its compiler, a Vue or Svelte file has its component and no import
 })
 
 test('when the compiler throws, the file has its component, no imports, and the first line of the error', () => {
-  const throwing = {
+  const throwing = () => ({
     parse() {
       throw new Error('cannot read this\nat line 3')
     }
-  }
+  })
   assert.deepEqual(read('src/A.vue', 'vue', ['<script>'], throwing), {
     symbols: [component('A')],
     imports: [],

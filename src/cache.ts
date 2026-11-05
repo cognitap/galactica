@@ -24,12 +24,17 @@ import type { Extraction } from './extraction.ts'
 import type { Import, ImportSyntax } from './imports.ts'
 import { compare, type RepoPath, type SymbolFacts } from './model.ts'
 
-export const CACHE_FORMAT = 1
+export const CACHE_FORMAT = 2
 
 export interface CacheEntry extends Extraction {
   readonly hash: string
   readonly mtimeMs: number
   readonly size: number
+  /**
+   * The stamp of the compiler that read a framework file. The entry holds
+   * only while the module's package resolves the same one.
+   */
+  readonly compiler?: string
 }
 
 export type Cache = ReadonlyMap<RepoPath, CacheEntry>
@@ -167,13 +172,28 @@ function every<T>(values: unknown, parse: (value: unknown) => T | undefined): T[
   return parsed.every(value => value !== undefined) ? parsed : undefined
 }
 
+const isOptionalString = (value: unknown): value is string | undefined =>
+  value === undefined || isString(value)
+
 function entryOf(value: unknown): CacheEntry | undefined {
   if (!isRecord(value)) return undefined
-  const { hash, mtimeMs, size } = value
+  const { hash, mtimeMs, size, failure, compiler } = value
   const symbols = every(value.symbols, symbolOf)
   const imports = every(value.imports, importOf)
   if (!isString(hash) || typeof mtimeMs !== 'number' || typeof size !== 'number') return undefined
-  return symbols && imports && { hash, mtimeMs, size, symbols, imports }
+  if (!isOptionalString(failure) || !isOptionalString(compiler)) return undefined
+  return (
+    symbols &&
+    imports && {
+      hash,
+      mtimeMs,
+      size,
+      symbols,
+      imports,
+      ...(failure === undefined ? {} : { failure }),
+      ...(compiler === undefined ? {} : { compiler })
+    }
+  )
 }
 
 const sameStamp = (file: Unknown, stamp: Stamp) =>
