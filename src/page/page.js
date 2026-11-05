@@ -130,6 +130,27 @@ const relationTag = () => {
 
 /**
  * @param {PageModule} module
+ * @param {PageModule['symbols'][number]} symbol
+ */
+function symbolItem(module, symbol) {
+  const entry = element('li', 'symbol')
+  const kind = symbol.default ? `default ${symbol.kind}` : symbol.kind
+  const head = element('div', 'symbol-head')
+  const where = linked(
+    element('span', '', `line ${symbol.line}`),
+    module.path,
+    symbol.line,
+    `Open ${symbol.name} at line ${symbol.line} of ${module.path} in the repository`
+  )
+  head.append(element('span', '', kind), where)
+  entry.append(head, element('code', 'signature', symbol.signature))
+  if (symbol.doc !== undefined) entry.append(element('p', 'doc', symbol.doc))
+  return entry
+}
+
+/**
+ * A module's row. Its symbols are drawn when the row first opens, since most never do.
+ * @param {PageModule} module
  * @param {string} usualKind the kind most modules of its area have, which needs no tag
  */
 function moduleItem(module, usualKind) {
@@ -147,32 +168,33 @@ function moduleItem(module, usualKind) {
     row.title = `${module.path}, no exported symbols`
     row.append(...head)
     item.append(row, select)
-    return { item, select, tag, details: undefined, symbols: [] }
+    return { item, select, tag, symbolAt: undefined }
   }
   const details = /** @type {HTMLDetailsElement} */ (element('details'))
   const summary = element('summary')
   summary.title = `${module.path}, ${plural(module.symbols.length, 'exported symbol')}`
   summary.append(...head)
-  const symbols = element('ul', 'symbols')
-  const entries = module.symbols.map(symbol => {
-    const entry = element('li', 'symbol')
-    const kind = symbol.default ? `default ${symbol.kind}` : symbol.kind
-    const symbolHead = element('div', 'symbol-head')
-    const where = linked(
-      element('span', '', `line ${symbol.line}`),
-      module.path,
-      symbol.line,
-      `Open ${symbol.name} at line ${symbol.line} of ${module.path} in the repository`
-    )
-    symbolHead.append(element('span', '', kind), where)
-    entry.append(symbolHead, element('code', 'signature', symbol.signature))
-    if (symbol.doc !== undefined) entry.append(element('p', 'doc', symbol.doc))
-    symbols.append(entry)
+  details.append(summary)
+  /** @type {HTMLElement[] | undefined} */
+  let entries
+  const listSymbols = () => {
+    if (entries !== undefined) return entries
+    entries = module.symbols.map(symbol => symbolItem(module, symbol))
+    const symbols = element('ul', 'symbols')
+    symbols.append(...entries)
+    details.append(symbols)
+    return entries
+  }
+  summary.addEventListener('click', listSymbols)
+  details.addEventListener('toggle', listSymbols)
+  /** @param {number} position */
+  const symbolAt = position => {
+    const entry = listSymbols()[position]
+    details.open = true
     return entry
-  })
-  details.append(summary, symbols)
+  }
   item.append(details, select)
-  return { item, select, tag, details, symbols: entries }
+  return { item, select, tag, symbolAt }
 }
 
 /** @typedef {ReturnType<typeof areaBox>} AreaView */
@@ -684,8 +706,10 @@ function draw() {
     select({ kind: 'module', index: target.module })
     const view = moduleViews[target.module]
     areaViews[data.modules[target.module].area].reveal(view.item)
-    if (target.kind === 'symbol' && view.details !== undefined) view.details.open = true
-    const shown = target.kind === 'symbol' ? view.symbols[target.symbol] : view.item
+    const shown =
+      target.kind === 'symbol' && view.symbolAt !== undefined
+        ? view.symbolAt(target.symbol)
+        : view.item
     shown.scrollIntoView({ block: 'center' })
     view.select.focus({ preventScroll: true })
   }
