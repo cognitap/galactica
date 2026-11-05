@@ -1,5 +1,5 @@
 {
-  "format": 1,
+  "format": 2,
   "repository": { "name": "barrels" },
   "packages": {
     "barrels": { "dir": "." }
@@ -90,6 +90,7 @@
           "names": ["default"],
           "typeOnly": false,
           "dynamic": false,
+          "loadTime": ["default"],
           "via": ["src/components/index.ts"]
         },
         {
@@ -99,6 +100,7 @@
           "names": ["Input"],
           "typeOnly": false,
           "dynamic": false,
+          "loadTime": ["Input"],
           "via": ["src/components/index.ts", "src/components/forms/index.ts"]
         }
       ]

@@ -1,5 +1,5 @@
 {
-  "format": 1,
+  "format": 2,
   "repository": { "name": "tsconfig-paths" },
   "packages": {
     "tsconfig-paths": { "dir": "." }
@@ -70,6 +70,7 @@
           "names": ["z"],
           "typeOnly": false,
           "dynamic": false,
+          "loadTime": ["z"],
           "via": []
         },
         {
@@ -79,6 +80,7 @@
           "names": ["sum"],
           "typeOnly": false,
           "dynamic": false,
+          "loadTime": ["sum"],
           "via": []
         },
         {
@@ -88,6 +90,7 @@
           "names": ["format"],
           "typeOnly": false,
           "dynamic": false,
+          "loadTime": ["format"],
           "via": []
         },
         {
@@ -97,6 +100,7 @@
           "names": ["settings"],
           "typeOnly": false,
           "dynamic": false,
+          "loadTime": ["settings"],
           "via": []
         }
       ]

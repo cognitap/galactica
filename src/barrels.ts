@@ -107,20 +107,25 @@ function definitions(modules: Modules): (to: ModuleTarget, name: string) => Sear
 function rewritten(edge: Edge, definitionOf: ReturnType<typeof definitions>): readonly Edge[] {
   const { to } = edge
   if (edge.form !== 'import' || to.kind !== 'module' || edge.names.length === 0) return [edge]
-  const groups = new Map<string, { definition: Definition; names: string[] }>()
+  const groups = new Map<string, { definition: Definition; names: string[]; read: string[] }>()
   for (const name of edge.names) {
     const definition = definitionOf(to, name).found ?? { to, name, via: [] }
     const key = JSON.stringify([definition.to, definition.via])
-    const group = groups.get(key)
-    if (group) group.names.push(definition.name)
-    else groups.set(key, { definition, names: [definition.name] })
+    const group = groups.get(key) ?? { definition, names: [], read: [] }
+    groups.set(key, group)
+    group.names.push(definition.name)
+    if (edge.loadTime?.includes(name)) group.read.push(definition.name)
   }
-  return [...groups.values()].map(({ definition, names }) => ({
-    ...edge,
-    to: definition.to,
-    names: [...new Set(names)].sort(),
-    via: definition.via
-  }))
+  return [...groups.values()].map(({ definition, names, read }) => {
+    const { loadTime: _, via: __, ...rest } = edge
+    return {
+      ...rest,
+      to: definition.to,
+      names: [...new Set(names)].sort(),
+      ...(read.length === 0 ? {} : { loadTime: [...new Set(read)].sort() }),
+      via: definition.via
+    }
+  })
 }
 
 /** `modules` with each import that lands on a barrel pointing at the modules that define its names. */

@@ -38,6 +38,7 @@ Each `expected.json` is the spec for the analyzer. It holds the `Model` from `sr
 - Any other specifier resolves as TypeScript resolves it with the module's tsconfig, in the mode its syntax and file format give. A fixture with no `tsconfig.json` resolves as TypeScript does with `moduleResolution: "bundler"` and `allowJs`. A specifier that names a module by its exact path, such as `./Counter.vue`, resolves to it.
 - A specifier with a `?` query, such as Vite's `./worker?worker` or `./logo.svg?raw`, that resolves to nothing whole resolves as the specifier before the `?`. When that resolves to nothing too, the import is `unresolved` with the whole specifier.
 - An import of a repository file that is no module, such as a stylesheet, a JSON file or a declaration file, yields no edge.
+- `loadTime` lists the `names` the importer reads at load time: in top-level code, a class body apart from methods, constructors and instance fields, a decorator, a function called where it is defined, or a top-level function or class that such code calls by name. A local declaration of the same name in a nested scope hides the import. A `require()` in top-level code reads all its names unless it binds a name, which then counts like an import. It is absent when nothing is read at load time, and on re-exports, type-only and dynamic imports, and the imports of a Vue `<script setup>`, a Svelte instance script and Astro frontmatter.
 
 ## Derived data
 

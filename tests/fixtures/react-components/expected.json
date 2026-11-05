@@ -1,5 +1,5 @@
 {
-  "format": 1,
+  "format": 2,
   "repository": { "name": "react-components" },
   "packages": {
     "react-components": { "dir": "." }
@@ -110,6 +110,7 @@
           "names": ["memo", "useState"],
           "typeOnly": false,
           "dynamic": false,
+          "loadTime": ["memo"],
           "via": []
         }
       ]
@@ -133,6 +134,7 @@
           "names": ["forwardRef"],
           "typeOnly": false,
           "dynamic": false,
+          "loadTime": ["forwardRef"],
           "via": []
         }
       ]

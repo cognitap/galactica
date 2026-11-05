@@ -1,5 +1,5 @@
 {
-  "format": 1,
+  "format": 2,
   "repository": { "name": "astro" },
   "packages": {
     "astro": { "dir": "." }
@@ -60,6 +60,7 @@
           "names": ["default"],
           "typeOnly": false,
           "dynamic": false,
+          "loadTime": ["default"],
           "via": []
         }
       ]
