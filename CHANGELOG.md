@@ -4,6 +4,8 @@
 
 ## Unreleased
 
+- `init` and `html` refuse to write through a symbolic link, which a repository could commit to make them write outside it. `init` checks each of its paths and the folders above them inside the repository, such as a `.claude` linked to `~/.claude`, and writes all its files or none. `html` refuses a page path that is a link, and a linked folder above it inside the repository; an `--out` outside the repository may still sit in a linked folder. Either prints one line, such as `galactica: refused to write galactica.html: it is a symbolic link`, and exits with code 1. `html --out` into the repository now creates missing folders.
+
 ## 0.1.5
 
 - Add `health`, which lists concrete findings about the structure with no score: each import cycle with the imports to break, each area with at least 20 source modules and 5 times the median area of its package, and each import outside tests and stories that reaches into another workspace package by a relative path or by a subpath its `exports` does not list, with the public specifier to use instead where one exists. It always exits with code 0. On Vitest it finds 4 cycles, 2 oversized areas and 20 such imports.
