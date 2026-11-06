@@ -175,7 +175,10 @@ export interface CycleImport {
   readonly break: boolean
 }
 
-/** Source and config modules that import each other in a loop, leaving out type-only imports and re-exports. */
+/**
+ * Source and config modules that import each other in a loop, leaving out type-only imports and re-exports.
+ * Imports read by JSX factories selected through pragmas or compiler options count as runtime imports.
+ */
 export interface Cycle {
   /** In dependency order: every import goes down this list, except those marked `break`. */
   readonly modules: readonly string[]

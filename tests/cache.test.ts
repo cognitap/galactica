@@ -70,6 +70,17 @@ const entry: CacheEntry = {
       names: ['*'],
       typeOnly: false,
       dynamic: true
+    },
+    {
+      specifier: './jsx',
+      syntax: 'declaration',
+      line: 5,
+      form: 'import',
+      names: ['h'],
+      typeOnly: false,
+      dynamic: false,
+      elided: 'unless-verbatim',
+      jsx: { names: ['h'], factory: 'h', fragmentFactory: 'Fragment', fragment: true }
     }
   ]
 }
@@ -222,6 +233,13 @@ test('an entry that does not parse is left out, and the others are kept', t => {
     { ...entry, imports: [{ ...entry.imports[0], syntax: 'include' }] },
     { ...entry, imports: [{ ...entry.imports[0], renames: { a: 1 } }] },
     { ...entry, imports: [{ ...entry.imports[0], resolutionMode: 'both' }] },
+    ...[
+      null,
+      { names: [1] },
+      { names: ['h'], factory: 1 },
+      { names: ['h'], fragmentFactory: false },
+      { names: ['h'], fragment: 'yes' }
+    ].map(jsx => ({ ...entry, imports: [{ ...entry.imports[0], jsx }] })),
     { ...entry, imports: 'none' },
     { ...entry, failure: 1 },
     'entry'

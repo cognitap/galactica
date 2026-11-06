@@ -41,6 +41,15 @@ export interface Use {
   readonly value?: 'code' | 'metadata'
   /** The import's names a decorated signature names in load-time code. */
   readonly metadataLoadTime: readonly string[]
+  /** Local bindings JSX may read through a factory selected by compiler options or a pragma. */
+  readonly jsx?: JSXRead
+}
+
+export interface JSXRead {
+  readonly names: readonly string[]
+  readonly factory?: string
+  readonly fragmentFactory?: string
+  readonly fragment?: true
 }
 
 /** How the module uses the import at `specifier`, which takes `names`. */
@@ -234,11 +243,16 @@ function metadataName(type: ts.TypeNode): string | undefined {
   return names.size === 1 ? name : undefined
 }
 
-/** The JSX factories a module's JSX may call: `React`, and any a `@jsx` or `@jsxFrag` pragma names. */
-const jsxFactoriesOf = (source: ts.SourceFile) => [
-  'React',
-  ...Array.from(source.text.matchAll(/@jsx(?:Frag)?\s+([A-Za-z_$][\w$]*)/g), match => match[1]!)
-]
+/** Pragmas override compiler options; keep their binding roots without choosing the options here. */
+function jsxPragmasOf(source: ts.SourceFile): Omit<JSXRead, 'names' | 'fragment'> {
+  const pragmas = [...source.text.matchAll(/@jsx(Frag)?\s+([A-Za-z_$][\w$]*)/g)]
+  const factory = pragmas.findLast(match => !match[1])?.[2]
+  const fragmentFactory = pragmas.findLast(match => match[1])?.[2]
+  return {
+    ...(factory === undefined ? {} : { factory }),
+    ...(fragmentFactory === undefined ? {} : { fragmentFactory })
+  }
+}
 
 /** Whether an identifier reads a binding, rather than naming a property, a declaration or a label. */
 function isReference(id: ts.Identifier): boolean {
@@ -320,6 +334,7 @@ export function usesOf(source: ts.SourceFile, imports: ReadonlyMap<string, Bound
   const metadataRead = new Set<string>()
   const metadataBy = new Map<string, Set<string>>()
   let jsx = false
+  let fragment = false
 
   let runs = LOAD
   /**
@@ -444,8 +459,11 @@ export function usesOf(source: ts.SourceFile, imports: ReadonlyMap<string, Bound
         return exported(node as ts.ExportDeclaration)
       case Kind.JsxOpeningElement:
       case Kind.JsxSelfClosingElement:
+        jsx = true
+        break
       case Kind.JsxOpeningFragment:
         jsx = true
+        fragment = true
         break
       case Kind.HeritageClause:
         if ((node as ts.HeritageClause).token === Kind.ImplementsKeyword) return
@@ -517,7 +535,16 @@ export function usesOf(source: ts.SourceFile, imports: ReadonlyMap<string, Bound
     }
   }
 
-  if (jsx) for (const name of jsxFactoriesOf(source)) values.add(name)
+  const jsxBindings = new Map<ts.Expression, string[]>()
+  if (jsx) {
+    for (const [name, binding] of imports) {
+      if (binding.typeOnly) continue
+      const names = jsxBindings.get(binding.specifier) ?? []
+      names.push(name)
+      jsxBindings.set(binding.specifier, names)
+    }
+  }
+  const pragmas = jsx ? jsxPragmasOf(source) : {}
 
   const takenBy = (locals: ReadonlySet<string>) => {
     const taken = new Map<ts.Expression, Set<string>>()
@@ -537,10 +564,16 @@ export function usesOf(source: ts.SourceFile, imports: ReadonlyMap<string, Bound
   }
   return (specifier, names) => {
     const value = valueOf.get(specifier)
+    const jsxNames = jsxBindings.get(specifier)
     return {
       loadTime: wholeCalls.has(specifier) ? names : loadTime(specifier, names),
       ...(value === undefined ? {} : { value }),
-      metadataLoadTime: metadataLoadTime(specifier, names)
+      metadataLoadTime: metadataLoadTime(specifier, names),
+      ...(jsxNames === undefined
+        ? {}
+        : {
+            jsx: { names: jsxNames, ...pragmas, ...(fragment ? { fragment: true as const } : {}) }
+          })
     }
   }
 }

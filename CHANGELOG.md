@@ -4,6 +4,7 @@
 
 ## Unreleased
 
+- Keep imports used by JSX factories named in `jsxFactory` or `jsxFragmentFactory` in runtime cycles, including factories selected only by `tsconfig.json`.
 - State the Node.js 24.1.0 minimum at the start of the README, before installation.
 - **Breaking:** Repository configuration follows the same regular-file, root and 10 MB policy as source. Before: linked or oversized configs could hang analysis or read outside content. After: unsafe optional configs are skipped with warnings, and an unsafe `galactica.config.json` fails clearly.
 - `init` refuses to read an existing skill file over 10 MB and writes none of its files when that check fails.
