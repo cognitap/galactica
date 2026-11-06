@@ -1,7 +1,6 @@
 import { byId, element, breakable, kindNames } from './dom.js'
 import { hiddenBy, search } from './search.js'
 
-/** @typedef {import('../page-data.ts').PageData} PageData */
 /** @typedef {import('../contract.ts').ModuleKind} ModuleKind */
 /** @typedef {import('./search.js').Target} Target */
 /** @typedef {import('./search.js').SearchEntry} SearchEntry */

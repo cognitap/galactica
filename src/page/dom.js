@@ -2,7 +2,6 @@ import { hrefOf } from './links.js'
 
 /** @typedef {import('../page-data.ts').PageData} PageData */
 /** @typedef {import('../contract.ts').ModuleKind} ModuleKind */
-/** @typedef {import('./search.js').Target} Target */
 
 /** @param {string} id */
 export const byId = id => /** @type {HTMLElement} */ (document.getElementById(id))
@@ -36,6 +35,12 @@ export const KINDS = /** @type {const} */ ({
   test: { label: 'Tests', one: 'test', many: 'tests' },
   story: { label: 'Stories', one: 'story', many: 'stories' }
 })
+
+/**
+ * @param {number} count
+ * @param {ModuleKind} kind
+ */
+export const kindCount = (count, kind) => plural(count, KINDS[kind].one, KINDS[kind].many)
 
 /**
  * Prefer path breaks after slashes, keeping each filename together when it fits.
