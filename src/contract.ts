@@ -19,6 +19,7 @@ export const commands = [
   'health'
 ] as const
 export type Command = (typeof commands)[number]
+export type WriterCommand = 'html' | 'init'
 
 export const moduleKinds = ['source', 'test', 'story', 'config'] as const
 export type ModuleKind = (typeof moduleKinds)[number]
@@ -49,7 +50,7 @@ export const languages = [
 ] as const
 export type Language = (typeof languages)[number]
 
-interface Envelope<C extends Command> {
+interface Envelope<C extends Command | WriterCommand> {
   readonly schemaVersion: typeof SCHEMA_VERSION
   readonly command: C
 }
@@ -62,10 +63,12 @@ export interface ModuleRef {
 }
 
 export interface SymbolRef {
+  /** Exported name, which can be an alias of the declaration named in signature. */
   readonly name: string
   readonly kind: SymbolKind
   readonly line: number
   readonly default: boolean
+  /** Original declaration signature, preserved when name is an export alias. */
   readonly signature: string
   /** First sentence of the doc comment. Omitted when the symbol has none. */
   readonly doc?: string
@@ -105,13 +108,32 @@ export interface Warning {
 
 export interface Failure {
   readonly schemaVersion: typeof SCHEMA_VERSION
-  readonly command: Command
+  readonly command: Command | WriterCommand
   readonly error: {
-    /** usage also covers unsupported Deno roots (deno.json or deno.jsonc). */
+    /** usage also covers unsupported Deno roots and writer argument, config or write failures. */
     readonly code: 'not-found' | 'ambiguous' | 'usage'
     readonly message: string
   }
 }
+
+/** A completed HTML write. The path is absolute; bytes is the exact UTF-8 size. */
+export interface HtmlWritten extends Envelope<'html'> {
+  readonly path: string
+  readonly bytes: number
+}
+
+/**
+ * Installed skill files, in installation order. Paths are relative to the selected root.
+ * When every file is kept, this object is still returned and the exit code is 1.
+ */
+export interface SkillInstalled extends Envelope<'init'> {
+  readonly files: readonly {
+    readonly path: string
+    readonly status: 'created' | 'updated' | 'unchanged' | 'kept'
+  }[]
+}
+
+export type WriterOutput = HtmlWritten | SkillInstalled
 
 /** One unresolved import from any mapped module, including tests and stories. */
 export interface UnresolvedImport {

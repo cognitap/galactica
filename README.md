@@ -41,23 +41,25 @@ The examples below write `galactica` for `npx --prefix / @cognitap/galactica`.
 | `html`           | Write the human map as one HTML file.                               |
 | `init`           | Install the agent skill into this repository.                       |
 
-Every command except `html` and `init` prints short text by default and structured output with `--json`. The [JSON output reference](docs/json-output.md) documents the fields. A subject is a module path, a package name, a package directory or an area path. `uses` and `deps` follow `--depth` import steps, 1 by default, and `overview --all` ranks every module instead of the top five of each area. `overview` also counts the warnings of the analysis, such as a workspace package without a name, which it skips, or a `tsconfig.json` it cannot read, and its `--json` lists them. A command that cannot answer prints one line to stderr and exits with code 1.
+Every command prints short text by default and structured output with `--json`, including `html` and `init` results and failures. The [JSON output reference](docs/json-output.md) documents the fields. A subject is a module path, a package name, a package directory or an area path. `uses` and `deps` follow `--depth` import steps, 1 by default, and `overview --all` ranks every module instead of the top five of each area. `overview` also counts the warnings of the analysis, such as a workspace package without a name, which it skips, or a `tsconfig.json` it cannot read, and its `--json` lists them. A command that cannot answer prints one line to stderr and exits with code 1.
 
 `overview --json` adds `unresolvedImports`, every unresolved import with file, line, full specifier and likely cause, including tests and stories. Its existing `unresolved` count stays numeric. The text groups likely build/generated targets, virtual modules or schemes, URLs, and missing or unmapped files; these are hints, not build diagnostics.
 
 `deps` of a package or area starts from its source and config modules. Test and story modules, including fixtures classified as tests, are not starting points; imports made only by those files are omitted. `deps` of a module starts from that exact file, even a test or story. Its external and unresolved lists describe the starting modules only. Use `overview --json` for all unresolved imports in the mapped repository. Text shortens long specifiers; JSON keeps them complete.
 
+An empty or non-JavaScript/TypeScript repository is reported clearly by `overview`, with exit code 0. Unknown commands point to `--help` in one line, and a close option typo suggests the known option. `outline` and `where` label exported aliases, such as `Root (alias of Slot)`, while JSON keeps both the export name and the original declaration signature.
+
 These options apply across commands:
 
-| Option          | Effect                                                            |
-| --------------- | ----------------------------------------------------------------- |
-| `--root <dir>`  | Use this repository instead of the current directory.             |
-| `--json`        | Print the JSON object instead of text. Not for `html` and `init`. |
-| `--no-cache`    | Analyze every file, and neither read nor write the cache.         |
-| `--depth <n>`   | How many import steps `uses` and `deps` follow. 1 by default.     |
-| `--all`         | List every module of each area in `overview`, not the top five.   |
-| `-h, --help`    | Print every command and option.                                   |
-| `-v, --version` | Print the version.                                                |
+| Option          | Effect                                                          |
+| --------------- | --------------------------------------------------------------- |
+| `--root <dir>`  | Use this repository instead of the current directory.           |
+| `--json`        | Print the JSON result or failure instead of text.               |
+| `--no-cache`    | Analyze every file, and neither read nor write the cache.       |
+| `--depth <n>`   | How many import steps `uses` and `deps` follow. 1 by default.   |
+| `--all`         | List every module of each area in `overview`, not the top five. |
+| `-h, --help`    | Print every command and option.                                 |
+| `-v, --version` | Print the version.                                              |
 
 `html` and `init` take the options described in their sections below.
 
@@ -135,12 +137,12 @@ imports (1 to break):
 
 ```text
 $ galactica health
-4 import cycles, 2 oversized areas, 20 internal imports
+4 import cycles, 2 oversized areas, 20 cross-package private imports
 …
 oversized areas (at least 20 source modules and 5 times the median area of their package):
   packages/browser/src/client/tester/expect  28 source modules, package median 3.5
   packages/vitest/src/node  31 source modules, package median 5.5
-imports into another package's internals:
+cross-package private imports:
 …
   packages/browser/src/client/orchestrator.ts:16  ../../../vitest/src/utils/tasks.js  generateFileHash  relative path into vitest  use vitest/node
   packages/browser/src/client/tester/runner.ts:30  ../../../../utils/src/source-map  createStackString, parseStacktrace  relative path into @vitest/utils  use @vitest/utils/source-map
@@ -148,7 +150,7 @@ imports into another package's internals:
 …
 ```
 
-`html` writes the map for people to `galactica.html` in the current directory, or to the file `--out` names, and prints the path and size. It refuses, with one line and exit code 1, to write the page through a symbolic link: the file itself, or a folder inside the repository above it, may not be one. `--open` opens the file in the default browser. The page is one file that loads nothing from the network, so it opens from disk and can be shared as an attachment. Each package is a section, largest first by its source and config modules; a compact package picker jumps between them. Inside it, each area is a box in a row by layer: the bottom row imports no other area, and each row above imports only from rows below, except areas marked as a cycle. A box is wider when its modules export more symbols, and its colour marks its top-level folder. An area of more than eight modules starts collapsed to its counts, and its module count expands it. Each module expands to list its exported symbols with their signatures and docs. The Show buttons filter the map by kind: source and config modules show at first, and tests and stories stay hidden until you show them. The header counts the visible modules and lists the hidden modules by kind. A module's kind comes from its name and folder, or from `kinds` in the config. Search still finds what the filter hides, marks it, and shows its kind when you choose it. To leave generated files out of the map, list them in `exclude`. On Radiant, the page is about 440 KB and takes under a second to write.
+`html` writes the map for people to `galactica.html` in the current directory, or to the file `--out` names, and prints the path and size. An explicitly absolute `--out` is printed as an absolute path; the default output also points to `--out` and `.gitignore`. With `--json`, it reports the absolute path and exact byte count instead. It refuses, with one line and exit code 1, to write the page through a symbolic link: the file itself, or a folder inside the repository above it, may not be one. `--open` opens the file in the default browser. The page is one file that loads nothing from the network, so it opens from disk and can be shared as an attachment. Each package is a section, largest first by its source and config modules; a compact package picker jumps between them. Inside it, each area is a box in a row by layer: the bottom row imports no other area, and each row above imports only from rows below, except areas marked as a cycle. A box is wider when its modules export more symbols, and its colour marks its top-level folder. An area of more than eight modules starts collapsed to its counts, and its module count expands it. Each module expands to list its exported symbols with their signatures and docs. The Show buttons filter the map by kind: source and config modules show at first, and tests and stories stay hidden until you show them. The header counts the visible modules and lists the hidden modules by kind. A module's kind comes from its name and folder, or from `kinds` in the config. Search still finds what the filter hides, marks it, and shows its kind when you choose it. To leave generated files out of the map, list them in `exclude`. On Radiant, the page is about 440 KB and takes under a second to write.
 
 The search field finds areas, modules and exported symbols as you type. Press `/` to focus it, the arrow keys to move through the matches, Enter to go to one and Escape to close the list or clear the field. Exact matches come first, then names that start with what you typed, then names that contain it. Going to a symbol opens its module.
 
@@ -175,7 +177,7 @@ npx --prefix / @cognitap/galactica init --command "pnpm exec galactica"
 node /path/to/galactica/dist/bin.js init --command "node /path/to/galactica/dist/bin.js"
 ```
 
-Running `init` again updates each file to the current version, unless someone edited it. Each file records a hash of what `init` wrote, so `init` keeps an edited file, says so, and replaces it only with `--force`. It exits with code 1 only when it kept every file. When any of the three paths, or a folder above it inside the repository such as a `.claude` linked to `~/.claude`, is a symbolic link, `init` refuses in one line, writes nothing and exits with code 1. It writes all three files or none. The skill is also at `skills/galactica/` in this repository, so the [skills CLI](https://github.com/vercel-labs/skills) installs it for any agent it supports, in place of `init`:
+Running `init` again updates each file to the current version, unless someone edited it. Each file records a hash of what `init` wrote, so `init` keeps an edited file, says so, and replaces it only with `--force`. With `--json`, it reports each relative file path and status, and argument, config or write failures use the documented JSON failure envelope. It exits with code 1 only when it kept every file or could not complete the request; the all-kept JSON result still lists the files. When any of the three paths, or a folder above it inside the repository such as a `.claude` linked to `~/.claude`, is a symbolic link, `init` refuses in one line, writes nothing and exits with code 1. It writes all three files or none. The skill is also at `skills/galactica/` in this repository, so the [skills CLI](https://github.com/vercel-labs/skills) installs it for any agent it supports, in place of `init`:
 
 ```sh
 npx --prefix / skills add cognitap/galactica

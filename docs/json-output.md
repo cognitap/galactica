@@ -1,16 +1,16 @@
 # JSON output
 
-For agent and tool authors. Every command except `html` and `init` prints one JSON object with `--json`. The types are in `src/contract.ts`. Fields not documented here are not part of the contract.
+For agent and tool authors. Every command prints one JSON object with `--json`, including `html` and `init` results and failures. The types are in `src/contract.ts`. Fields not documented here are not part of the contract.
 
 ## Rules
 
 - Every object has `schemaVersion` and `command`. `schemaVersion` is one number for the whole contract. It increases when any field of any command is removed, renamed or changes meaning. A new optional field does not increase it.
-- Paths are relative to the repository root, use forward slashes and have no leading `./`. An area is named by its directory path. A package is named by its `package.json` name.
-- Arrays are sorted as stated below, and the same repository gives byte-identical output. There are no timestamps.
+- Analysis paths and installed skill paths are relative to the repository root, use forward slashes and have no leading `./`. The `html` result instead reports its absolute output path in the operating system’s path format. An area is named by its directory path. A package is named by its `package.json` name.
+- Arrays are sorted as stated below, and the same analysis inputs give byte-identical output. There are no timestamps. Writer results reflect the chosen output path or installation statuses.
 - `uses` and `deps` accept a module path, a package name, a package directory or an area path. Galactica tries them in that order and takes the first kind that matches, so a package directory that is also an area names the package. `outline` accepts only a module path.
 - A path reads from the current directory and from the repository root. When the two readings name different subjects of the same kind, the command reports `ambiguous`.
 - An area or a package stands for its source and config modules, for both `uses` and `deps`. Its tests and stories use it like any other test or story, so what they import is not a dependency of the subject. Its tests are listed in `uses` `tests`, and its stories in `uses` `modules`.
-- A command that cannot answer prints a failure object and exits with code 1. A successful command exits with code 0. An unknown command or no command prints usage and no JSON.
+- A command that cannot answer prints a failure object and exits with code 1. A successful command exits with code 0. An unknown command or no command prints one line pointing to `--help`, without JSON. `init` also exits 1 when every file was kept; it returns its normal files object in that case.
 
 ```json
 {
@@ -20,7 +20,7 @@ For agent and tool authors. Every command except `html` and `init` prints one JS
 }
 ```
 
-`error.code` is `not-found`, `ambiguous` or `usage`. `not-found` means no module, package or area matches, and its message names up to three paths that end with the given text. `usage` means an option the command does not take, a missing or extra argument, a `--depth` below 1, a `--root` that is no directory, or an invalid `galactica.config.json`, whose message starts with `galactica.config.json:` and names the key.
+`error.code` is `not-found`, `ambiguous` or `usage`. `not-found` means no module, package or area matches, and its message names up to three paths that end with the given text. `usage` means an option the command does not take, a missing or extra argument, a `--depth` below 1, a `--root` that is no directory, or an invalid `galactica.config.json`, whose message starts with `galactica.config.json:` and names the key. For `html` and `init`, `usage` also covers a refused or failed write; `command` is the writer’s name. JSON failures go to stdout with empty stderr. Close option typos suggest the known option in the message.
 
 ## overview
 
@@ -111,7 +111,7 @@ These groups are hints, not a diagnosis of the build or filesystem. A file group
 
 `galactica outline src/cn.ts --json`
 
-`symbols` lists the exported declarations of one module in line order. `kind` is one of `function`, `class`, `component`, `type`, `interface`, `enum` or `const`. A module `kind` is one of `source`, `test`, `story` or `config`.
+`symbols` lists the exported declarations of one module in line order. A symbol’s `name` is its exported name; `signature` retains the original declaration name. Text explicitly labels an alias, for example `Root (alias of Slot): const Slot = createSlot(...)`, in both `outline` and `where`; these JSON fields are unchanged. `kind` is one of `function`, `class`, `component`, `type`, `interface`, `enum` or `const`. A module `kind` is one of `source`, `test`, `story` or `config`.
 
 ```json
 {
@@ -259,7 +259,7 @@ When a `paths` alias reaches no file, an npm-shaped specifier falls back to its 
 
 `galactica health --json`
 
-`health` lists concrete findings about the structure, in three kinds, and has no score. It exits with code 0 whatever it finds.
+`health` lists concrete findings about the structure, in three kinds, and has no score. Its text calls `internalImports` “cross-package private imports”; the JSON field keeps its name and meaning. It exits with code 0 whatever it finds.
 
 `cycles` lists every import cycle, as the `cycles` command lists them, in the same order.
 
@@ -291,3 +291,31 @@ When a `paths` alias reaches no file, an npm-shaped specifier falls back to its 
 ```
 
 A root containing `deno.json` or `deno.jsonc` is unsupported. Analysis commands return the existing failure envelope with `error.code: "usage"`, a message naming the Deno config and explaining the unsupported workspace and import-map resolution, and exit code 1. No fields or schema version change.
+
+## html
+
+`galactica html --out /tmp/map.html --json` writes the page, then returns:
+
+```json
+{ "schemaVersion": 1, "command": "html", "path": "/tmp/map.html", "bytes": 123456 }
+```
+
+`path` is the absolute path written and `bytes` is the exact UTF-8 size. Relative `--out` and the default `galactica.html` resolve from the current directory. The text form prints an explicitly absolute output path as absolute and, for the default output, suggests `--out` or `.gitignore`. No page is embedded in JSON.
+
+## init
+
+`galactica init --json` returns the three installed skill paths and their statuses in installation order:
+
+```json
+{
+  "schemaVersion": 1,
+  "command": "init",
+  "files": [
+    { "path": ".agents/skills/galactica/SKILL.md", "status": "created" },
+    { "path": ".claude/skills/galactica/SKILL.md", "status": "created" },
+    { "path": ".cursor/rules/galactica.mdc", "status": "created" }
+  ]
+}
+```
+
+Paths are relative to the selected root. Status is `created`, `updated`, `unchanged` or `kept` (edited by the user and preserved). If every file is `kept`, the exit code is 1 and this same files object is returned. Argument, config and write failures instead return the existing failure shape with `command: "init"`, `error.code: "usage"` and exit code 1. HTML failures use the same shape with `command: "html"`. These writer forms are additive and keep `schemaVersion: 1`.
