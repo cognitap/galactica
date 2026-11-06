@@ -1,8 +1,12 @@
 /**
- * The order of the boxes within each row of the page, chosen to reduce the
- * crossings between the imports of different rows with the barycenter
+ * The order of the boxes within each layer of the page, chosen to reduce the
+ * crossings between the imports of different layers with the barycenter
  * heuristic: each node moves to the mean position of its neighbours in the
- * other rows, sweeping down the rows and back up.
+ * other layers, sweeping through the layers and back.
+ *
+ * A node's position is its index in its layer. The page stacks each layer's
+ * boxes from the top of its column, so the index, not the share of the
+ * column's length, is where a link meets the box.
  */
 
 import { compare } from './model.ts'
@@ -28,8 +32,7 @@ export function orderRows<T extends string>(
 
   const ordered = rows.map(row => [...row].sort(compare))
   const position = new Map<T, number>()
-  const place = (row: readonly T[]) =>
-    row.forEach((node, index) => position.set(node, (index + 0.5) / row.length))
+  const place = (row: readonly T[]) => row.forEach((node, index) => position.set(node, index))
   ordered.forEach(place)
 
   const down = ordered.map((_, index) => index)

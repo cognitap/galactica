@@ -146,10 +146,16 @@ function importCounts(graph: Graph, path: RepoPath) {
   }
 }
 
+/**
+ * Links between areas as the map first draws them, with tests and stories
+ * hidden: each import of source and config, and each barrel it passes through.
+ */
 function areaLinks(graph: Graph): readonly (readonly [AreaPath, AreaPath])[] {
-  return [...graph.modules.values()].flatMap(({ facts, area }) =>
-    facts.edges.flatMap(edge =>
-      edge.to.kind === 'module' ? [[area, graph.modules.get(edge.to.path)!.area] as const] : []
+  return [...graph.modules.values()].flatMap(({ facts, area, kind }) =>
+    (isSourceOrConfig(kind) ? facts.edges : []).flatMap(edge =>
+      [...(edge.to.kind === 'module' ? [edge.to.path] : []), ...edge.via].map(
+        path => [area, graph.modules.get(path)!.area] as const
+      )
     )
   )
 }
