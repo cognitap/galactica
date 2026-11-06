@@ -6,19 +6,88 @@
  */
 
 import { isBuiltin } from 'node:module'
-import { dirname, isAbsolute, join, relative, sep } from 'node:path'
+import { dirname, extname, isAbsolute, join, relative, sep } from 'node:path'
 import ts from 'typescript'
 import type { Warning } from './compiler-settings.ts'
 import { compilerOptionsOf, type DiscoveredModule, type Discovery } from './discovery.ts'
 import { plainInputs, type Inputs } from './inputs.ts'
 import { toRepoPath, type RepoPath, type Target } from './model.ts'
-import { splitSpecifier, workspaceResolver, type WorkspaceResolver } from './package-resolution.ts'
+import {
+  packageImports,
+  sourceCandidates,
+  splitSpecifier,
+  workspaceResolver,
+  type WorkspaceResolver
+} from './package-resolution.ts'
 
 /** A repository file that is no module, such as a stylesheet or a declaration file. */
 export interface OtherFile {
   readonly kind: 'file'
   readonly path: RepoPath
 }
+
+/** File kinds with no code dependency in the map. Other unmodeled files stay unresolved. */
+const assetExtensions: ReadonlySet<string> = new Set([
+  '.json',
+  '.jsonc',
+  '.map',
+  '.webmanifest',
+  '.css',
+  '.scss',
+  '.sass',
+  '.less',
+  '.styl',
+  '.stylus',
+  '.svg',
+  '.png',
+  '.jpg',
+  '.jpeg',
+  '.gif',
+  '.webp',
+  '.avif',
+  '.ico',
+  '.bmp',
+  '.tif',
+  '.tiff',
+  '.woff',
+  '.woff2',
+  '.ttf',
+  '.otf',
+  '.eot',
+  '.mp3',
+  '.wav',
+  '.ogg',
+  '.flac',
+  '.aac',
+  '.m4a',
+  '.mp4',
+  '.webm',
+  '.mov',
+  '.wasm',
+  '.node',
+  '.html',
+  '.htm',
+  '.md',
+  '.txt',
+  '.yaml',
+  '.yml',
+  '.toml',
+  '.xml',
+  '.csv',
+  '.tsv',
+  '.graphql',
+  '.gql',
+  '.hbs',
+  '.mustache',
+  '.pdf',
+  '.glsl',
+  '.wgsl',
+  '.vert',
+  '.frag'
+])
+
+const knownFile = (path: string) =>
+  /\.d\.[cm]?ts$/i.test(path) || assetExtensions.has(extname(path).toLowerCase())
 
 /** An `OtherFile` gets no edge, since it is no code dependency and the model has no target for it. */
 export type Resolution = Target | OtherFile
@@ -96,10 +165,9 @@ function pathsMatch(
   return best && { targets: paths[best.key]!, star: best.star }
 }
 
-/** The package a bare specifier names. A relative path, a package import or a `paths` alias names none. */
-function packageNamed(specifier: string, options: ts.CompilerOptions): string | undefined {
+/** The npm package a bare specifier can name, including an alias whose targets do not exist. */
+function packageNamed(specifier: string): string | undefined {
   if (isRelative(specifier) || specifier.startsWith('#')) return undefined
-  if (options.paths && pathsMatch(options.paths, specifier)) return undefined
   return splitSpecifier(specifier)?.name
 }
 
@@ -115,6 +183,7 @@ export function importResolver(
   const { root } = discovery
   const modules: ReadonlySet<string> = new Set(discovery.modules.map(module => module.path))
   const workspace = workspaceResolver(discovery, inputs)
+  const importsOf = packageImports(root, inputs)
   const host = moduleResolutionHost(root, inputs)
   const caches = new Map<RepoPath | null, ts.ModuleResolutionCache>()
 
@@ -126,17 +195,42 @@ export function importResolver(
     return cache
   }
 
+  /** Canonical spellings are probed lazily, only when a path misses the discovered module list. */
+  const realPath = memoized(new Map<string, string | undefined>(), file => {
+    try {
+      return canonicalFileName(inputs.realpath(file))
+    } catch {
+      return undefined
+    }
+  })
+  let canonicalModules: ReadonlyMap<string, RepoPath> | undefined
+
   /**
    * The repository file at an absolute path that exists, as a module when it
    * is one. A file under `node_modules`, reached by a relative path such as
    * `../node_modules/pkg/Foo.astro`, belongs to its package.
    */
-  function inRepository(file: string): Resolution | undefined {
+  function inRepository(file: string, specifier: string): Resolution | undefined {
     if (!isInside(root, file)) return undefined
     const path = toRepoPath(root, file)
     const name = packageOfFile(`/${path}`)
     if (name) return { kind: 'external', name }
-    return modules.has(path) ? { kind: 'module', path } : { kind: 'file', path }
+    if (modules.has(path)) return { kind: 'module', path }
+    const actual = realPath(file)
+    const realRoot = realPath(root)
+    if (actual === undefined || realRoot === undefined || !isInside(realRoot, actual))
+      return undefined
+    if (canonicalModules === undefined) {
+      canonicalModules = new Map(
+        discovery.modules.flatMap(module => {
+          const key = realPath(join(root, module.path))
+          return key === undefined ? [] : [[key, module.path] as const]
+        })
+      )
+    }
+    const module = canonicalModules.get(actual)
+    if (module !== undefined) return { kind: 'module', path: module }
+    return knownFile(path) ? { kind: 'file', path } : { kind: 'unresolved', specifier }
   }
 
   /** Where the specifier names a file by its exact path, through a relative path, `paths` or `baseUrl`. */
@@ -158,12 +252,54 @@ export function importResolver(
   function unresolvedByTypeScript(
     module: DiscoveredModule,
     specifier: string,
-    options: ts.CompilerOptions
+    options: ts.CompilerOptions,
+    mode: ts.ResolutionMode
   ): Resolution {
+    const supportsImports = [
+      ts.ModuleResolutionKind.Bundler,
+      ts.ModuleResolutionKind.Node16,
+      ts.ModuleResolutionKind.NodeNext
+    ].includes(options.moduleResolution ?? ts.ModuleResolutionKind.Bundler)
+    if (
+      specifier.startsWith('#') &&
+      supportsImports &&
+      options.resolvePackageJsonImports !== false
+    ) {
+      const active = new Set([
+        'types',
+        'default',
+        mode === ts.ModuleKind.CommonJS ? 'require' : 'import',
+        ...(options.customConditions ?? [])
+      ])
+      if (
+        options.moduleResolution !== undefined &&
+        options.moduleResolution !== ts.ModuleResolutionKind.Bundler
+      )
+        active.add('node')
+      const extensionless =
+        options.moduleResolution === undefined ||
+        options.moduleResolution === ts.ModuleResolutionKind.Bundler ||
+        mode !== ts.ModuleKind.ESNext
+      for (const { dir, target } of importsOf(module.path, specifier, active)) {
+        if (!target.startsWith('./')) {
+          if (splitSpecifier(target) || isBuiltin(target)) {
+            const resolved = resolveWhole(module, target, mode)
+            if (resolved.kind !== 'unresolved') return resolved
+          }
+          continue
+        }
+        const absolute = join(root, dir, target)
+        if (!isInside(join(root, dir), absolute)) continue
+        const paths = extensionless ? sourceCandidates(absolute) : [absolute]
+        const file = paths.find(path => host.fileExists(path))
+        const resolved = file && inRepository(file, specifier)
+        if (resolved) return resolved
+      }
+    }
     const exact = exactFiles(module, specifier, options).find(file => host.fileExists(file))
-    const found = exact && inRepository(exact)
+    const found = exact && inRepository(exact, specifier)
     if (found) return found
-    const name = packageNamed(specifier, options)
+    const name = packageNamed(specifier)
     return name ? { kind: 'external', name } : { kind: 'unresolved', specifier }
   }
 
@@ -173,22 +309,32 @@ export function importResolver(
     options: ts.CompilerOptions,
     mode: ts.ResolutionMode
   ): Resolution {
-    const { resolvedModule } = ts.resolveModuleName(
-      specifier,
-      join(root, module.path),
-      options,
-      host,
-      cacheOf(module, options),
-      undefined,
-      mode
-    )
-    if (!resolvedModule) return unresolvedByTypeScript(module, specifier, options)
+    let resolvedModule: ts.ResolvedModuleFull | undefined
+    try {
+      const result = ts.resolveModuleName(
+        specifier,
+        join(root, module.path),
+        options,
+        host,
+        cacheOf(module, options),
+        undefined,
+        mode
+      )
+      resolvedModule = result.resolvedModule
+    } catch (error) {
+      // TypeScript recurses indefinitely on cyclic private-import redirects.
+      // The fallback follows the same mapping with a bounded depth.
+      if (!(error instanceof RangeError) || !specifier.startsWith('#')) throw error
+    }
+    if (!resolvedModule) return unresolvedByTypeScript(module, specifier, options, mode)
     const file = resolvedModule.resolvedFileName
     const external = resolvedModule.isExternalLibraryImport
-      ? (packageNamed(specifier, options) ?? packageOfFile(file))
+      ? ((options.paths && pathsMatch(options.paths, specifier)
+          ? undefined
+          : packageNamed(specifier)) ?? packageOfFile(file))
       : undefined
     if (external) return { kind: 'external', name: external }
-    return inRepository(file) ?? { kind: 'unresolved', specifier }
+    return inRepository(file, specifier) ?? { kind: 'unresolved', specifier }
   }
 
   /**
@@ -206,9 +352,14 @@ export function importResolver(
       options.paths !== undefined && pathsMatch(options.paths, specifier)
         ? byTypeScript(module, specifier, options, mode)
         : undefined
-    if (aliased?.kind === 'module') return aliased
+    if (aliased !== undefined && aliased.kind !== 'external') return aliased
     const member = workspace.resolve(specifier)
-    if (member) return member.kind === 'module' ? member : { kind: 'unresolved', specifier }
+    if (member) {
+      if (member.kind === 'module') return member
+      return member.kind === 'file'
+        ? (inRepository(join(root, member.path), specifier) ?? { kind: 'unresolved', specifier })
+        : { kind: 'unresolved', specifier }
+    }
     if (isBuiltin(specifier)) {
       return { kind: 'external', name: `node:${specifier.replace(/^node:/, '').split('/')[0]}` }
     }
