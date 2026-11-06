@@ -105,6 +105,11 @@ export interface Edge {
    * Absent when nothing is renamed.
    */
   readonly renames?: Readonly<Record<string, string>>
+  /**
+   * True when the compiled module does not make the import: it is written
+   * `import type`, or TypeScript leaves it out because no code reads its
+   * names as values.
+   */
   readonly typeOnly: boolean
   readonly dynamic: boolean
   /**

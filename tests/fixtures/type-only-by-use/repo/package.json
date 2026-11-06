@@ -1,0 +1,5 @@
+{
+  "name": "type-only-by-use",
+  "private": true,
+  "type": "module"
+}

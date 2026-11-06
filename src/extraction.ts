@@ -10,7 +10,7 @@ import { scriptBlocksOf, type FrameworkLanguage, type ScriptBlock } from './fram
 import { importsOf, type Import } from './imports.ts'
 import { compare, type RepoPath, type SymbolFacts } from './model.ts'
 import { symbolsOf } from './symbols.ts'
-import { isScriptLanguage } from './source-file.ts'
+import { isScriptLanguage, type ScriptLanguage } from './source-file.ts'
 import { parseScript } from './syntax.ts'
 
 export interface Extraction {
@@ -24,9 +24,13 @@ export const hashOf = (bytes: Uint8Array): string =>
   createHash('sha256').update(bytes).digest('hex')
 
 function withoutLoadTime(imported: Import): Import {
-  const { loadTime: _, ...rest } = imported
+  const { loadTime: _, metadataLoadTime: __, ...rest } = imported
   return rest
 }
+
+/** The languages TypeScript compiles, dropping the imports whose bindings no code reads as values. */
+const elides = (language: ScriptLanguage) =>
+  language === 'ts' || language === 'tsx' || language === 'mts' || language === 'cts'
 
 /** The default export every framework file has, named after the file. */
 function componentOf(path: RepoPath): SymbolFacts {
@@ -43,7 +47,8 @@ function blockExtraction(path: RepoPath, block: ScriptBlock, loads: boolean): Ex
   })
   // The file's default export is its component, whatever a block exports as default.
   const symbols = block.exports ? symbolsOf(source).filter(symbol => !symbol.default) : []
-  const imports = loads ? importsOf(source) : importsOf(source).map(withoutLoadTime)
+  // The markup can read a block's bindings, which the block's own syntax tree does not show.
+  const imports = loads ? importsOf(source, false) : importsOf(source, false).map(withoutLoadTime)
   return { symbols: symbols.map(shift), imports: imports.map(shift) }
 }
 
@@ -92,7 +97,7 @@ export function extract(
   try {
     if (!script) return frameworkExtraction(path, language, text, load)
     const source = parseScript(path, language, text)
-    return { symbols: symbolsOf(source), imports: importsOf(source) }
+    return { symbols: symbolsOf(source), imports: importsOf(source, elides(language)) }
   } catch (error) {
     return { symbols: script ? [] : [componentOf(path)], imports: [], failure: firstLineOf(error) }
   }

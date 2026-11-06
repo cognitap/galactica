@@ -6,6 +6,9 @@
  * cycle a name read at load time can come from a module still loading, which
  * is `undefined` in CommonJS and throws "Cannot access before initialization"
  * in ES modules. Read from the syntax tree alone, like the imports themselves.
+ *
+ * The same walk tells whether any code reads an import's bindings as values,
+ * which decides whether TypeScript keeps the import in its output.
  */
 
 import ts from 'typescript'
@@ -16,6 +19,8 @@ export interface Bound {
   readonly specifier: ts.Expression
   /** As the imported module exports it. */
   readonly taken: string
+  /** Written type-only, so emitDecoratorMetadata never reads it. */
+  readonly typeOnly?: boolean
 }
 
 export const isRequireCall = (node: ts.Node): node is ts.CallExpression =>
@@ -24,8 +29,24 @@ export const isRequireCall = (node: ts.Node): node is ts.CallExpression =>
   node.expression.text === 'require' &&
   node.arguments.length === 1
 
-/** The names among `names` that the import at `specifier` gives the module's load-time code. */
-export type LoadTime = (specifier: ts.Expression, names: readonly string[]) => readonly string[]
+/** How the module uses the bindings of one import. */
+export interface Use {
+  /** The import's names its load-time code reads. */
+  readonly loadTime: readonly string[]
+  /**
+   * What reads a binding as a value: `code`, or only the decorated signatures
+   * that emitDecoratorMetadata reads types from as the class is defined.
+   * Absent when only types use the bindings, or nothing does.
+   */
+  readonly value?: 'code' | 'metadata'
+  /** The import's names a decorated signature names in load-time code. */
+  readonly metadataLoadTime: readonly string[]
+}
+
+/** How the module uses the import at `specifier`, which takes `names`. */
+export type Uses = (specifier: ts.Expression, names: readonly string[]) => Use
+
+const unused: Use = { loadTime: [], metadataLoadTime: [] }
 
 /**
  * When code runs: while the module loads, or later. Later code inside a
@@ -140,6 +161,85 @@ function declaredIn(node: ts.Node, add: Add): void {
   }
 }
 
+function rootOf(name: ts.EntityName): ts.Identifier {
+  while (ts.isQualifiedName(name)) name = name.left
+  return name
+}
+
+/** The type metadata records for a rest parameter: its element type, if it names one. */
+function restElement(type: ts.TypeNode | undefined): ts.TypeNode | undefined {
+  if (type && ts.isArrayTypeNode(type)) return type.elementType
+  if (type && ts.isTypeReferenceNode(type) && type.typeArguments?.length === 1) {
+    return type.typeArguments[0]
+  }
+  return undefined
+}
+
+/**
+ * The types of a class's decorated signatures, which emitDecoratorMetadata
+ * records: a property's type, an accessor's, the parameters and return type of
+ * a method with a body, and the parameters of the constructor with a body when
+ * the class or one of them is decorated.
+ */
+function decoratedTypes(node: ts.ClassLikeDeclaration): readonly ts.TypeNode[] {
+  const decorated = (member: ts.Node) =>
+    ts.canHaveDecorators(member) && (ts.getDecorators(member)?.length ?? 0) > 0
+  const parameters = ({ parameters }: ts.SignatureDeclarationBase) =>
+    parameters.map(({ dotDotDotToken, type }) => (dotDotDotToken ? restElement(type) : type))
+  const types = node.members.flatMap(member => {
+    if (ts.isConstructorDeclaration(member)) {
+      const recorded = decorated(node) || member.parameters.some(decorated)
+      return recorded && member.body ? parameters(member) : []
+    }
+    if (ts.isMethodDeclaration(member)) {
+      return member.body && (decorated(member) || member.parameters.some(decorated))
+        ? [...parameters(member), member.type]
+        : []
+    }
+    if (!decorated(member)) return []
+    if (ts.isPropertyDeclaration(member) || ts.isGetAccessor(member)) return [member.type]
+    return ts.isSetAccessor(member) ? parameters(member) : []
+  })
+  return types.filter(type => type !== undefined)
+}
+
+/**
+ * The name whose value the metadata of `type` reads, found as TypeScript's
+ * checker finds it: a type reference, or the one name every member of a union,
+ * intersection or conditional type refers to. `null` and `undefined` members
+ * count for nothing, as without `strictNullChecks`, which keeps more imports.
+ */
+function metadataName(type: ts.TypeNode): string | undefined {
+  while (ts.isParenthesizedTypeNode(type) || ts.isNamedTupleMember(type)) type = type.type
+  if (ts.isTypeReferenceNode(type)) return rootOf(type.typeName).text
+  const members =
+    ts.isUnionTypeNode(type) || ts.isIntersectionTypeNode(type)
+      ? type.types
+      : ts.isConditionalTypeNode(type)
+        ? [type.trueType, type.falseType]
+        : undefined
+  if (members === undefined) return undefined
+  const names = new Set<string | undefined>()
+  for (const member of members) {
+    let inner = member
+    while (ts.isParenthesizedTypeNode(inner) || ts.isNamedTupleMember(inner)) inner = inner.type
+    const kind = inner.kind
+    const nothing =
+      kind === ts.SyntaxKind.NeverKeyword ||
+      kind === ts.SyntaxKind.UndefinedKeyword ||
+      (ts.isLiteralTypeNode(inner) && inner.literal.kind === ts.SyntaxKind.NullKeyword)
+    if (!nothing) names.add(metadataName(inner))
+  }
+  const [name] = names
+  return names.size === 1 ? name : undefined
+}
+
+/** The JSX factories a module's JSX may call: `React`, and any a `@jsx` or `@jsxFrag` pragma names. */
+const jsxFactoriesOf = (source: ts.SourceFile) => [
+  'React',
+  ...Array.from(source.text.matchAll(/@jsx(?:Frag)?\s+([A-Za-z_$][\w$]*)/g), match => match[1]!)
+]
+
 /** Whether an identifier reads a binding, rather than naming a property, a declaration or a label. */
 function isReference(id: ts.Identifier): boolean {
   const parent = id.parent
@@ -200,9 +300,9 @@ function ownerOf(node: Body): string | undefined {
   return undefined
 }
 
-export function loadTimeOf(source: ts.SourceFile, imports: ReadonlyMap<string, Bound>): LoadTime {
+export function usesOf(source: ts.SourceFile, imports: ReadonlyMap<string, Bound>): Uses {
   const requires = source.text.includes('require')
-  if (imports.size === 0 && !requires) return () => []
+  if (imports.size === 0 && !requires) return () => unused
   const required = requires ? requireBindings(source) : new Map<string, Bound & { call: ts.Node }>()
   const bindings = new Map<string, Bound>([...imports, ...required])
   const boundCalls = new Set([...required.values()].map(({ call }) => call))
@@ -214,6 +314,12 @@ export function loadTimeOf(source: ts.SourceFile, imports: ReadonlyMap<string, B
   const started = new Set<string>()
   const readBy = new Map<string, Set<string>>()
   const calledBy = new Map<string, Set<string>>()
+  /** Bindings any code reads as values, and those only a decorated signature names. */
+  const values = new Set<string>()
+  const metadata = new Set<string>()
+  const metadataRead = new Set<string>()
+  const metadataBy = new Map<string, Set<string>>()
+  let jsx = false
 
   let runs = LOAD
   /**
@@ -263,6 +369,40 @@ export function loadTimeOf(source: ts.SourceFile, imports: ReadonlyMap<string, B
     const inner: Runs = { at: 'later', owner: ownerOf(node) }
     split(node, inner, child => !ts.isDecorator(child) && child !== node.name)
   }
+  const decorated = (node: ts.ClassLikeDeclaration) => {
+    for (const type of decoratedTypes(node)) {
+      const name = metadataName(type)
+      if (name === undefined) continue
+      const bound = bindings.get(name)
+      if (bound === undefined || bound.typeOnly || isHidden(name)) continue
+      metadata.add(name)
+      note(name, metadataRead, metadataBy)
+    }
+  }
+  const exported = ({ moduleSpecifier, isTypeOnly, exportClause }: ts.ExportDeclaration) => {
+    if (moduleSpecifier || isTypeOnly || !exportClause || !ts.isNamedExports(exportClause)) return
+    for (const element of exportClause.elements) {
+      if (!element.isTypeOnly) values.add((element.propertyName ?? element.name).text)
+    }
+  }
+  /**
+   * A computed property name in a type, as in `{ [Kind.A]: string }`, reads
+   * no value at run time, but keeps its import in TypeScript's output.
+   */
+  const computedNames = (type: ts.Node) => {
+    const inner: ts.Node[] = [type]
+    const expressions: ts.Node[] = []
+    for (let next = inner.pop(); next !== undefined; next = inner.pop()) {
+      if (ts.isComputedPropertyName(next)) expressions.push(next.expression)
+      else pushChildren(inner, next, child => child)
+    }
+    for (let next = expressions.pop(); next !== undefined; next = expressions.pop()) {
+      if (!ts.isIdentifier(next)) pushChildren(expressions, next, child => child)
+      else if (bindings.has(next.text) && isReference(next) && !isHidden(next.text)) {
+        values.add(next.text)
+      }
+    }
+  }
   const inScope = (node: ts.Node, enter: () => void) => {
     hidden = undefined
     declaredIn(node, hide)
@@ -280,6 +420,7 @@ export function loadTimeOf(source: ts.SourceFile, imports: ReadonlyMap<string, B
       case Kind.Identifier: {
         const name = (node as ts.Identifier).text
         if (bindings.has(name) && isReference(node as ts.Identifier) && !isHidden(name)) {
+          values.add(name)
           note(name, read, readBy)
         }
         return
@@ -288,18 +429,35 @@ export function loadTimeOf(source: ts.SourceFile, imports: ReadonlyMap<string, B
         return visit((node as ts.ExpressionWithTypeArguments).expression)
       case Kind.InterfaceDeclaration:
       case Kind.TypeAliasDeclaration:
+        return computedNames(node)
       case Kind.ImportDeclaration:
-      case Kind.ImportEqualsDeclaration:
-      case Kind.ExportDeclaration:
         return
+      case Kind.ImportEqualsDeclaration: {
+        // `import X = ns.Y` keeps `ns` when X is read as a value, which this walk does not follow.
+        const { moduleReference, isTypeOnly } = node as ts.ImportEqualsDeclaration
+        if (!isTypeOnly && !ts.isExternalModuleReference(moduleReference)) {
+          values.add(rootOf(moduleReference).text)
+        }
+        return
+      }
+      case Kind.ExportDeclaration:
+        return exported(node as ts.ExportDeclaration)
+      case Kind.JsxOpeningElement:
+      case Kind.JsxSelfClosingElement:
+      case Kind.JsxOpeningFragment:
+        jsx = true
+        break
       case Kind.HeritageClause:
         if ((node as ts.HeritageClause).token === Kind.ImplementsKeyword) return
         break
       case Kind.VariableStatement:
       case Kind.ModuleDeclaration:
       case Kind.EnumDeclaration:
+        if (hasModifier(node, Kind.DeclareKeyword)) return
+        break
       case Kind.ClassDeclaration:
         if (hasModifier(node, Kind.DeclareKeyword)) return
+        decorated(node as ts.ClassDeclaration)
         break
       case Kind.CallExpression:
       case Kind.NewExpression:
@@ -323,8 +481,12 @@ export function loadTimeOf(source: ts.SourceFile, imports: ReadonlyMap<string, B
       case Kind.ForInStatement:
       case Kind.ForOfStatement:
       case Kind.CatchClause:
-      case Kind.ClassExpression:
         return inScope(node, () => visitChildren(node))
+      case Kind.ClassExpression:
+        return inScope(node, () => {
+          decorated(node as ts.ClassExpression)
+          visitChildren(node)
+        })
       case Kind.PropertyDeclaration: {
         const property = node as ts.PropertyDeclaration
         if (runs.at === 'later' || hasModifier(property, Kind.StaticKeyword)) break
@@ -332,7 +494,9 @@ export function loadTimeOf(source: ts.SourceFile, imports: ReadonlyMap<string, B
         return split(property, inner, child => child === property.initializer)
       }
       default:
-        if (node.kind >= Kind.FirstTypeNode && node.kind <= Kind.LastTypeNode) return
+        if (node.kind >= Kind.FirstTypeNode && node.kind <= Kind.LastTypeNode) {
+          return computedNames(node)
+        }
     }
     visitChildren(node)
   }
@@ -345,6 +509,7 @@ export function loadTimeOf(source: ts.SourceFile, imports: ReadonlyMap<string, B
   const queue = [...started]
   for (let owner = queue.pop(); owner !== undefined; owner = queue.pop()) {
     for (const name of readBy.get(owner) ?? []) read.add(name)
+    for (const name of metadataBy.get(owner) ?? []) metadataRead.add(name)
     for (const callee of calledBy.get(owner) ?? []) {
       if (started.has(callee)) continue
       started.add(callee)
@@ -352,11 +517,30 @@ export function loadTimeOf(source: ts.SourceFile, imports: ReadonlyMap<string, B
     }
   }
 
-  const taken = new Map<ts.Expression, Set<string>>()
-  for (const name of read) {
-    const { specifier, taken: exported } = bindings.get(name)!
-    taken.set(specifier, (taken.get(specifier) ?? new Set()).add(exported))
+  if (jsx) for (const name of jsxFactoriesOf(source)) values.add(name)
+
+  const takenBy = (locals: ReadonlySet<string>) => {
+    const taken = new Map<ts.Expression, Set<string>>()
+    for (const name of locals) {
+      const { specifier, taken: exported } = bindings.get(name)!
+      taken.set(specifier, (taken.get(specifier) ?? new Set()).add(exported))
+    }
+    return (specifier: ts.Expression, names: readonly string[]) =>
+      names.filter(name => taken.get(specifier)?.has(name))
   }
-  return (specifier, names) =>
-    wholeCalls.has(specifier) ? names : names.filter(name => taken.get(specifier)?.has(name))
+  const loadTime = takenBy(read)
+  const metadataLoadTime = takenBy(metadataRead)
+  const valueOf = new Map<ts.Expression, Use['value']>()
+  for (const [name, { specifier }] of bindings) {
+    if (values.has(name)) valueOf.set(specifier, 'code')
+    else if (metadata.has(name)) valueOf.set(specifier, valueOf.get(specifier) ?? 'metadata')
+  }
+  return (specifier, names) => {
+    const value = valueOf.get(specifier)
+    return {
+      loadTime: wholeCalls.has(specifier) ? names : loadTime(specifier, names),
+      ...(value === undefined ? {} : { value }),
+      metadataLoadTime: metadataLoadTime(specifier, names)
+    }
+  }
 }
