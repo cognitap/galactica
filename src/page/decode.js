@@ -31,8 +31,7 @@ export function decodePage(wire) {
   const packages = (data.packages ?? []).map(pkg => ({
     ...pkg,
     rows: pkg.rows ?? [],
-    areaCycles: pkg.areaCycles ?? [],
-    moduleCycles: pkg.moduleCycles ?? []
+    areaCycles: pkg.areaCycles ?? []
   }))
   const areas = (data.areas ?? []).map(area => ({
     ...area,
@@ -55,7 +54,6 @@ export function decodePage(wire) {
   }))
   return {
     ...data,
-    folders: data.folders ?? [],
     packages,
     areas,
     modules,

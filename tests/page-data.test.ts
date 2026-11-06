@@ -67,15 +67,14 @@ test('packages come highest layer first, each with its areas in rows from the hi
   )
 })
 
-test('an area is labelled relative to its package and coloured by its top-level folder there', () => {
-  assert.deepEqual(monorepo.folders, ['src', 'scripts'])
+test('an area is labelled relative to its package', () => {
   assert.deepEqual(
-    monorepo.areas.map(area => [area.label, monorepo.folders[area.folder], area.layer]),
+    monorepo.areas.map(area => [area.label, area.layer]),
     [
-      ['scripts', 'scripts', 0],
-      ['src', 'src', 1],
-      ['src/ui', 'src', 0],
-      ['src', 'src', 0]
+      ['scripts', 0],
+      ['src', 1],
+      ['src/ui', 0],
+      ['src', 0]
     ]
   )
   const core = monorepo.areas.find(area => area.path === 'packages/core/src')!
@@ -153,7 +152,7 @@ test('area cycles carry their closing imports, and module cycles are listed', ()
     ]
   )
   assert.deepEqual(
-    acme!.moduleCycles.map(cycle => modulePaths(page, cycle)),
+    page.health.cycles.map(cycle => modulePaths(page, cycle.modules)),
     [['src/orders/order.ts', 'src/users/user.ts']]
   )
   assert.deepEqual(
@@ -382,7 +381,6 @@ test('HTML wire data omits labels, false defaults and empty collections, then re
     for (const pkg of wire.packages ?? []) {
       assert.notDeepEqual(pkg.rows, [])
       assert.notDeepEqual(pkg.areaCycles, [])
-      assert.notDeepEqual(pkg.moduleCycles, [])
     }
     for (const value of Object.values(wire.health)) assert.notDeepEqual(value, [])
     assert.deepEqual(decodePage(wire), expected)

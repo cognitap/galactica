@@ -50,7 +50,7 @@ export function healthSection(data, go) {
     const heading = element('h3', '', title)
     heading.append(' ', element('span', 'health-count', formatted(count)))
     group.append(heading)
-    if (note !== undefined) group.append(element('p', 'health-note', note))
+    if (note !== undefined && count > 0) group.append(element('p', 'health-note', note))
     if (items.length === 0) {
       group.append(element('p', 'health-none', 'None'))
     } else {
@@ -64,6 +64,30 @@ export function healthSection(data, go) {
   /** @param {readonly string[]} names */
   const namesText = names => (names.length === 0 ? 'side effect only' : names.join(', '))
 
+  const areaCycles = data.packages.flatMap(pkg => pkg.areaCycles)
+
+  /** @param {PageData['packages'][number]['areaCycles'][number]} cycle */
+  function areaCycleItem(cycle) {
+    const item = element('li')
+    const details = element('details')
+    const names = cycle.areas.map(index => data.areas[index].path)
+    details.append(element('summary', '', names.join(', ')))
+    const edges = element('ul', 'findings')
+    for (const { from, to, line } of cycle.edges) {
+      edges.append(
+        findingItem(
+          data.modules[from].path,
+          () => go({ kind: 'module', module: from }),
+          [`imports ${data.modules[to].path}`],
+          { path: data.modules[from].path, line }
+        )
+      )
+    }
+    details.append(edges)
+    item.append(details)
+    return item
+  }
+
   /**
    * The findings of `health`, grouped by kind.
    */
@@ -74,14 +98,12 @@ export function healthSection(data, go) {
     const cycles = health.cycles.map(cycle => {
       const item = element('li', 'health-cycle')
       const members = cycle.modules.map(index => data.modules[index].path)
-      const shown = members.slice(0, 3).join(', ')
-      const more = members.length > 3 ? ` and ${members.length - 3} more` : ''
       const use = cycle.loadTime ? 'used at load time' : 'used later'
       item.append(
         element(
           'p',
           'health-cycle-modules',
-          `${plural(members.length, 'module')}, ${use}: ${shown}${more}`
+          `${plural(members.length, 'module')}, ${use}: ${members.join(', ')}`
         )
       )
       const breaks = element('ul', 'findings')
@@ -128,14 +150,24 @@ export function healthSection(data, go) {
         : `More than ${plural(health.areaModules, 'source module')}, by health.areaModules.`
     return [
       findingGroup(
-        'Import cycles',
+        'Module import cycles',
         cycles.length,
-        'Each import to break points back up the cycle’s dependency order.',
+        'These modules reach each other through imports. The listed imports can be changed to break the cycle.',
         cycles
       ),
+      ...(areaCycles.length
+        ? [
+            findingGroup(
+              'Area cycles',
+              areaCycles.length,
+              'These folders depend on one another and share a layer. Expand a group to see the imports between them.',
+              areaCycles.map(areaCycleItem)
+            )
+          ]
+        : []),
       findingGroup('Oversized areas', oversized.length, rule, oversized),
       findingGroup(
-        'Imports into another package',
+        'Cross-package private imports',
         internal.length,
         'A relative path into another package, or a subpath its exports do not list. Tests and stories are left out.',
         internal
@@ -146,17 +178,13 @@ export function healthSection(data, go) {
   const { health } = data
   const toggle = byId('health-toggle')
   const body = byId('health-body')
-  toggle.append(
-    element(
-      'span',
-      'health-counts',
-      [
-        plural(health.cycles.length, 'import cycle'),
-        plural(health.oversized.length, 'oversized area'),
-        plural(health.internal.length, 'internal import')
-      ].join(' · ')
-    )
-  )
+  const counts = [
+    health.cycles.length && plural(health.cycles.length, 'module cycle'),
+    areaCycles.length && plural(areaCycles.length, 'area cycle'),
+    health.oversized.length && plural(health.oversized.length, 'oversized area'),
+    health.internal.length && plural(health.internal.length, 'cross-package private import')
+  ].filter(Boolean)
+  toggle.append(element('span', 'section-counts', counts.join(' · ') || 'No findings'))
   toggle.addEventListener('click', () => {
     const open = toggle.getAttribute('aria-expanded') !== 'true'
     if (open && body.childElementCount === 0) body.append(...healthGroups())

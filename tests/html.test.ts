@@ -32,9 +32,11 @@ test('the page is byte-identical for the same repository', () => {
   assert.equal(htmlOf(graphOf(modelOf(reordered), emptyConfig)), html)
 })
 
+const credit = '<a href="https://github.com/cognitap/galactica">Galactica</a>'
+
 test('the page loads nothing from the network', () => {
   const remote = /\b(?:src|href)\s*=\s*["']?\s*(?:[a-z][\w+.-]*:)?\/\//i
-  assert.doesNotMatch(html, remote)
+  assert.doesNotMatch(html.replace(credit, ''), remote)
   assert.doesNotMatch(html, /<link\b/i)
   assert.doesNotMatch(html, /@import|url\(/i)
   assert.doesNotMatch(html, /<script\b[^>]*\bsrc=/i)
@@ -79,12 +81,13 @@ const source: PageSource = {
   uncommitted: true
 }
 
-test('links come only from the embedded source, never from static markup', () => {
+test('the generator credit is the only static link and source links come from the embedded data', () => {
   const linked = htmlOf(graph, source)
   const block = /<script\s+type="application\/json"\s+id="galactica-data"\s*>([^]*?)<\/script>/
   assert.deepEqual(JSON.parse(linked.match(block)![1]!).source, source)
   const markup = linked.replace(block, '').replace(/<script\b[^>]*>[^]*?<\/script>/g, '')
-  assert.doesNotMatch(markup, /https?:|<a\b|\bhref\b/i)
-  assert.doesNotMatch(html, /github\.com/)
+  assert.ok(markup.includes(credit))
+  assert.doesNotMatch(markup.replace(credit, ''), /https?:|<a\b|\bhref\b/i)
+  assert.doesNotMatch(html.replace(credit, ''), /github\.com/)
   assert.equal(JSON.parse(html.match(block)![1]!).source, null)
 })

@@ -1,5 +1,5 @@
 import { indexesOf, subjectOf } from './indexes.js'
-import { byId, element, plural, formatted, kindCount, KINDS } from './dom.js'
+import { byId, element, plural, kindCount, KINDS } from './dom.js'
 import { areaLinks } from './area-links.js'
 
 /** @typedef {import('../page-data.ts').PageData} PageData */
@@ -15,8 +15,8 @@ import { areaLinks } from './area-links.js'
  */
 export function selectionView(data, view) {
   const RELATIONS = /** @type {const} */ ({
-    uses: { one: 'dependency', many: 'dependencies', short: 'dep', shorts: 'deps' },
-    'used-by': { one: 'dependent', many: 'dependents', short: 'dependent', shorts: 'dependents' }
+    uses: { one: 'dependency', many: 'dependencies' },
+    'used-by': { one: 'dependent', many: 'dependents' }
   })
 
   /**
@@ -26,10 +26,9 @@ export function selectionView(data, view) {
   function summaryOf(selection, shown) {
     const subject = subjectOf(data, selection)
     const parts = [
-      element('span', 'selection-kind', selection.kind),
-      element('code', 'selection-path', subject.path),
-      element('span', 'count-uses', `uses ${formatted(subject.uses.length)}`),
-      element('span', 'count-used-by', `used by ${formatted(subject.usedBy.length)}`)
+      ...(selection.kind === 'module' ? [element('code', 'selection-path', subject.path)] : []),
+      element('span', 'count-uses', plural(subject.uses.length, 'dependency', 'dependencies')),
+      element('span', 'count-used-by', plural(subject.usedBy.length, 'dependent'))
     ]
     if (shown.has('test')) {
       parts.push(element('span', 'count-used-by', plural(subject.usedByTests.length, 'test')))
@@ -144,24 +143,14 @@ export function selectionView(data, view) {
           box,
           relations.map(relation => `is-${relation}`)
         )
-        // Area boxes are narrow, so their tag counts in short words that keep to one line each.
         label(
           tag,
           relations
             .map(relation =>
-              plural(
-                counts[relation],
-                RELATIONS[relation].short,
-                RELATIONS[relation].shorts
-              ).replace(' ', '\u00a0')
+              plural(counts[relation], RELATIONS[relation].one, RELATIONS[relation].many)
             )
             .join(' · ')
         )
-        tag.title = relations
-          .map(relation =>
-            plural(counts[relation], RELATIONS[relation].one, RELATIONS[relation].many)
-          )
-          .join(' · ')
       }
       const area = selection.kind === 'area' ? selection.index : data.modules[selection.index].area
       links.show(areaViews[area].box, linked)
@@ -174,20 +163,19 @@ export function selectionView(data, view) {
         const view = drawnRows.get(selection.index)
         if (view === undefined) return
         add(view.item, ['is-selected'])
+        view.details()
         press(view.select)
       }
     }
   }
 
   const light = highlighter(view.areas, view.modules)
-  const bar = byId('selection')
   /**
    * @param {Selection | undefined} selection
    * @param {ReadonlySet<ModuleKind>} shown
    */
   return (selection, shown) => {
     light(selection, shown)
-    bar.hidden = selection === undefined
     if (selection !== undefined)
       byId('selection-summary').replaceChildren(...summaryOf(selection, shown))
   }

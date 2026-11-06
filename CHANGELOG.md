@@ -4,6 +4,14 @@
 
 ## Unreleased
 
+## 0.2.1
+
+- Browse wider dependency layers horizontally and select an area anywhere on its card.
+- Inspect module kinds, dependencies and dependents in the detail panel. Hover over a connector to trace a dependency.
+- Inspect area cycles and module cycles together under Repository health.
+- Navigate search results with the pointer or keyboard and reopen matches when returning to a query.
+- Press Escape to close the map guide before clearing the selection.
+
 ## 0.2.0
 
 - The HTML map shows each layer as a column of compact area boxes, with the lowest layer on the left. Narrow screens stack layers as rows, with the highest on top.

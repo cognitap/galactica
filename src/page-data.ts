@@ -59,8 +59,6 @@ export interface PageArea extends PageRelations {
   readonly label: string
   readonly package: number
   readonly layer: number
-  /** Index into `PageData.folders`, which decides the box's colour. */
-  readonly folder: number
   readonly kinds: Readonly<Record<ModuleKind, number>>
   readonly modules: readonly number[]
   readonly cycle: boolean
@@ -78,8 +76,6 @@ export interface PagePackage {
   /** Area indexes by layer, the highest layer first. */
   readonly rows: readonly (readonly number[])[]
   readonly areaCycles: readonly PageCycle[]
-  /** Module cycles whose first module lies in this package. */
-  readonly moduleCycles: readonly (readonly number[])[]
 }
 
 /** What `health` lists, with modules and areas by index. */
@@ -111,8 +107,6 @@ export interface PageHealth {
 
 export interface PageData {
   readonly repository: string
-  /** Top-level folders within their packages, the most common first, then by name. */
-  readonly folders: readonly string[]
   /** Highest package layer first, so each package depends only on those after it. */
   readonly packages: readonly PagePackage[]
   readonly areas: readonly PageArea[]
@@ -140,15 +134,11 @@ export type PageWireModule = Omit<PageModule, 'label' | 'symbols' | keyof PageRe
 export type PageWireArea = Omit<PageArea, 'label' | 'modules' | keyof PageRelations> &
   Partial<PageRelations> & { readonly modules?: readonly number[] }
 
-export type PageWirePackage = Omit<PagePackage, 'rows' | 'areaCycles' | 'moduleCycles'> &
-  Partial<Pick<PagePackage, 'rows' | 'areaCycles' | 'moduleCycles'>>
+export type PageWirePackage = Omit<PagePackage, 'rows' | 'areaCycles'> &
+  Partial<Pick<PagePackage, 'rows' | 'areaCycles'>>
 
-export type PageWireData = Omit<
-  PageData,
-  'folders' | 'packages' | 'areas' | 'modules' | 'health'
-> & {
+export type PageWireData = Omit<PageData, 'packages' | 'areas' | 'modules' | 'health'> & {
   readonly symbolKinds?: readonly SymbolKind[]
-  readonly folders?: PageData['folders']
   readonly packages?: readonly PageWirePackage[]
   readonly areas?: readonly PageWireArea[]
   readonly modules?: readonly PageWireModule[]
@@ -184,13 +174,11 @@ export function wireDataOf(data: PageData): PageWireData {
   return {
     ...data,
     symbolKinds: data.modules.some(module => module.symbols.length > 0) ? symbolKinds : undefined,
-    folders: nonempty(data.folders),
     packages: nonempty(
       data.packages.map(pkg => ({
         ...pkg,
         rows: nonempty(pkg.rows),
-        areaCycles: nonempty(pkg.areaCycles),
-        moduleCycles: nonempty(pkg.moduleCycles)
+        areaCycles: nonempty(pkg.areaCycles)
       }))
     ),
     areas: nonempty(
@@ -222,8 +210,6 @@ function relativeTo(dir: string, path: string): string {
   return path.startsWith(`${dir}/`) ? path.slice(dir.length + 1) : path
 }
 
-const topFolder = (label: string): string => label.split('/')[0]!
-
 function indexOf<T>(values: readonly T[]): ReadonlyMap<T, number> {
   return new Map(values.map((value, index) => [value, index]))
 }
@@ -252,14 +238,6 @@ function areaLinks(graph: Graph): readonly (readonly [AreaPath, AreaPath])[] {
       )
     )
   )
-}
-
-function foldersOf(labels: readonly string[]): readonly string[] {
-  const counts = new Map<string, number>()
-  for (const folder of labels.map(topFolder)) counts.set(folder, (counts.get(folder) ?? 0) + 1)
-  return [...counts]
-    .sort(([a, countA], [b, countB]) => countB - countA || compare(a, b))
-    .map(([folder]) => folder)
 }
 
 /** Tests reachable through ordinary imports, shared by every member of a strongly connected component. */
@@ -401,23 +379,15 @@ export function pageData(
   const testsOf = testReachOf(graph, moduleIndex)
   const inCycle = new Set<AreaPath>(graph.areaCycles.flatMap(cycle => cycle.areas))
 
-  const labels = areaPaths.map(path => {
-    const area = graph.areas.get(path)!
-    return relativeTo(graph.packages.get(area.package)!.dir, path)
-  })
-  const folders = foldersOf(labels)
-  const folderIndex = indexOf(folders)
-
-  const areas = areaPaths.map((path, index): PageArea => {
+  const areas = areaPaths.map((path): PageArea => {
     const area = graph.areas.get(path)!
     const kinds = { source: 0, test: 0, story: 0, config: 0 }
     for (const module of area.modules) kinds[graph.modules.get(module)!.kind] += 1
     return {
       path,
-      label: labels[index]!,
+      label: relativeTo(graph.packages.get(area.package)!.dir, path),
       package: packageIndex.get(area.package)!,
       layer: area.layer,
-      folder: folderIndex.get(topFolder(labels[index]!))!,
       kinds,
       modules: area.modules.map(module => moduleIndex.get(module)!),
       cycle: inCycle.has(path),
@@ -460,15 +430,11 @@ export function pageData(
           line
         }))
       }))
-    const moduleCycles = graph.cycles
-      .filter(cycle => graph.modules.get(cycle[0]!)!.package === name)
-      .map(cycle => cycle.map(path => moduleIndex.get(path)!))
-    return { name, dir, layer, rows, areaCycles, moduleCycles }
+    return { name, dir, layer, rows, areaCycles }
   })
 
   return {
     repository: graph.repository.name,
-    folders,
     packages,
     areas,
     modules,

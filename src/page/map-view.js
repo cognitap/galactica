@@ -8,7 +8,7 @@ import { compareText } from './search.js'
 /** @typedef {import('../page-data.ts').PageModule} PageModule */
 /** @typedef {import('../page-data.ts').PagePackage} PagePackage */
 /** @typedef {import('./indexes.js').Selection} Selection */
-/** @typedef {{ readonly index: number, readonly item: HTMLElement, readonly select: HTMLElement, readonly tag: HTMLElement, readonly symbolAt: ((position: number) => HTMLElement) | undefined }} ModuleView */
+/** @typedef {{ readonly index: number, readonly item: HTMLElement, readonly select: HTMLElement, readonly tag: HTMLElement, readonly details: () => HTMLElement }} ModuleView */
 /** @typedef {ReturnType<typeof mapView>} MapView */
 
 /**
@@ -16,9 +16,6 @@ import { compareText } from './search.js'
  * @param {(selection: Selection) => void} onSelection
  */
 export function mapView(data, onSelection) {
-  const PALETTE = 8
-  /** @param {number} folder */
-  const folderKey = folder => (folder < PALETTE ? String(folder) : 'other')
   /**
    * The last segment of an area path, the name its node shows, with break
    * opportunities between words so a long name wraps instead of overflowing.
@@ -101,59 +98,48 @@ export function mapView(data, onSelection) {
 
   /**
    * @param {PageModule} module
-   * @param {string} usualKind the kind most modules of its area have, which needs no tag
    */
-  function moduleItem(module, usualKind) {
+  function moduleItem(module) {
     const item = element('li', 'module')
+    item.dataset.kind = module.kind
     const select = selectButton('module-select', `Select ${module.path}`)
-    const tag = relationTag()
     const name = element('span', 'module-name')
     name.append(...breakable(module.label))
-    linked(data.source, name, module.path, undefined, `Open ${module.path} in the repository`)
-    const head = [name, tag]
-    if (module.kind !== usualKind) head.push(element('span', 'kind-tag', module.kind))
-    head.push(arrows(module.importers, module.imports))
-    if (module.symbols.length === 0) {
-      const row = element('div', 'module-row')
-      row.title = `${module.path}, no exported symbols`
-      row.append(...head)
-      item.append(row, select)
-      return { item, select, tag, symbolAt: undefined }
+    const tag = relationTag()
+    select.append(name, tag, arrows(module.importers, module.imports))
+    item.append(select)
+
+    /** @type {HTMLElement | undefined} */
+    let body
+    const details = () => {
+      if (body !== undefined) return body
+      body = element('div', 'module-details')
+      const meta = element('div', 'module-meta')
+      meta.append(element('span', 'kind-tag', module.kind))
+      if (data.source !== null) {
+        meta.append(
+          linked(
+            data.source,
+            element('span', '', 'Open source ↗'),
+            module.path,
+            undefined,
+            `Open source for ${module.path} in the repository`
+          )
+        )
+      }
+      body.append(meta)
+      if (module.symbols.length > 0) {
+        const symbols = element('ul', 'symbols')
+        symbols.append(...module.symbols.map(symbol => symbolItem(module, symbol)))
+        body.append(symbols)
+      }
+      item.append(body)
+      return body
     }
-    const details = /** @type {HTMLDetailsElement} */ (element('details'))
-    const summary = element('summary')
-    summary.title = `${module.path}, ${plural(module.symbols.length, 'exported symbol')}`
-    summary.append(...head)
-    details.append(summary)
-    /** @type {HTMLElement[] | undefined} */
-    let entries
-    const listSymbols = () => {
-      if (entries !== undefined) return entries
-      entries = module.symbols.map(symbol => symbolItem(module, symbol))
-      const symbols = element('ul', 'symbols')
-      symbols.append(...entries)
-      details.append(symbols)
-      return entries
-    }
-    summary.addEventListener('click', listSymbols)
-    details.addEventListener('toggle', listSymbols)
-    /** @param {number} position */
-    const symbolAt = position => {
-      const entry = listSymbols()[position]
-      details.open = true
-      return entry
-    }
-    item.append(details, select)
-    return { item, select, tag, symbolAt }
+    return { item, select, tag, details }
   }
 
   /** @typedef {ReturnType<typeof areaBox>} AreaView */
-
-  /** @param {PageArea['kinds']} kinds */
-  const usualKindOf = kinds =>
-    /** @type {(keyof PageArea['kinds'])[]} */ (Object.keys(kinds)).reduce((usual, kind) =>
-      kinds[kind] > kinds[usual] ? kind : usual
-    )
 
   /**
    * The modules of `area` that are of a kind in `kinds`, with their exported symbols.
@@ -170,25 +156,37 @@ export function mapView(data, onSelection) {
   function areaBox(index) {
     const area = data.areas[index]
     const box = element('article', 'area')
-    box.dataset.folder = folderKey(area.folder)
-    const head = element('header', 'area-head')
-    const title = element('h3')
+    box.dataset.path = area.path
+    const title = element('span', 'area-title')
     const select = selectButton('area-select', `Select ${area.path}`)
     select.setAttribute('aria-controls', 'detail')
-    select.append(...nodeName(area.label))
-    title.append(select)
+    title.append(...nodeName(area.label))
     const tag = relationTag()
     const count = element('span')
-    const meta = element('p', 'area-meta')
+    count.id = `area-kinds-${index}`
+    select.setAttribute('aria-describedby', count.id)
+    const meta = element('span', 'area-meta')
     meta.append(count)
     if (area.cycle) meta.append(element('span', 'cycle-mark', 'cycle'))
-    head.append(title, tag, meta)
-    box.append(head)
+    select.append(title, meta, tag)
+    box.append(select)
 
     /** @param {ReadonlySet<ModuleKind>} kinds */
     const filter = kinds => {
       const { modules, exported } = listedIn(area, kinds)
-      count.textContent = plural(modules.length, 'module')
+      const visibleKinds = /** @type {ModuleKind[]} */ (Object.keys(KINDS)).filter(
+        kind => kinds.has(kind) && area.kinds[kind] > 0
+      )
+      count.replaceChildren(
+        ...visibleKinds.flatMap((kind, position) => {
+          const total = area.kinds[kind]
+          const text =
+            kind === 'source' || kind === 'config' ? plural(total, kind) : kindCount(total, kind)
+          const label = element('span', 'kind-tag', text)
+          label.dataset.kind = kind
+          return position === 0 ? [label] : [' · ', label]
+        })
+      )
       box.hidden = modules.length === 0
       return { shown: modules.length, exported }
     }
@@ -203,23 +201,16 @@ export function mapView(data, onSelection) {
    */
   function detailPanel(onRowDrawn) {
     const panel = byId('detail')
-    const heading = element('h2', 'detail-title')
-    heading.id = 'detail-heading'
-    heading.tabIndex = -1
-    const meta = element('p', 'area-meta')
-    const list = element('ul', 'modules')
-    const idle = element('p', 'empty', 'Select an area to list its modules.')
-    panel.setAttribute('aria-labelledby', heading.id)
-    panel.append(heading, meta, list, idle)
+    const heading = byId('detail-heading')
+    const meta = byId('detail-meta')
+    const list = byId('detail-modules')
 
     /** @type {number | undefined} */
     let open
     /** @type {ReadonlySet<ModuleKind>} */
     let kinds = new Set()
     const update = () => {
-      panel.classList.toggle('is-open', open !== undefined)
-      heading.hidden = meta.hidden = list.hidden = open === undefined
-      idle.hidden = open !== undefined
+      panel.hidden = open === undefined
       if (open === undefined) {
         list.replaceChildren()
         return
@@ -233,12 +224,11 @@ export function mapView(data, onSelection) {
         element('span', '', plural(exported, 'symbol'))
       )
       if (area.cycle) meta.append(element('span', 'cycle-mark', 'cycle'))
-      const usualKind = usualKindOf(area.kinds)
       list.replaceChildren(
         ...modules.map(module => {
           let view = moduleViews.get(module)
           if (view === undefined) {
-            view = { index: module, ...moduleItem(data.modules[module], usualKind) }
+            view = { index: module, ...moduleItem(data.modules[module]) }
             onRowDrawn(view)
           }
           return view.item
@@ -266,63 +256,31 @@ export function mapView(data, onSelection) {
 
   /**
    * @param {PagePackage} pkg
-   */
-  function cyclesSection(pkg) {
-    const section = element('section', 'cycles')
-    section.append(element('h3', '', 'Cycles'))
-    if (pkg.areaCycles.length > 0) {
-      section.append(element('h4', '', 'Areas that import each other'))
-      const list = element('ul', 'cycle-list')
-      for (const cycle of pkg.areaCycles) {
-        const entry = element('li')
-        const names = cycle.areas.map(index => data.areas[index].label).join(', ')
-        const closing = element('ul', 'closing')
-        for (const { from, to, line } of cycle.edges) {
-          closing.append(
-            element('li', '', `${data.modules[from].path}:${line} → ${data.modules[to].path}`)
-          )
-        }
-        entry.append(element('p', 'cycle-areas', names), closing)
-        list.append(entry)
-      }
-      section.append(list)
-    }
-    if (pkg.moduleCycles.length > 0) {
-      section.append(element('h4', '', 'Modules that import each other'))
-      const list = element('ul', 'cycle-list')
-      for (const cycle of pkg.moduleCycles) {
-        const entry = element('li')
-        const members = element('ul', 'closing')
-        for (const index of cycle) members.append(element('li', '', data.modules[index].path))
-        entry.append(members)
-        list.append(entry)
-      }
-      section.append(list)
-    }
-    return section
-  }
-
-  /**
-   * @param {PagePackage} pkg
    * @param {number} index
    * @param {(area: number) => AreaView} boxOf
    */
   function packageSection(pkg, index, boxOf) {
     const section = element('section', 'package')
     section.id = `package-${index}`
-    const head = element('header', 'package-head')
-    const heading = element('h2', '', pkg.name)
-    heading.id = `package-${index}-name`
-    section.setAttribute('aria-labelledby', heading.id)
-    const dir = element('p')
-    const path = element('code')
-    path.append(...breakable(pkg.dir === '.' ? 'repository root' : pkg.dir))
-    dir.append(path)
-    head.append(heading, dir)
+    let headingId = 'layers-heading'
+    if (data.packages.length > 1) {
+      const head = element('header', 'package-head')
+      const heading = element('h3', '', pkg.name)
+      heading.id = `package-${index}-name`
+      headingId = heading.id
+      head.append(heading)
+      if (pkg.dir !== '.') {
+        const path = element('code')
+        path.append(...breakable(pkg.dir))
+        head.append(path)
+      }
+      section.append(head)
+    }
+    section.setAttribute('aria-labelledby', headingId)
 
-    // One column per layer, the lowest on the left, so the map reads from foundations up.
+    const browser = element('div', 'layer-browser')
     const columns = element('div', 'columns')
-    columns.style.setProperty('--layers', String(pkg.rows.length))
+    browser.append(columns)
     const lines = pkg.rows.toReversed().map(row => {
       const line = element('div', 'column')
       const areas = element('div', 'column-areas')
@@ -332,28 +290,27 @@ export function mapView(data, onSelection) {
       columns.append(line)
       return { line, boxes }
     })
-    const empty = element('p', 'empty', 'Every module here is of a kind the filter hides.')
-    section.append(head, columns, empty)
-    if (pkg.areaCycles.length > 0 || pkg.moduleCycles.length > 0) section.append(cyclesSection(pkg))
-    return { section, columns, lines, empty }
-  }
-
-  function legend() {
-    const folders = byId('folders')
-    data.folders.slice(0, PALETTE).forEach((folder, index) => {
-      const item = element('li')
-      item.dataset.folder = String(index)
-      const name =
-        folder === '.' ? element('span', '', 'package root') : element('code', '', folder)
-      item.append(element('span', 'swatch'), name)
-      folders.append(item)
-    })
-    if (data.folders.length > PALETTE) {
-      const item = element('li')
-      item.dataset.folder = 'other'
-      item.append(element('span', 'swatch'), element('span', '', 'other folders'))
-      folders.append(item)
+    const empty = element(
+      'p',
+      'empty',
+      lines.length ? 'No matching modules in this package.' : 'This package has no modules.'
+    )
+    section.append(browser, empty)
+    if (lines.length > 1) {
+      browser.setAttribute('role', 'region')
+      browser.setAttribute('aria-labelledby', headingId)
+      const update = () => {
+        const end = browser.scrollWidth - browser.clientWidth
+        browser.tabIndex = end > 1 ? 0 : -1
+        browser.classList.toggle('more-left', browser.scrollLeft > 1)
+        browser.classList.toggle('more-right', browser.scrollLeft < end - 1)
+      }
+      browser.addEventListener('scroll', update)
+      const resized = new ResizeObserver(update)
+      resized.observe(browser)
+      resized.observe(columns)
     }
+    return { section, columns, lines, empty }
   }
 
   /** Largest source/config packages first, with names breaking ties deterministically. */
@@ -368,6 +325,31 @@ export function mapView(data, onSelection) {
     }))
     .sort((a, b) => b.size - a.size || compareText(a.pkg.name, b.pkg.name))
 
+  const layers = byId('layers-body')
+  const layersToggle = byId('layers-toggle')
+  const guide = byId('map-guide')
+  const guideToggle = byId('guide-toggle')
+  /** @param {boolean} open */
+  function setLayersOpen(open) {
+    layers.hidden = !open
+    layersToggle.setAttribute('aria-expanded', String(open))
+    guideToggle.hidden = !open
+  }
+  /** @param {boolean} open */
+  function setGuideOpen(open) {
+    guide.hidden = !open
+    guideToggle.setAttribute('aria-expanded', String(open))
+  }
+  layersToggle.addEventListener('click', () => setLayersOpen(layers.hidden === true))
+  guideToggle.addEventListener('click', () => setGuideOpen(guide.hidden === true))
+  const dismissGuide = () => {
+    if (layers.hidden || guide.hidden) return false
+    setGuideOpen(false)
+    guideToggle.focus()
+    return true
+  }
+  byId('close-guide').addEventListener('click', dismissGuide)
+
   function packageNav() {
     if (data.packages.length < 2) return
     const nav = byId('packages')
@@ -381,6 +363,7 @@ export function mapView(data, onSelection) {
       picker.append(option)
     })
     picker.addEventListener('change', () => {
+      setLayersOpen(true)
       location.hash = picker.value
     })
     nav.append(label, picker)
@@ -395,21 +378,26 @@ export function mapView(data, onSelection) {
     const counts = new Map()
     for (const { kind } of data.modules) counts.set(kind, (counts.get(kind) ?? 0) + 1)
     const group = byId('kind-filter')
-    const buttons = /** @type {ModuleKind[]} */ (Object.keys(KINDS))
+    const controls = /** @type {ModuleKind[]} */ (Object.keys(KINDS))
       .filter(kind => counts.has(kind))
       .map(kind => {
-        const button = element('button', 'toggle', KINDS[kind].label)
-        button.setAttribute('type', 'button')
-        button.append(' ', element('span', 'kind-count', formatted(counts.get(kind) ?? 0)))
-        button.addEventListener('click', () => flip(kind))
-        return { kind, button }
+        const label = element('label', 'kind-option')
+        label.dataset.kind = kind
+        const input = document.createElement('input')
+        input.type = 'checkbox'
+        input.addEventListener('change', () => flip(kind))
+        label.append(
+          input,
+          KINDS[kind].label,
+          ' ',
+          element('span', 'kind-count', formatted(counts.get(kind) ?? 0))
+        )
+        group.append(label)
+        return { kind, input }
       })
-    group.append(...buttons.map(({ button }) => button))
     /** @param {ReadonlySet<ModuleKind>} shown */
     return shown => {
-      for (const { kind, button } of buttons) {
-        button.setAttribute('aria-pressed', String(shown.has(kind)))
-      }
+      for (const { kind, input } of controls) input.checked = shown.has(kind)
     }
   }
 
@@ -419,7 +407,6 @@ export function mapView(data, onSelection) {
     byId('source-note').textContent = note
     byId('source-note').hidden = false
   }
-  legend()
   packageNav()
 
   /** @type {AreaView[]} */
@@ -454,10 +441,21 @@ export function mapView(data, onSelection) {
       symbols += exported
     }
     detail.filter(shown)
-    for (const { lines, empty } of sections) {
+    const noResults = modules === 0
+    const notice = byId('map-empty')
+    notice.hidden = !noResults
+    notice.textContent = data.modules.length
+      ? 'Choose a module kind to show its areas.'
+      : 'This repository has no modules.'
+    let layers = 0
+    for (const { section, lines, empty } of sections) {
+      section.hidden = noResults
       for (const { line, boxes } of lines) line.hidden = boxes.every(({ box }) => box.hidden)
-      empty.hidden = lines.some(({ line }) => !line.hidden)
+      const visibleLayers = lines.filter(({ line }) => !line.hidden).length
+      layers += visibleLayers
+      empty.hidden = visibleLayers > 0
     }
+    byId('layer-counts').textContent = `${plural(layers, 'layer')} · ${plural(areas, 'area')}`
     const hiddenKinds = /** @type {ModuleKind[]} */ (Object.keys(KINDS))
       .filter(kind => !shown.has(kind))
       .map(kind => ({ kind, count: data.modules.filter(module => module.kind === kind).length }))
@@ -476,7 +474,9 @@ export function mapView(data, onSelection) {
     areas: areaViews,
     modules: moduleViews,
     filter,
-    filterButtons: kindFilter,
+    kindFilter,
+    setLayersOpen,
+    dismissGuide,
     showArea: detail.show,
     columns: sections.map(({ columns }) => columns)
   }
