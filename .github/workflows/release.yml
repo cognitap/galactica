@@ -7,6 +7,10 @@ on:
         description: Publish the verified archive with npm trusted publishing
         type: boolean
         default: false
+      candidate_run_id:
+        description: Existing run ID whose prepared candidate should be reused for a publication retry
+        type: string
+        default: ''
 
 permissions:
   contents: read
@@ -17,10 +21,9 @@ concurrency:
 
 jobs:
   prepare:
+    if: ${{ inputs.candidate_run_id == '' }}
     runs-on: ubuntu-latest
     timeout-minutes: 20
-    outputs:
-      artifact-id: ${{ steps.candidate.outputs.artifact-id }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -41,14 +44,16 @@ jobs:
           RELEASE_PUBLISH: ${{ inputs.publish }}
 
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
-        id: candidate
         with:
           name: galactica-${{ github.sha }}-${{ github.run_attempt }}
           path: release/
           if-no-files-found: error
 
   publish:
-    if: ${{ inputs.publish && github.repository == 'cognitap/galactica' && github.ref == 'refs/heads/main' }}
+    if: >-
+      ${{ !cancelled() && inputs.publish && github.repository == 'cognitap/galactica' &&
+      github.ref == 'refs/heads/main' && (needs.prepare.result == 'success' ||
+      (inputs.candidate_run_id != '' && needs.prepare.result == 'skipped')) }}
     needs: prepare
     runs-on: ubuntu-latest
     timeout-minutes: 15
@@ -56,6 +61,7 @@ jobs:
     permissions:
       contents: read
       id-token: write
+      actions: read
     steps:
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
@@ -63,13 +69,28 @@ jobs:
 
       - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
-          artifact-ids: ${{ needs.prepare.outputs.artifact-id }}
+          pattern: galactica-*
+          merge-multiple: true
+          run-id: ${{ inputs.candidate_run_id || github.run_id }}
+          github-token: ${{ github.token }}
           path: release/
 
       - name: Publish and verify the prepared archive
+        env:
+          GH_TOKEN: ${{ github.token }}
+          CANDIDATE_RUN_ID: ${{ inputs.candidate_run_id || github.run_id }}
         run: |
+          candidate_run_json=$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$CANDIDATE_RUN_ID")
+          jq -e --arg repo "$GITHUB_REPOSITORY" '
+            .event == "workflow_dispatch" and .head_branch == "main" and
+            .path == ".github/workflows/release.yml" and .head_repository.full_name == $repo
+          ' <<< "$candidate_run_json" > /dev/null
+          candidate_source=$(jq -er .sourceCommit release/release.json)
+          test "$candidate_source" = "$(jq -er .head_sha <<< "$candidate_run_json")"
           version=$(jq -er .version release/release.json)
           expected=$(jq -er .integrity release/release.json)
+          archive_integrity="sha512-$(openssl dgst -sha512 -binary release/galactica.tgz | openssl base64 -A)"
+          test "$archive_integrity" = "$expected"
           for attempt in {0..30}; do
             if published=$(curl -fsS --max-time 10 -H 'Cache-Control: no-cache' "https://registry.npmjs.org/@cognitap%2Fgalactica/$version" | jq -er .dist.integrity); then
               if [ "$published" != "$expected" ]; then
@@ -81,7 +102,7 @@ jobs:
             fi
             if [ "$attempt" -eq 0 ]; then
               # An upload can succeed even when the publish command fails.
-              npm publish release/galactica.tgz --ignore-scripts --provenance --access public --tag latest --registry https://registry.npmjs.org/ || echo 'Publish returned an error; checking npm.'
+              npm publish ./release/galactica.tgz --ignore-scripts --provenance --access public --tag latest --registry https://registry.npmjs.org/ || echo 'Publish returned an error; checking npm.'
             else
               sleep 5
             fi
