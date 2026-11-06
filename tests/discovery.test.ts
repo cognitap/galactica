@@ -304,12 +304,6 @@ test('framework files belong to the config whose include matches them', t => {
   ])
 })
 
-const rootDirWarning = {
-  path: 'packages/lib/tsconfig.json',
-  message:
-    "The common source directory of 'tsconfig.json' is '../..'. The 'rootDir' setting must be explicitly set to this or another path to adjust your output's file layout. Visit https://aka.ms/ts6 for migration information."
-}
-
 test('a missing project reference warns, and a referenced config keeps its own warnings', t => {
   const root = repository(t, {
     'tsconfig.json': {
@@ -327,7 +321,6 @@ test('a missing project reference warns, and a referenced config keeps its own w
   })
   const discovery = discover(root, emptyConfig)
   assert.deepEqual(discovery.warnings, [
-    rootDirWarning,
     { path: 'tsconfig.json', message: "File 'packages/missing' not found." },
     {
       path: 'tsconfig.json',
@@ -358,11 +351,14 @@ function warningsFrom(cwd: string, root: string): unknown {
 
 test('warnings read the same wherever the command runs', t => {
   const root = repository(t, {
-    'packages/lib/tsconfig.json': { compilerOptions: { outDir: 'dist' }, include: ['src'] },
+    'packages/lib/tsconfig.json': { compilerOptions: { notAnOption: true }, include: ['src'] },
     'packages/lib/src/lib.ts': ''
   })
-  assert.deepEqual(warningsFrom(root, root), [rootDirWarning])
-  assert.deepEqual(warningsFrom(tmpdir(), root), [rootDirWarning])
+  const expected = [
+    { path: 'packages/lib/tsconfig.json', message: "Unknown compiler option 'notAnOption'." }
+  ]
+  assert.deepEqual(warningsFrom(root, root), expected)
+  assert.deepEqual(warningsFrom(tmpdir(), root), expected)
 })
 
 test('a config whose include matches only files git ignores has no inputs', t => {
@@ -396,14 +392,93 @@ test('config problems become warnings, and the options TypeScript still honours 
   assert.deepEqual(
     discovery.warnings.map(({ path, message }) => [
       path,
-      /SyntaxError|'baseUrl' is deprecated|Unknown compiler option 'notAnOption'/.exec(message)?.[0]
+      /SyntaxError|Unknown compiler option 'notAnOption'/.exec(message)?.[0]
     ]),
     [
       ['package.json', 'SyntaxError'],
-      ['tsconfig.json', "'baseUrl' is deprecated"],
       ['tsconfig.json', "Unknown compiler option 'notAnOption'"]
     ]
   )
   const [module] = discovery.modules
   assert.equal(compilerOptionsOf(discovery, module!).baseUrl, join(root, 'src'))
+})
+
+test('jsconfig aliases apply to JavaScript with allowJs enabled', t => {
+  const root = repository(t, {
+    'jsconfig.json': { compilerOptions: { baseUrl: '.', paths: { '@/lib/*': ['lib/*'] } } },
+    'main.js': "import { value } from '@/lib/a'\nexport { value }\n",
+    'lib/a.js': 'export const value = 1\n'
+  })
+  const discovery = discover(root, emptyConfig)
+  const main = discovery.modules.find(module => module.path === 'main.js')!
+  assert.equal(main.config, 'jsconfig.json')
+  assert.equal(compilerOptionsOf(discovery, main).allowJs, true)
+  assert.deepEqual(compilerOptionsOf(discovery, main).paths, { '@/lib/*': ['lib/*'] })
+})
+
+test('compiler migration notices do not warn about a map that can be read', t => {
+  const root = repository(t, {
+    'tsconfig.json': {
+      compilerOptions: { target: 'es5', moduleResolution: 'node10', baseUrl: '.', outDir: 'dist' }
+    },
+    'src/main.ts': ''
+  })
+  assert.deepEqual(discover(root, emptyConfig).warnings, [])
+})
+
+test('workspace tsconfig extends resolves before dependencies are installed', t => {
+  const root = repository(t, {
+    'package.json': { name: 'root', workspaces: ['packages/*'] },
+    'packages/config/package.json': { name: '@repo/typescript-config' },
+    'packages/config/react-library.json': { compilerOptions: { strict: true, jsx: 'react-jsx' } },
+    'packages/app/package.json': { name: 'app' },
+    'packages/app/tsconfig.json': {
+      extends: '@repo/typescript-config/react-library.json',
+      include: ['src']
+    },
+    'packages/app/src/main.tsx': ''
+  })
+  const discovery = discover(root, emptyConfig)
+  assert.deepEqual(discovery.warnings, [])
+  const main = discovery.modules.find(module => module.path === 'packages/app/src/main.tsx')!
+  assert.equal(compilerOptionsOf(discovery, main).strict, true)
+  assert.equal(compilerOptionsOf(discovery, main).jsx, ts.JsxEmit.ReactJSX)
+})
+
+test('tsconfig takes precedence over jsconfig in the same folder', t => {
+  const root = repository(t, {
+    'tsconfig.json': { compilerOptions: { allowJs: true, strict: true } },
+    'jsconfig.json': { compilerOptions: { strict: false } },
+    'main.js': ''
+  })
+  const discovery = discover(root, emptyConfig)
+  const [main] = discovery.modules
+  assert.equal(main!.config, 'tsconfig.json')
+  assert.equal(compilerOptionsOf(discovery, main!).strict, true)
+})
+
+test('workspace extends keeps nested relative options and extends arrays', t => {
+  const root = repository(t, {
+    'package.json': { name: 'root', workspaces: ['packages/*'] },
+    'packages/config/package.json': { name: '@repo/config', tsconfig: './base.json' },
+    'packages/config/base.json': { extends: './nested/options.jsonc' },
+    'packages/config/nested/options.jsonc': {
+      compilerOptions: { baseUrl: '.', paths: { '@/*': ['./*'] } }
+    },
+    'packages/app/package.json': { name: 'app' },
+    'packages/app/tsconfig.json': { extends: ['@repo/config'], include: ['src'] },
+    'packages/app/src/main.ts': ''
+  })
+  const discovery = discover(root, emptyConfig)
+  assert.deepEqual(discovery.warnings, [])
+  const [main] = discovery.modules
+  assert.equal(compilerOptionsOf(discovery, main!).baseUrl, join(root, 'packages/config/nested'))
+})
+
+test('rootDir output-layout migration notices do not affect the map', t => {
+  const root = repository(t, {
+    'packages/lib/tsconfig.json': { compilerOptions: { outDir: 'dist' }, include: ['src'] },
+    'packages/lib/src/lib.ts': ''
+  })
+  assert.deepEqual(discover(root, emptyConfig).warnings, [])
 })

@@ -58,6 +58,22 @@ function subjectLabel(subject: Subject): string {
     : `${subject.path} (${subject.kind})`
 }
 
+/** Whole lines only, with a byte budget for the two repository-wide reports. */
+function reportLines(lines: readonly string[]): readonly string[] {
+  const budget = 6_000
+  let bytes = 0
+  let shown = 0
+  for (const line of lines) {
+    const size = Buffer.byteLength(line) + 1
+    if (bytes + size > budget) break
+    bytes += size
+    shown++
+  }
+  return shown === lines.length
+    ? lines
+    : [...lines.slice(0, shown), `… and ${lines.length - shown} more lines, use --json`]
+}
+
 function renderOverview({
   all,
   packages,
@@ -73,7 +89,12 @@ function renderOverview({
       `${pkg.name} (${pkg.dir}): ${plural(pkg.modules, 'module')} in ${plural(pkg.areas.length, 'area')}`,
       ...layers.map(layer => {
         const members = pkg.areas.filter(area => area.layer === layer)
-        return `layer ${layer}: ${members.map(area => `${area.path} (${area.modules})`).join(', ')}`
+        const shown = members
+          .slice(0, 8)
+          .map(area => `${area.path} (${area.modules})`)
+          .join(', ')
+        const more = members.length > 8 ? `, … and ${members.length - 8} more, use --json` : ''
+        return `layer ${layer}: ${shown}${more}`
       })
     ]
   })
@@ -88,7 +109,7 @@ function renderOverview({
         exports.length > EXPORTS_SHOWN ? `, … ${exports.length - EXPORTS_SHOWN} more` : ''
       return `${path}  ${plural(importers, 'importer')}  ${shown}${more}`.trimEnd()
     })
-  return [
+  return reportLines([
     `${plural(packages.length, 'package')}, ${plural(modules, 'module')}, ${plural(areas.length, 'area')}`,
     ...layered,
     'most imported:',
@@ -98,7 +119,7 @@ function renderOverview({
       ? []
       : [`${plural(warnings.length, 'warning')}, galactica overview --json lists them`]),
     'next: galactica where <name> finds a symbol, galactica uses <file> lists what to check and test before you edit it'
-  ]
+  ])
 }
 
 function renderWhere({ name, definitions, suggestions }: Where): readonly string[] {
@@ -193,7 +214,7 @@ const importRank = ({ break: cut, use }: CycleImport) =>
 function renderCycles({ cycles }: Cycles): readonly string[] {
   if (cycles.length === 0) return ['no import cycles']
   const loading = cycles.filter(cycle => cycle.loadTime).length
-  return [
+  return reportLines([
     `${plural(cycles.length, 'import cycle')}, ${loading} used at load time`,
     ...cycles.flatMap((cycle, index) => [
       `cycle ${index + 1}: ${plural(cycle.modules.length, 'module')}, ${useLabel(cycle)}, in dependency order:`,
@@ -206,7 +227,7 @@ function renderCycles({ cycles }: Cycles): readonly string[] {
       )
     ]),
     'break here marks the imports that point back up the order, bringing in the fewest names. To cut one: move what both modules need into a third, lower module, pass a callback instead of importing, or merge modules that cannot be separated.'
-  ]
+  ])
 }
 
 /** Imports to break that a cycle of `health` shows before it counts the rest. */

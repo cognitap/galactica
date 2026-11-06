@@ -5,6 +5,23 @@
 ## Unreleased
 
 - A module that links outside the repository, a module that is no regular file, such as a link to a directory, and a module over 10 MB are skipped, each with a warning that `overview --json` lists. A link to `/dev/zero` hung the analysis, and a link to a file outside the repository put that file's symbols and doc comments into the output.
+- A file nested too deeply for TypeScript to parse, such as a chain of thousands of `else if`, no longer crashes every command. Its module stays, with no symbols or imports, and the analysis adds one warning that names the file.
+- A deeply nested expression, such as a 3,000-term string concatenation or the 1,500-term sum in microsoft/TypeScript's `binderBinaryExpressionStress.ts`, is read in full instead of crashing with `RangeError: Maximum call stack size exceeded`. Galactica now maps microsoft/TypeScript.
+- A workspace `package.json` whose `exports` nests conditions or fallbacks more than 32 levels deep leaves the import unresolved with a warning, instead of crashing.
+- An import that passes through more than 100 barrels points at its first barrel instead of crashing.
+- Read JavaScript aliases from `jsconfig.json` when no `tsconfig.json` is present in the same folder.
+- Resolve workspace package tsconfig extensions before installing dependencies.
+- Suppress TypeScript deprecation and output-layout migration notices that do not affect the map.
+- Do not warn when a workspace package exports `./package.json` metadata.
+- Recognize `*-spec.*` tests and `__testfixtures__`, `__fixtures__`, `testdata`, `testData`, `fixtures` and `__mocks__` folders as tests, so fixtures no longer shape source layers or count as oversized areas.
+- **Breaking:** Match workspace and config globs without backtracking, with documented size and syntax limits. Before, `@(src|scripts)/**` used Node’s matcher; now extglobs, escapes, POSIX named classes and patterns beyond the limits are ignored with a warning. Use `{src,scripts}/**` instead.
+- Pin CI and release actions to commit SHAs and reduce the npm publishing job to Node setup, candidate download and publication.
+- Ship an npm shrinkwrap with exact versions and integrity hashes for the full Vue and Svelte compiler dependency tree used by npm and npx; verify it from the packed package.
+- The HTML map header lists hidden tests, stories and other filtered module kinds beside its visible module count.
+- The HTML map fits phone widths, wraps paths at slashes and keeps filenames together when they fit.
+- The HTML map opens on the largest source and config package and uses a compact package picker, including in large workspaces.
+- **Breaking:** Bound overview layer lists and overview/cycles text at about 6 KB. Before: text listed every area and cycle; after: omitted counts point to the complete `--json` output.
+- **Breaking:** Refuse analysis and HTML generation when the root contains `deno.json` or `deno.jsonc`. Before: Deno repositories produced an incomplete map; after: commands exit with code 1 and explain the unsupported workspace and import-map resolution.
 
 ## 0.1.5
 
