@@ -59,7 +59,8 @@ test("a repository's git config and hooks never run a program", t => {
   writeFileSync(hook, `#!/bin/sh\n${mark('post-index-change')}\n`)
   chmodSync(hook, 0o755)
 
-  const later = new Date(Date.now() + 60_000)
+  // Keep git's stat data stale without triggering the cache's coarse-timestamp refusal.
+  const later = new Date(Math.floor(Date.now() / 1000) * 1000 + 60_123)
   for (const file of ['src/a.ts', 'src/b.ts', '.gitattributes', 'lib/f.ts']) {
     utimesSync(join(root, file), later, later)
   }
