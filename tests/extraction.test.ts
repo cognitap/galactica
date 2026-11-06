@@ -208,3 +208,21 @@ test('when the compiler throws, the file has its component, no imports, and the 
   assert.deepEqual(broken.symbols, [component('B')])
   assert.equal(typeof broken.failure, 'string')
 })
+
+/** `count` terms joined by `separator`, which TypeScript parses into a tree `count` levels deep. */
+const chain = (count: number, term: (index: number) => string, separator: string) =>
+  Array.from({ length: count }, (_, index) => term(index)).join(separator)
+
+test('a file nested deeper than the parser can follow gives a failure in place of a crash', () => {
+  const extraction = read('src/deep.ts', 'ts', [
+    "import { b } from './b'",
+    'export function f(x: number) {',
+    chain(5000, index => `if (x === ${index}) return b`, '\nelse '),
+    '}'
+  ])
+  assert.deepEqual(brief(extraction), {
+    symbols: [],
+    imports: [],
+    failure: 'Maximum call stack size exceeded'
+  })
+})
