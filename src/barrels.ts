@@ -26,13 +26,16 @@ interface Definition {
 
 /**
  * `settled` is false when the search met a (module, name) still being
- * searched, in a re-export cycle. Such a result depends on where the search
- * entered the cycle, so it is not memoized.
+ * searched, in a re-export cycle, or gave up at `maxBarrels`. Such a result
+ * depends on where the search entered, so it is not memoized.
  */
 interface Search {
   readonly found: Definition | undefined
   readonly settled: boolean
 }
+
+/** How many barrels a search passes through before it gives up. Real chains are a few barrels long, and a generated one could be thousands. */
+const maxBarrels = 100
 
 const isStar = (edge: Edge) =>
   edge.form === 'reexport' && edge.renames === undefined && edge.names[0] === '*'
@@ -61,29 +64,29 @@ function definitions(modules: Modules): (to: ModuleTarget, name: string) => Sear
   const memo = new Map<string, Definition | undefined>()
   const searching = new Set<string>()
 
-  const definitionOf = (to: ModuleTarget, name: string): Search => {
+  const definitionOf = (to: ModuleTarget, name: string, depth = 0): Search => {
     const key = `${to.path}\0${name}`
     if (memo.has(key)) return { found: memo.get(key), settled: true }
-    if (searching.has(key)) return { found: undefined, settled: false }
+    if (searching.has(key) || depth > maxBarrels) return { found: undefined, settled: false }
     searching.add(key)
-    const search = searchModule(to, name)
+    const search = searchModule(to, name, depth)
     searching.delete(key)
     if (search.settled) memo.set(key, search.found)
     return search
   }
 
-  const searchModule = (to: ModuleTarget, name: string): Search => {
+  const searchModule = (to: ModuleTarget, name: string, depth: number): Search => {
     const facts = modules[to.path]
     if (exportsOwn(facts, name)) return { found: { to, name, via: [] }, settled: true }
     for (const edge of facts.edges) {
       const taken = takenFor(edge, name)
-      if (taken !== undefined) return searchReexport(to.path, edge.to, taken)
+      if (taken !== undefined) return searchReexport(to.path, edge.to, taken, depth)
     }
     if (name === 'default') return { found: undefined, settled: true }
     let settled = true
     for (const edge of facts.edges) {
       if (!isStar(edge) || edge.to.kind !== 'module') continue
-      const search = definitionOf(edge.to, name)
+      const search = definitionOf(edge.to, name, depth + 1)
       settled &&= search.settled
       if (search.found) return { found: through(to.path, search.found), settled }
     }
@@ -91,9 +94,9 @@ function definitions(modules: Modules): (to: ModuleTarget, name: string) => Sear
   }
 
   /** A named re-export vouches that its target exports the name, so the target stands in when the search there finds nothing. */
-  const searchReexport = (barrel: RepoPath, to: Target, name: string): Search => {
+  const searchReexport = (barrel: RepoPath, to: Target, name: string, depth: number): Search => {
     const search =
-      to.kind === 'module' ? definitionOf(to, name) : { found: undefined, settled: true }
+      to.kind === 'module' ? definitionOf(to, name, depth + 1) : { found: undefined, settled: true }
     if (!search.found && !search.settled) return search
     return {
       found: through(barrel, search.found ?? { to, name, via: [] }),

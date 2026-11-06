@@ -103,7 +103,8 @@ test(
     }`),
       {
         filter: ['Source 11 true', 'Tests 2 false', 'Stories 1 false'],
-        counts: '1 package · 2 areas · 11 modules · 2 exported symbols',
+        counts:
+          '1 package · 2 areas · 11 modules (+2 tests and 1 story hidden) · 2 exported symbols',
         tests: false,
         small: ['util.ts']
       }
@@ -118,7 +119,7 @@ test(
       }`),
       {
         filter: ['Source 11 true', 'Tests 2 true', 'Stories 1 false'],
-        counts: '1 package · 3 areas · 13 modules · 2 exported symbols',
+        counts: '1 package · 3 areas · 13 modules (+1 story hidden) · 2 exported symbols',
         tests: ['e2e.test.ts'],
         small: ['util.test.ts', 'util.ts']
       }
@@ -301,3 +302,119 @@ test(
     )
   }
 )
+
+const serverDir = 'packages/features/calendar/scheduling/availability/server'
+const longArea = `${serverDir}/src/calendar/scheduling/availability/slots`
+const longModule = `${longArea}/slots.worker.module.ts`
+const manyPackages = Object.fromEntries(
+  Array.from({ length: 112 }, (_, i) => [`@acme/tool-${i}`, `packages/tool-${i}`])
+)
+const workspaceHtml = htmlOf(
+  graphOf(
+    modelOf(
+      {
+        'packages/plugin/esbuild.js': { edges: [edge(longModule)] },
+        ...Object.fromEntries(Object.values(manyPackages).map(dir => [`${dir}/index.ts`, {}])),
+        [longModule]: { symbols: [defines('availableSlots')] },
+        [`${longArea}/booking.ts`]: {},
+        [`${longArea}/dates.ts`]: {},
+        [`${longArea}/slots.test.ts`]: { edges: [edge(longModule)] },
+        [`${longArea}/slots.stories.tsx`]: {}
+      },
+      { '@acme/plugin': 'packages/plugin', '@acme/server': serverDir, ...manyPackages }
+    ),
+    emptyConfig
+  )
+)
+
+test(
+  'the map opens on the largest code package and keeps 114 package choices compact',
+  { skip },
+  async t => {
+    const tab = await openPage(t, chrome!)
+    await tab.load(workspaceHtml)
+    assert.equal(
+      await tab.run("return document.querySelector('.package h2').textContent"),
+      '@acme/server'
+    )
+    assert.ok(
+      await tab.run(
+        "return document.getElementById('packages').getBoundingClientRect().height <= 60"
+      )
+    )
+    assert.equal(await tab.run("return document.querySelectorAll('#packages option').length"), 114)
+    assert.equal(
+      await tab.run(`
+    const choice = document.querySelector('#packages select')
+    choice.value = [...choice.options].find(option => option.textContent === '@acme/plugin').value
+    choice.dispatchEvent(new Event('change'))
+    return document.querySelector(location.hash + ' h2').textContent
+  `),
+      '@acme/plugin'
+    )
+  }
+)
+
+for (const width of [390, 1280]) {
+  for (const colorScheme of ['light', 'dark'] as const) {
+    test(
+      `long map paths fit ${width}px in ${colorScheme} mode and wrap at slashes`,
+      { skip },
+      async t => {
+        const tab = await openPage(t, chrome!, { width, colorScheme })
+        await tab.load(workspaceHtml)
+        const state = await tab.run<{
+          width: number
+          scrollWidth: number
+          background: string
+          filenameLines: number
+          splits: string[]
+        }>(`
+        const name = [...document.querySelectorAll('.module-name')]
+          .find(node => node.textContent === 'slots.worker.module.ts')
+        const range = document.createRange()
+        const walker = document.createTreeWalker(name, NodeFilter.SHOW_TEXT)
+        const tops = new Set()
+        while (walker.nextNode()) {
+          range.selectNodeContents(walker.currentNode)
+          for (const rect of range.getClientRects()) tops.add(rect.top)
+        }
+        return {
+          width: innerWidth,
+          scrollWidth: document.documentElement.scrollWidth,
+          background: getComputedStyle(document.body).backgroundColor,
+          filenameLines: tops.size,
+          splits: [...document.querySelectorAll('.area-select wbr, .module-name wbr')]
+            .map(node => node.previousSibling.textContent)
+        }
+      `)
+        assert.equal(state.width, width)
+        assert.ok(
+          state.scrollWidth <= width,
+          `${state.scrollWidth}px page overflows ${width}px viewport`
+        )
+        assert.equal(
+          state.background,
+          colorScheme === 'dark' ? 'rgb(19, 19, 21)' : 'rgb(248, 248, 246)'
+        )
+        assert.equal(state.filenameLines, 1, 'keep the filename together')
+        assert.ok(state.splits.length > 0)
+        assert.ok(
+          state.splits.every(part => part.endsWith('/')),
+          'only insert path breaks after slashes'
+        )
+        if (process.env['PAGE_SCREENSHOT_DIR']) {
+          await tab.screenshot(
+            `${process.env['PAGE_SCREENSHOT_DIR']}/dev-729-${width}-${colorScheme}.png`
+          )
+          await tab.run(
+            "document.querySelector('.package').scrollIntoView(); await new Promise(resolve => requestAnimationFrame(resolve))"
+          )
+          await tab.screenshot(
+            `${process.env['PAGE_SCREENSHOT_DIR']}/dev-729-${width}-${colorScheme}-map.png`
+          )
+        }
+      }
+    )
+  }
+}

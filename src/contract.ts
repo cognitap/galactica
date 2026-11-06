@@ -87,6 +87,7 @@ export type Subject =
 export interface Warning {
   /** The file the problem is in. */
   readonly path: string
+  /** One line. An ignored glob names its workspace pattern or config key and the reason. */
   readonly message: string
 }
 
@@ -94,6 +95,7 @@ export interface Failure {
   readonly schemaVersion: typeof SCHEMA_VERSION
   readonly command: Command
   readonly error: {
+    /** usage also covers unsupported Deno roots (deno.json or deno.jsonc). */
     readonly code: 'not-found' | 'ambiguous' | 'usage'
     readonly message: string
   }
@@ -122,7 +124,10 @@ export interface Overview extends Envelope<'overview'> {
   }[]
   readonly cycles: number
   readonly unresolved: number
-  /** Every warning of the analysis, sorted by path, then message. */
+  /**
+   * Analysis problems, sorted by path, then message. Compiler deprecation and
+   * output-layout migration notices and valid package.json metadata exports are omitted.
+   */
   readonly warnings: readonly Warning[]
 }
 
