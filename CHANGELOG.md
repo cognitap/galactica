@@ -4,7 +4,7 @@
 
 ## Unreleased
 
-- Cap overview layer lists and the total overview and cycles text at about 6 KB, with omitted counts pointing to the complete `--json` output.
+- **Breaking:** Bound overview layer lists and overview/cycles text at about 6 KB. Before: text listed every area and cycle; after: omitted counts point to the complete `--json` output.
 
 ## 0.1.5
 
