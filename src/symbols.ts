@@ -116,14 +116,23 @@ function joined(pieces: readonly Piece[]): string {
     .join('')
 }
 
+/** The node's tokens in source order, with each type literal as one piece. */
 function piecesOf(node: ts.Node, source: ts.SourceFile): readonly Piece[] {
-  if (ts.isTypeLiteralNode(node)) {
-    return [{ text: typeLiteralText(node, source), start: node.getStart(source), end: node.end }]
+  const pieces: Piece[] = []
+  const pending = [node]
+  for (let next = pending.pop(); next !== undefined; next = pending.pop()) {
+    if (ts.isTypeLiteralNode(next)) {
+      const text = typeLiteralText(next, source)
+      pieces.push({ text, start: next.getStart(source), end: next.end })
+      continue
+    }
+    const children = next.getChildren(source).filter(child => !ts.isJSDoc(child))
+    for (let index = children.length - 1; index >= 0; index--) pending.push(children[index]!)
+    if (children.length > 0) continue
+    const start = next.getStart(source)
+    if (next.end > start) pieces.push({ text: next.getText(source), start, end: next.end })
   }
-  const children = node.getChildren(source).filter(child => !ts.isJSDoc(child))
-  if (children.length > 0) return children.flatMap(child => piecesOf(child, source))
-  const start = node.getStart(source)
-  return node.end > start ? [{ text: node.getText(source), start, end: node.end }] : []
+  return pieces
 }
 
 /**
@@ -241,18 +250,22 @@ const isWrapped = (node: ts.Node): node is Wrapped =>
   ts.isParenthesizedExpression(node) || ts.isAsExpression(node) || ts.isSatisfiesExpression(node)
 
 function unwrapped(expression: ts.Expression): ts.Expression {
-  return isWrapped(expression) ? unwrapped(expression.expression) : expression
+  let inner = expression
+  while (isWrapped(inner)) inner = inner.expression
+  return inner
 }
 
+const isAsConst = (expression: ts.Expression) =>
+  ts.isAsExpression(expression) &&
+  ts.isTypeReferenceNode(expression.type) &&
+  ts.isIdentifier(expression.type.typeName) &&
+  expression.type.typeName.text === 'const'
+
 function hasAsConst(expression: ts.Expression): boolean {
-  if (!isWrapped(expression)) return false
-  return (
-    (ts.isAsExpression(expression) &&
-      ts.isTypeReferenceNode(expression.type) &&
-      ts.isIdentifier(expression.type.typeName) &&
-      expression.type.typeName.text === 'const') ||
-    hasAsConst(expression.expression)
-  )
+  for (let inner = expression; isWrapped(inner); inner = inner.expression) {
+    if (isAsConst(inner)) return true
+  }
+  return false
 }
 
 const jsxKinds: ReadonlySet<ts.SyntaxKind> = new Set([
@@ -267,28 +280,35 @@ const logicalOperators: ReadonlySet<ts.SyntaxKind> = new Set([
   ts.SyntaxKind.QuestionQuestionToken
 ])
 
+/** Whether the value can be JSX: JSX itself, or a branch of a conditional or a logical operator that can. */
 function isJsx(expression: ts.Expression): boolean {
-  const value = unwrapped(expression)
-  if (jsxKinds.has(value.kind)) return true
-  if (ts.isConditionalExpression(value)) return isJsx(value.whenTrue) || isJsx(value.whenFalse)
-  return (
-    ts.isBinaryExpression(value) &&
-    logicalOperators.has(value.operatorToken.kind) &&
-    (isJsx(value.left) || isJsx(value.right))
-  )
+  const pending = [expression]
+  for (let next = pending.pop(); next !== undefined; next = pending.pop()) {
+    const value = unwrapped(next)
+    if (jsxKinds.has(value.kind)) return true
+    if (ts.isConditionalExpression(value)) pending.push(value.whenFalse, value.whenTrue)
+    else if (ts.isBinaryExpression(value) && logicalOperators.has(value.operatorToken.kind)) {
+      pending.push(value.right, value.left)
+    }
+  }
+  return false
 }
 
 /** Whether a `return` of this function, not of a function nested in it, gives JSX. */
-function hasJsxReturn(node: ts.Node): boolean {
-  return (
-    ts.forEachChild(node, child => {
+function hasJsxReturn(body: ts.Node): boolean {
+  const pending = [body]
+  for (let next = pending.pop(); next !== undefined; next = pending.pop()) {
+    const found = ts.forEachChild(next, child => {
       if (ts.isFunctionLike(child) || ts.isClassLike(child)) return undefined
       if (ts.isReturnStatement(child)) {
         return child.expression && isJsx(child.expression) ? true : undefined
       }
-      return hasJsxReturn(child) || undefined
-    }) ?? false
-  )
+      pending.push(child)
+      return undefined
+    })
+    if (found) return true
+  }
+  return false
 }
 
 function returnsJsx(fn: ts.FunctionLikeDeclaration): boolean {
@@ -356,8 +376,9 @@ const shapeHints = [
 function initializerText(head: string, initializer: ts.Expression, scope: Scope): string {
   const value = unwrapped(initializer)
   const asConst = hasAsConst(initializer) ? ' as const' : ''
-  const literal = ` = ${flat(value, scope.source)}${asConst}`
-  if (isLiteral(value) && fits(head + literal)) return literal
+  // Only a literal is written out, and it alone is flattened, since flattening reads every token.
+  const literal = isLiteral(value) ? ` = ${flat(value, scope.source)}${asConst}` : undefined
+  if (literal !== undefined && fits(head + literal)) return literal
   const hint = firstOf(shapeHints, value, scope)
   return hint === undefined ? '' : ` = ${hint}${asConst}`
 }

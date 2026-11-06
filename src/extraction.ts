@@ -16,7 +16,7 @@ import { parseScript } from './syntax.ts'
 export interface Extraction {
   readonly symbols: readonly SymbolFacts[]
   readonly imports: readonly Import[]
-  /** Why the framework's compiler could not read the file, which then has no imports. */
+  /** Why the file could not be read, by the framework's compiler or by TypeScript. It then has no imports. */
   readonly failure?: string
 }
 
@@ -47,6 +47,9 @@ function blockExtraction(path: RepoPath, block: ScriptBlock, loads: boolean): Ex
   return { symbols: symbols.map(shift), imports: imports.map(shift) }
 }
 
+const firstLineOf = (error: unknown) =>
+  (error instanceof Error ? error.message : String(error)).split('\n')[0]!
+
 function frameworkExtraction(
   path: RepoPath,
   language: FrameworkLanguage,
@@ -58,8 +61,7 @@ function frameworkExtraction(
   try {
     blocks = scriptBlocksOf(language, path, text, load)
   } catch (error) {
-    const failure = (error instanceof Error ? error.message : String(error)).split('\n')[0]!
-    return { symbols: [component], imports: [], failure }
+    return { symbols: [component], imports: [], failure: firstLineOf(error) }
   }
   // Only a Vue `<script>` or a Svelte module script runs as the module loads.
   // `<script setup>`, a Svelte instance script and Astro frontmatter run per
@@ -74,7 +76,11 @@ function frameworkExtraction(
   }
 }
 
-/** `load` gives the framework's compiler module, and is absent when Galactica was installed without it. */
+/**
+ * `load` gives the framework's compiler module, and is absent when Galactica
+ * was installed without it. A file TypeScript cannot parse, such as one nested
+ * deeper than its parser's stack allows, gives a failure in place of a crash.
+ */
 export function extract(
   path: RepoPath,
   language: Language,
@@ -82,7 +88,12 @@ export function extract(
   load?: () => unknown
 ): Extraction {
   const text = bytes.toString('utf8')
-  if (!isScriptLanguage(language)) return frameworkExtraction(path, language, text, load)
-  const source = parseScript(path, language, text)
-  return { symbols: symbolsOf(source), imports: importsOf(source) }
+  const script = isScriptLanguage(language)
+  try {
+    if (!script) return frameworkExtraction(path, language, text, load)
+    const source = parseScript(path, language, text)
+    return { symbols: symbolsOf(source), imports: importsOf(source) }
+  } catch (error) {
+    return { symbols: script ? [] : [componentOf(path)], imports: [], failure: firstLineOf(error) }
+  }
 }

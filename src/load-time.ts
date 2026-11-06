@@ -9,6 +9,7 @@
  */
 
 import ts from 'typescript'
+import { pushChildren } from './syntax.ts'
 
 /** A name an import binds in the module's top-level scope. */
 export interface Bound {
@@ -215,6 +216,14 @@ export function loadTimeOf(source: ts.SourceFile, imports: ReadonlyMap<string, B
   const calledBy = new Map<string, Set<string>>()
 
   let runs = LOAD
+  /**
+   * What the walk has left to do, the next step last: a node to visit, or a
+   * step such as leaving a scope that runs once everything pushed after it
+   * has. A stack, not recursion, so a tree thousands of levels deep cannot
+   * overflow the call stack.
+   */
+  const pending: (ts.Node | (() => void))[] = []
+  const visitChildren = (node: ts.Node) => pushChildren(pending, node, child => child)
   /** The tracked names each enclosing nested scope declares, for the scopes that declare any. */
   const hiding: ReadonlySet<string>[] = []
   const isHidden = (name: string) => hiding.some(names => names.has(name))
@@ -232,11 +241,13 @@ export function loadTimeOf(source: ts.SourceFile, imports: ReadonlyMap<string, B
   /** Visits the children of `node`, those `inside` accepts with `inner`, the rest as before. */
   const split = (node: ts.Node, inner: Runs, inside: (child: ts.Node) => boolean) => {
     const outer = runs
-    ts.forEachChild(node, child => {
+    pending.push(() => {
+      runs = outer
+    })
+    pushChildren(pending, node, child => () => {
       runs = inside(child) ? inner : outer
       visit(child)
     })
-    runs = outer
   }
   const call = (node: ts.CallExpression | ts.NewExpression | ts.TaggedTemplateExpression) => {
     const callee = unwrap(ts.isTaggedTemplateExpression(node) ? node.tag : node.expression)
@@ -248,7 +259,7 @@ export function loadTimeOf(source: ts.SourceFile, imports: ReadonlyMap<string, B
     }
   }
   const body = (node: Body) => {
-    if (runs.at === 'later' || isInvoked(node)) return void ts.forEachChild(node, visit)
+    if (runs.at === 'later' || isInvoked(node)) return visitChildren(node)
     const inner: Runs = { at: 'later', owner: ownerOf(node) }
     split(node, inner, child => !ts.isDecorator(child) && child !== node.name)
   }
@@ -256,9 +267,11 @@ export function loadTimeOf(source: ts.SourceFile, imports: ReadonlyMap<string, B
     hidden = undefined
     declaredIn(node, hide)
     const names = hidden
-    if (names) hiding.push(names)
+    if (names) {
+      hiding.push(names)
+      pending.push(() => hiding.pop())
+    }
     enter()
-    if (names) hiding.pop()
   }
 
   const visit = (node: ts.Node): void => {
@@ -311,7 +324,7 @@ export function loadTimeOf(source: ts.SourceFile, imports: ReadonlyMap<string, B
       case Kind.ForOfStatement:
       case Kind.CatchClause:
       case Kind.ClassExpression:
-        return inScope(node, () => ts.forEachChild(node, visit))
+        return inScope(node, () => visitChildren(node))
       case Kind.PropertyDeclaration: {
         const property = node as ts.PropertyDeclaration
         if (runs.at === 'later' || hasModifier(property, Kind.StaticKeyword)) break
@@ -321,9 +334,13 @@ export function loadTimeOf(source: ts.SourceFile, imports: ReadonlyMap<string, B
       default:
         if (node.kind >= Kind.FirstTypeNode && node.kind <= Kind.LastTypeNode) return
     }
-    ts.forEachChild(node, visit)
+    visitChildren(node)
   }
-  for (const statement of source.statements) visit(statement)
+  for (const statement of source.statements.toReversed()) pending.push(statement)
+  for (let next = pending.pop(); next !== undefined; next = pending.pop()) {
+    if (typeof next === 'function') next()
+    else visit(next)
+  }
 
   const queue = [...started]
   for (let owner = queue.pop(); owner !== undefined; owner = queue.pop()) {

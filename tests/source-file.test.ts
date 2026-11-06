@@ -82,3 +82,27 @@ test('framework languages are no script languages', () => {
   assert.equal(isScriptLanguage('cjs'), true)
   assert.equal(isScriptLanguage('vue'), false)
 })
+
+for (const name of ['app.e2e-spec.ts', 'app.integration-spec.tsx', 'app-spec.js']) {
+  test(`${name} is a test`, () => assert.equal(kind(`src/${name}`), 'test'))
+}
+
+for (const folder of [
+  '__testfixtures__',
+  '__fixtures__',
+  'testdata',
+  'testData',
+  'fixtures',
+  '__mocks__'
+]) {
+  test(`${folder} contains tests, including framework files`, () => {
+    for (const extension of ['ts', 'js', 'vue', 'svelte', 'astro']) {
+      assert.equal(kind(`src/${folder}/nested/component.${extension}`), 'test')
+    }
+  })
+}
+
+test('explicit kinds can keep production fixture directories as source', () => {
+  const config = { ...emptyConfig, kinds: { source: ['src/fixtures/**'] } }
+  assert.equal(kindOf(parseRepoPath('src/fixtures/seeds.ts'), config), 'source')
+})
