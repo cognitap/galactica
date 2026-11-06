@@ -29,7 +29,7 @@ import {
 
 const cli = fileURLToPath(new URL('../../dist/bin.js', import.meta.url))
 if (!existsSync(cli)) throw new Error('build Galactica first: pnpm build')
-const galactica = `node ${cli}`
+const galactica = `${process.execPath} ${cli}`
 const { cacheDirectory }: typeof import('../../src/cache.ts') = await import(
   new URL('../../dist/cache.js', import.meta.url).href
 )

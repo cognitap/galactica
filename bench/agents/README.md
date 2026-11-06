@@ -29,8 +29,8 @@ The output folder holds `runs.jsonl`, one graded run per line, `results.json` an
 
 1. Clones each target repository once into `--work`, shallow, at the commit `tasks.ts` pins.
 2. Adds a git worktree of that commit for the run.
-3. Installs the skill for the `skill` and `instructed` conditions with `galactica init --command "node <this repository>/dist/bin.js"`, so the agent runs the build of this checkout. `instructed` also writes the short instruction of `tasks.ts` to `CLAUDE.md`.
-4. Runs `claude -p <task prompt>` in the worktree with fixed flags: `--setting-sources project --strict-mcp-config --no-session-persistence`, the tools `Read, Grep, Glob, Bash, Skill`, plus `Edit, Write` for the tasks that edit, and Bash allowed only for the Galactica command, `ls`, `cat`, `grep`, `rg`, `find`, `head`, `tail`, `wc`, `sed -n` and read-only git commands. Any other command is denied, so the agent cannot install dependencies or run the repository's tests.
+3. Installs the skill for the `skill` and `instructed` conditions with `galactica init --command "<node> <this repository>/dist/bin.js"`, with the absolute path of the Node.js that runs the harness, so the agent runs the build of this checkout whatever its shell finds on `PATH`. `instructed` also writes the short instruction of `tasks.ts` to `CLAUDE.md`.
+4. Runs `claude -p <task prompt>` in the worktree with fixed flags: `--setting-sources project --strict-mcp-config --no-session-persistence`, the tools `Read, Grep, Glob, Bash, Skill`, plus `Edit, Write` for the tasks that edit, and Bash allowed only for that Galactica command, `ls`, `cat`, `grep`, `rg`, `find`, `head`, `tail`, `wc`, `sed -n` and read-only git commands. Any other command is denied, so the agent cannot install dependencies or run the repository's tests.
 5. Grades the answer and the worktree, then removes the worktree and the Galactica cache it made.
 
 ## Conditions
