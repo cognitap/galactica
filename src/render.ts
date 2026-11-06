@@ -118,8 +118,8 @@ function renderOverview({
     `${plural(cycles, 'import cycle')}, ${plural(unresolved, 'unresolved import')}`,
     ...(warnings.length === 0
       ? []
-      : [`${plural(warnings.length, 'warning')}, galactica overview --json lists them`]),
-    'next: galactica where <name> finds a symbol, galactica uses <file> lists what to check and test before you edit it'
+      : [`${plural(warnings.length, 'warning')}, overview --json lists them`]),
+    'next: run the same command with where <name> in place of overview to find a symbol, or with uses <file> to list what to check and test before you edit it'
   ])
 }
 
@@ -161,7 +161,7 @@ function cycleLines(cycles: readonly Cycle[], subject: Subject): readonly string
       module === undefined
         ? `of ${plural(cycle.modules.length, 'module')} (${shown}${more})`
         : `with ${shown}${more}`
-    return `in an import cycle ${members}, ${useLabel(cycle)}: galactica cycles shows where to break it`
+    return `in an import cycle ${members}, ${useLabel(cycle)}: the cycles command shows where to break it`
   })
 }
 
@@ -334,7 +334,7 @@ function renderHealth({
         ]),
     ...(cycles.length === 0
       ? []
-      : ['galactica cycles lists every import of each cycle and how to cut one'])
+      : ['the cycles command lists every import of each cycle and how to cut one'])
   ]
 }
 

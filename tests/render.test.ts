@@ -57,7 +57,7 @@ test('overview text gives each layer one line, then the most imported modules', 
       'most imported:',
       'src/cn.ts  1 importer  cn',
       '0 import cycles, 0 unresolved imports',
-      'next: galactica where <name> finds a symbol, galactica uses <file> lists what to check and test before you edit it'
+      'next: run the same command with where <name> in place of overview to find a symbol, or with uses <file> to list what to check and test before you edit it'
     ].join('\n')
   )
 })
@@ -77,7 +77,7 @@ test('overview text counts the warnings in one line that points at --json', () =
   const lines = render(output).split('\n')
   assert.deepEqual(lines.slice(-3, -1), [
     '0 import cycles, 0 unresolved imports',
-    '2 warnings, galactica overview --json lists them'
+    '2 warnings, overview --json lists them'
   ])
   assert.ok(!lines.some(line => line.includes('tsconfig.json')))
 })
@@ -155,7 +155,7 @@ test('cycles text lists each cycle, its modules and its imports, those to break 
   )
   assert.match(
     run('uses', 'src/a.ts'),
-    /\nin an import cycle with src\/b\.ts, used at load time: galactica cycles shows where to break it$/
+    /\nin an import cycle with src\/b\.ts, used at load time: the cycles command shows where to break it$/
   )
   assert.equal(text('cycles'), 'no import cycles')
 })
@@ -295,4 +295,24 @@ test('uses text lists the tests outside hubs, then counts those that reach the s
       'Only tests that import it.'
     ].join('\n')
   )
+})
+
+test('no text names a bare galactica command, since agents run it through the command the skill names', () => {
+  const cyclic = graphOf(
+    modelOf({
+      'src/a.ts': { edges: [edge('src/b.ts', { loadTime: ['x'] })] },
+      'src/b.ts': { edges: [edge('src/a.ts')] }
+    }),
+    emptyConfig
+  )
+  const warnings = [
+    { path: 'package.json', message: 'a workspace package without a name is skipped' }
+  ]
+  for (const command of commands) {
+    const argument = commandTable[command].argument === undefined ? '' : 'src/a.ts'
+    const output = render(
+      commandTable[command].run({ graph: cyclic, config: emptyConfig, warnings }, input(argument))
+    )
+    assert.doesNotMatch(output, /galactica [a-z]/, command)
+  }
 })
