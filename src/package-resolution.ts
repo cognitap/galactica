@@ -342,7 +342,11 @@ export function workspaceResolver(
       const { parts, owner, result } = found
       if (result.kind === 'module') return result
       const key = `${parts.name}\0${result.reason}`
-      if (!warned.has(key)) {
+      const metadata =
+        parts.subpath === './package.json' &&
+        isRecord(owner.manifest) &&
+        exportsEntry(owner.manifest.exports, parts.subpath)?.target === './package.json'
+      if (!metadata && !warned.has(key)) {
         warned.add(key)
         warnings.push({ path: owner.path, message: `${specifier}: ${reasons[result.reason]}` })
       }
