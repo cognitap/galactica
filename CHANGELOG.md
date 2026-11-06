@@ -4,6 +4,10 @@
 
 ## Unreleased
 
+## 0.2.2
+
+- The npm package page now leads with the Immich dependency graph and a shorter quick start for opening a map.
+
 ## 0.2.1
 
 - Browse wider dependency layers horizontally and select an area anywhere on its card.
