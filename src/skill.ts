@@ -5,11 +5,17 @@
  */
 
 import { createHash } from 'node:crypto'
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
-import { dirname, join } from 'node:path'
+import { existsSync, readFileSync } from 'node:fs'
+import { join } from 'node:path'
+import { refuseLinks, writeBelow } from './safe-write.ts'
 
-/** The command the template names, so the template works as is when the skills CLI copies it. */
-export const defaultCommand = 'npx @cognitap/galactica'
+/**
+ * The command the template names, so the template works as is when the skills
+ * CLI copies it. Inside a repository, npx runs a copy of the package from the
+ * repository's `node_modules` and reads its `.npmrc`. `--prefix /` makes npm
+ * look in `/` for both, so a repository being mapped cannot plant either.
+ */
+export const defaultCommand = 'npx --prefix / @cognitap/galactica'
 
 /** Codex reads `.agents/skills`, Claude Code reads `.claude/skills`. */
 export const skillPaths = [
@@ -96,23 +102,29 @@ function statusOf(current: string | undefined, file: string, force: boolean): In
   return force || isUnedited(current) ? 'updated' : 'kept'
 }
 
-/** Writes each file under `root`, keeping an edited file unless `force`. */
+/**
+ * Writes each file under `root`, keeping an edited file unless `force`. It
+ * refuses a symbolic link on any path before it reads or writes, and writes
+ * every changed file or none.
+ */
 export function installSkill(
   root: string,
   files: readonly AgentFile[],
   force: boolean
 ): readonly Installed[] {
-  return files.map(({ path, text }) => {
-    const target = join(root, path)
-    const status = statusOf(
-      existsSync(target) ? readFileSync(target, 'utf8') : undefined,
-      text,
-      force
-    )
-    if (status === 'created' || status === 'updated') {
-      mkdirSync(dirname(target), { recursive: true })
-      writeFileSync(target, text)
-    }
-    return { path, status }
-  })
+  const targets = files.map(file => ({ ...file, target: join(root, file.path) }))
+  for (const { target } of targets) refuseLinks(root, target)
+  const installed = targets.map(({ path, text, target }) => ({
+    path,
+    text,
+    target,
+    status: statusOf(existsSync(target) ? readFileSync(target, 'utf8') : undefined, text, force)
+  }))
+  writeBelow(
+    root,
+    installed
+      .filter(({ status }) => status === 'created' || status === 'updated')
+      .map(({ target, text }) => ({ path: target, text }))
+  )
+  return installed.map(({ path, status }) => ({ path, status }))
 }

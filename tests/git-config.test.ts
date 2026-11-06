@@ -5,11 +5,13 @@ import {
   existsSync,
   readdirSync,
   readFileSync,
+  realpathSync,
   utimesSync,
   writeFileSync
 } from 'node:fs'
 import { join } from 'node:path'
 import { test } from 'node:test'
+import { cacheDirectory } from '../src/cache.ts'
 import { git, gitRepository, repository } from './temp-repository.ts'
 
 const cli = new URL('../dist/bin.js', import.meta.url).pathname
@@ -65,9 +67,18 @@ test("a repository's git config and hooks never run a program", t => {
     utimesSync(join(root, file), later, later)
   }
 
+  const home = realpathSync(repository(t, {}))
+  const env = {
+    ...process.env,
+    HOME: home,
+    USERPROFILE: home,
+    XDG_CACHE_HOME: join(home, '.cache'),
+    LOCALAPPDATA: join(home, 'AppData', 'Local')
+  }
   const run = (...args: string[]) => {
     const { status, stderr } = spawnSync('node', [cli, ...args, '--root', root], {
-      encoding: 'utf8'
+      encoding: 'utf8',
+      env
     })
     assert.equal(status, 0, stderr)
   }
@@ -76,7 +87,8 @@ test("a repository's git config and hooks never run a program", t => {
   run('html', '--out', page)
   run('overview')
   assert.match(readFileSync(page, 'utf8'), /github\.com\/acme\/app/)
-  assert.ok(existsSync(join(root, 'node_modules', '.cache', 'galactica', 'model.json')))
+  const cache = cacheDirectory(root, { platform: process.platform, env, home })!
+  assert.ok(existsSync(join(cache, 'model.json')))
   assert.deepEqual(
     readdirSync(markers).filter(name => !name.includes('.')),
     []

@@ -238,3 +238,30 @@ test('a model cached by another build, or a damaged one, is replaced', async t =
   assert.equal(output(recovered), output(repo.fresh()))
   assert.ok(fromCache(await repo.run()))
 })
+
+test('a cached model that does not parse is analyzed again, never used', async t => {
+  const repo = cachedRepository(t)
+  await repo.run()
+  const file = join(repo.cache, 'model.json')
+  const [header, body] = readFileSync(file, 'utf8').split('\n')
+  const { model, ...rest } = JSON.parse(body!)
+  const main = model.modules['src/main.ts']
+  const edge = main.edges[0]
+  const broken = {
+    'a symbol of no kind': { ...main, symbols: [{ name: 'main', line: 6 }] },
+    'symbols that are no list': { ...main, symbols: 5 },
+    'an edge to a module the model lacks': {
+      ...main,
+      edges: [{ ...edge, to: { kind: 'module', path: 'src/gone.ts' } }]
+    },
+    'an edge of no line': { ...main, edges: [{ ...edge, line: 'one' }] },
+    'a module under another path': { ...main, path: 'src/other.ts' }
+  }
+  for (const [name, value] of Object.entries(broken)) {
+    const modules = { ...model.modules, 'src/main.ts': value }
+    writeFileSync(file, `${header}\n${JSON.stringify({ ...rest, model: { ...model, modules } })}`)
+    const analysis = await repo.run()
+    assert.ok(!fromCache(analysis), name)
+    assert.equal(output(analysis), output(repo.fresh()), name)
+  }
+})

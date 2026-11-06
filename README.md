@@ -12,8 +12,10 @@ Galactica is inspired by [codemap](https://github.com/peterretief/codemap), whic
 Galactica needs Node.js 24.1.0 or newer. It runs in any repository with no install and no config:
 
 ```sh
-npx @cognitap/galactica overview
+npx --prefix / @cognitap/galactica overview
 ```
+
+Keep `--prefix /`. Without it, npx run inside a repository runs the copy of `@cognitap/galactica` in that repository's `node_modules`, even one that `package.json` does not list, and reads the repository's `.npmrc`. [What it reads](#what-it-reads) says what `--prefix /` guarantees.
 
 To pin a version for a team, install it as a dev dependency and run it through the package manager, for example `pnpm add -D @cognitap/galactica` and `pnpm exec galactica overview`.
 
@@ -23,7 +25,7 @@ Galactica is experimental while its version is `0.x`: a minor version can change
 
 Run each command from the repository you want to map, or pass that repository with `--root`. The first command in a repository analyzes every file and keeps what each file gives on its own in a cache. A later command parses only the files that changed since. On Radiant, about 500 modules, the first command takes about 0.8 seconds and a later one about 0.1 seconds.
 
-The examples below write `galactica` for `npx @cognitap/galactica`.
+The examples below write `galactica` for `npx --prefix / @cognitap/galactica`.
 
 | Command          | Answers                                                             |
 | ---------------- | ------------------------------------------------------------------- |
@@ -139,7 +141,7 @@ imports into another package's internals:
 …
 ```
 
-`html` writes the map for people to `galactica.html` in the current directory, or to the file `--out` names, and prints the path and size. `--open` opens the file in the default browser. The page is one file that loads nothing from the network, so it opens from disk and can be shared as an attachment. Each package is a section, largest first by its source and config modules; a compact package picker jumps between them. Inside it, each area is a box in a row by layer: the bottom row imports no other area, and each row above imports only from rows below, except areas marked as a cycle. A box is wider when its modules export more symbols, and its colour marks its top-level folder. An area of more than eight modules starts collapsed to its counts, and its module count expands it. Each module expands to list its exported symbols with their signatures and docs. The Show buttons filter the map by kind: source and config modules show at first, and tests and stories stay hidden until you show them. The header counts the visible modules and lists the hidden modules by kind. A module's kind comes from its name and folder, or from `kinds` in the config. Search still finds what the filter hides, marks it, and shows its kind when you choose it. To leave generated files out of the map, list them in `exclude`. On Radiant, the page is about 440 KB and takes under a second to write.
+`html` writes the map for people to `galactica.html` in the current directory, or to the file `--out` names, and prints the path and size. It refuses, with one line and exit code 1, to write the page through a symbolic link: the file itself, or a folder inside the repository above it, may not be one. `--open` opens the file in the default browser. The page is one file that loads nothing from the network, so it opens from disk and can be shared as an attachment. Each package is a section, largest first by its source and config modules; a compact package picker jumps between them. Inside it, each area is a box in a row by layer: the bottom row imports no other area, and each row above imports only from rows below, except areas marked as a cycle. A box is wider when its modules export more symbols, and its colour marks its top-level folder. An area of more than eight modules starts collapsed to its counts, and its module count expands it. Each module expands to list its exported symbols with their signatures and docs. The Show buttons filter the map by kind: source and config modules show at first, and tests and stories stay hidden until you show them. The header counts the visible modules and lists the hidden modules by kind. A module's kind comes from its name and folder, or from `kinds` in the config. Search still finds what the filter hides, marks it, and shows its kind when you choose it. To leave generated files out of the map, list them in `exclude`. On Radiant, the page is about 440 KB and takes under a second to write.
 
 The search field finds areas, modules and exported symbols as you type. Press `/` to focus it, the arrow keys to move through the matches, Enter to go to one and Escape to close the list or clear the field. Exact matches come first, then names that start with what you typed, then names that contain it. Going to a symbol opens its module.
 
@@ -159,22 +161,22 @@ The template must start with `http://` or `https://` and contain `{path}`. Each 
 
 `init` installs the agent skill in `.agents/skills/galactica/`, which Codex reads, and in `.claude/skills/galactica/`, which Claude Code reads. Cursor's agent did not open the skill from either folder in testing, so `init` also writes the rule `.cursor/rules/galactica.mdc`, which Cursor requests by the skill's description and which sends it to the skill. It writes those three files and nothing else, and prints each path with whether it was created, updated or unchanged. The skill tells an agent to run `overview` when it starts in an unfamiliar repository, `where` instead of grep, and `uses` before it edits a file, then the tests `uses` lists. It also tells the agent to check that an edit adds no import cycle, and to break an existing one only when asked or when it causes a load-time bug.
 
-The skill runs `npx @cognitap/galactica` by default. `--command` sets the command it runs instead, for example when Galactica is a dev dependency, or a build from a checkout:
+The skill runs `npx --prefix / @cognitap/galactica` by default. `--command` sets the command it runs instead, for example when Galactica is a dev dependency of a repository you trust, or a build from a checkout:
 
 ```sh
-npx @cognitap/galactica init --command "pnpm exec galactica"
+npx --prefix / @cognitap/galactica init --command "pnpm exec galactica"
 node /path/to/galactica/dist/bin.js init --command "node /path/to/galactica/dist/bin.js"
 ```
 
-Running `init` again updates each file to the current version, unless someone edited it. Each file records a hash of what `init` wrote, so `init` keeps an edited file, says so, and replaces it only with `--force`. It exits with code 1 only when it kept every file. The skill is also at `skills/galactica/` in this repository, so the [skills CLI](https://github.com/vercel-labs/skills) installs it for any agent it supports, in place of `init`:
+Running `init` again updates each file to the current version, unless someone edited it. Each file records a hash of what `init` wrote, so `init` keeps an edited file, says so, and replaces it only with `--force`. It exits with code 1 only when it kept every file. When any of the three paths, or a folder above it inside the repository such as a `.claude` linked to `~/.claude`, is a symbolic link, `init` refuses in one line, writes nothing and exits with code 1. It writes all three files or none. The skill is also at `skills/galactica/` in this repository, so the [skills CLI](https://github.com/vercel-labs/skills) installs it for any agent it supports, in place of `init`:
 
 ```sh
-npx skills add cognitap/galactica
+npx --prefix / skills add cognitap/galactica
 ```
 
-A skill installed this way runs `npx @cognitap/galactica`, and `npx skills update` updates it.
+`--prefix /` keeps npm from running a `skills` package planted in the repository you are in. A skill installed this way runs `npx --prefix / @cognitap/galactica`, and `npx --prefix / skills update` updates it.
 
-Galactica keeps the symbols and imports of each file in a cache, so it adds nothing to the repository except the optional skill. The cache is `node_modules/.cache/galactica/cache.json` when the repository has a `node_modules` folder. Otherwise it is in the user cache folder, under `galactica/` and a hash of the repository path: `~/Library/Caches` on macOS, `$XDG_CACHE_HOME` or `~/.cache` on Linux, and `%LOCALAPPDATA%` on Windows. A file whose size and modification time are unchanged is not read again, and a file whose content is unchanged is not parsed again. The whole cache is discarded when Galactica, TypeScript, `vue` or `svelte` changes version, or a compiler is installed or removed. Everything that depends on more than one file, such as where an import leads, is worked out again on every run, so the cache never gives a stale answer. Deleting the cache is always safe. `--no-cache` analyzes every file and neither reads nor writes the cache.
+Galactica keeps the symbols and imports of each file, and the model built from them, in a cache, so it adds nothing to the repository except the optional skill. The cache is in the user cache folder, under `galactica/` and a hash of the repository's real path: `~/Library/Caches` on macOS, `$XDG_CACHE_HOME` or `~/.cache` on Linux, and `%LOCALAPPDATA%` on Windows. Galactica never reads a cache from the repository, so a repository cannot ship a cache that changes what Galactica reports. It creates the folder readable by you alone, and runs with no cache when that folder is a symlink, belongs to another user or lies inside the repository, or when there is no home folder. Earlier versions kept the cache in `node_modules/.cache/galactica`, which you can delete. A file whose size and modification time are unchanged is not read again, and a file whose content is unchanged is not parsed again. The whole cache is discarded when Galactica, TypeScript, `vue` or `svelte` changes version, or a compiler is installed or removed. Everything that depends on more than one file, such as where an import leads, is worked out again on every run, so the cache never gives a stale answer. Deleting the cache is always safe. `--no-cache` analyzes every file and neither reads nor writes the cache.
 
 ## Configuration
 
@@ -233,7 +235,9 @@ Nuxt and SvelteKit generate the tsconfig files that a project's own `tsconfig.js
 
 Imports through symlinks or a different letter case reach the discovered source module when the filesystem resolves that spelling. Known data assets and declarations create no code dependency; other files and source omitted from the map count as unresolved. A missing `paths` target falls back to the npm package name when the specifier can name one.
 
-Galactica never runs code from the repository it maps, so it is safe to run on a repository you just cloned or downloaded. It loads no module from the repository's `node_modules`. It runs git with `core.fsmonitor`, optional index writes and the filter drivers of the repository's own config turned off, so a `.git` folder that came with a download cannot make git run a program.
+Galactica never runs code from the repository it maps, so it is safe to run on a repository you just cloned or downloaded when you start it with `npx --prefix / @cognitap/galactica`, or from a copy installed outside that repository. With `--prefix /`, npm looks for installed packages and a project `.npmrc` in `/` instead of the repository. It takes Galactica from its cache or from the registry in your own npm config, and never runs a `node_modules/@cognitap/galactica` or `node_modules/.bin/galactica` that the repository holds, listed in its `package.json` or not. `tests/npx-shadow.test.ts` checks this against a repository that plants both and an `.npmrc` naming another registry. Plain `npx @cognitap/galactica` run inside the repository has no such guarantee, and neither has a command set with `init --command`, such as `pnpm exec galactica`, which runs the repository's own install.
+
+Galactica itself loads no module from the repository's `node_modules`. It runs git with `core.fsmonitor`, optional index writes and the filter drivers of the repository's own config turned off, so a `.git` folder that came with a download cannot make git run a program. A tool that acts on a file in the repository before Galactica starts, such as a version manager that reads `.nvmrc` or `.tool-versions` and switches Node.js or npm, is outside this guarantee.
 
 ## Performance
 
