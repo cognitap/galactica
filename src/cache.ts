@@ -23,10 +23,8 @@ import { basename, dirname, extname, isAbsolute, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { cacheEntryOf, type CacheEntry } from './cache-schema.ts'
 import { isRecord, type UnknownRecord } from './json.ts'
-import { compare, type RepoPath } from './model.ts'
+import { compare, sha256, type RepoPath } from './model.ts'
 import { isWithin } from './paths.ts'
-
-export type { CacheEntry } from './cache-schema.ts'
 
 export const CACHE_FORMAT = 6
 
@@ -59,6 +57,9 @@ function buildHash(): string {
 
 const versionOf = (manifest: string) => String(JSON.parse(readFileSync(manifest, 'utf8')).version)
 
+/** Galactica's own version, from its package.json. */
+export const galacticaVersion = () => versionOf(join(here, '..', 'package.json'))
+
 const require = createRequire(import.meta.url)
 
 // Read from its package.json, so a warm run knows the stamp without loading the package.
@@ -72,7 +73,7 @@ function dependencyVersion(name: string): string {
 
 export function currentStamp(): Stamp {
   return {
-    galactica: versionOf(join(here, '..', 'package.json')),
+    galactica: galacticaVersion(),
     build: buildHash(),
     typescript: dependencyVersion('typescript'),
     vue: dependencyVersion('@vue/compiler-sfc'),
@@ -116,7 +117,7 @@ export function cacheDirectory(
   if (!isAbsolute(base)) return undefined
   try {
     const real = realpathSync(root)
-    const key = createHash('sha256').update(real).digest('hex').slice(0, 16)
+    const key = sha256(real).slice(0, 16)
     const directory = join(base, 'galactica', key)
     mkdirSync(directory, { recursive: true, mode: 0o700 })
     const stat = lstatSync(directory)

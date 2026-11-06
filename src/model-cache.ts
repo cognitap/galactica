@@ -19,7 +19,7 @@ import type { Config } from './model.ts'
 
 export const MODEL_CACHE_FORMAT = 2
 
-export interface Options {
+interface Options {
   /** The cache folder. Without one, the analysis runs in full and nothing is written. */
   readonly cache?: string
 }

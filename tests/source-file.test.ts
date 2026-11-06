@@ -1,8 +1,9 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
 import { languages } from '../src/contract.ts'
+import { isScriptLanguage } from '../src/frameworks.ts'
 import { emptyConfig, parseRepoPath } from '../src/model.ts'
-import { isScriptLanguage, kindOf, languageOf } from '../src/source-file.ts'
+import { kindOf, languageOf } from '../src/source-file.ts'
 
 const kind = (path: string) => kindOf(parseRepoPath(path), emptyConfig)
 const language = (path: string) => languageOf(parseRepoPath(path))

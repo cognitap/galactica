@@ -13,7 +13,7 @@ import {
 } from './compiler-settings.ts'
 import type { Language, ModuleKind } from './contract.ts'
 import { globProblem, matchesGlob } from './glob.ts'
-import { plainInputs, type Inputs } from './inputs.ts'
+import type { Inputs } from './inputs.ts'
 import {
   compare,
   parseRepoPath,
@@ -26,8 +26,6 @@ import {
 import { repositoryFiles } from './repository-files.ts'
 import { kindOf, languageOf } from './source-file.ts'
 import { nameOf, packageOf, readJson, workspacePackages, workspacePatterns } from './workspace.ts'
-
-export type { Warning } from './compiler-settings.ts'
 
 export interface DiscoveredModule {
   readonly path: RepoPath
@@ -66,11 +64,7 @@ function selected(path: RepoPath, { include, exclude }: Config): boolean {
   return (include === undefined || include.some(matches)) && !exclude.some(matches)
 }
 
-export function discover(
-  rootDir: string,
-  config: Config,
-  inputs: Inputs = plainInputs(ts.sys)
-): Discovery {
+export function discover(rootDir: string, config: Config, inputs: Inputs): Discovery {
   const root = resolve(rootDir)
   const files = repositoryFiles(root, inputs)
   const settings = compilerSettings(root, files, inputs)

@@ -12,16 +12,8 @@
  */
 
 import ts from 'typescript'
+import type { Binding } from './imports.ts'
 import { pushChildren } from './syntax.ts'
-
-/** A name an import binds in the module's top-level scope. */
-export interface Bound {
-  readonly specifier: ts.Expression
-  /** As the imported module exports it. */
-  readonly taken: string
-  /** Written type-only, so emitDecoratorMetadata never reads it. */
-  readonly typeOnly?: boolean
-}
 
 export const isRequireCall = (node: ts.Node): node is ts.CallExpression =>
   ts.isCallExpression(node) &&
@@ -30,7 +22,7 @@ export const isRequireCall = (node: ts.Node): node is ts.CallExpression =>
   node.arguments.length === 1
 
 /** How the module uses the bindings of one import. */
-export interface Use {
+interface Use {
   /** The import's names its load-time code reads. */
   readonly loadTime: readonly string[]
   /**
@@ -53,7 +45,7 @@ export interface JSXRead {
 }
 
 /** How the module uses the import at `specifier`, which takes `names`. */
-export type Uses = (specifier: ts.Expression, names: readonly string[]) => Use
+type Uses = (specifier: ts.Expression, names: readonly string[]) => Use
 
 const unused: Use = { loadTime: [], metadataLoadTime: [] }
 
@@ -111,14 +103,20 @@ function ownersOf(source: ts.SourceFile): ReadonlySet<string> {
 }
 
 /** `const x = require('...')` at the top level binds `x` like `import * as x`. */
-function requireBindings(source: ts.SourceFile): Map<string, Bound & { call: ts.Node }> {
-  const bindings = new Map<string, Bound & { call: ts.Node }>()
+function requireBindings(source: ts.SourceFile): Map<string, Binding & { call: ts.Node }> {
+  const bindings = new Map<string, Binding & { call: ts.Node }>()
   for (const statement of source.statements) {
     if (!ts.isVariableStatement(statement)) continue
     for (const { name, initializer } of statement.declarationList.declarations) {
       const call = initializer && unwrap(initializer)
       if (!call || !isRequireCall(call) || !ts.isIdentifier(name)) continue
-      bindings.set(name.text, { specifier: call.arguments[0]!, taken: '*', call })
+      bindings.set(name.text, {
+        specifier: call.arguments[0]!,
+        syntax: 'require',
+        taken: '*',
+        typeOnly: false,
+        call
+      })
     }
   }
   return bindings
@@ -357,7 +355,7 @@ function scopesOf(tracked: ReadonlySet<string>, pending: Pending) {
 }
 
 interface Walk {
-  readonly bindings: ReadonlyMap<string, Bound>
+  readonly bindings: ReadonlyMap<string, Binding>
   readonly owners: ReadonlySet<string>
   readonly boundCalls: ReadonlySet<ts.Node>
   readonly reads: ReadState
@@ -457,8 +455,8 @@ function propagateCalls({ code, metadata, calls }: ReadState): void {
 /** Translate local reads to the imported names and JSX facts each specifier needs. */
 function importUses(
   source: ts.SourceFile,
-  imports: ReadonlyMap<string, Bound>,
-  bindings: ReadonlyMap<string, Bound>,
+  imports: ReadonlyMap<string, Binding>,
+  bindings: ReadonlyMap<string, Binding>,
   reads: ReadState
 ): Uses {
   const jsxBindings = new Map<ts.Expression, string[]>()
@@ -509,11 +507,13 @@ function importUses(
   }
 }
 
-export function usesOf(source: ts.SourceFile, imports: ReadonlyMap<string, Bound>): Uses {
+export function usesOf(source: ts.SourceFile, imports: ReadonlyMap<string, Binding>): Uses {
   const requires = source.text.includes('require')
   if (imports.size === 0 && !requires) return () => unused
-  const required = requires ? requireBindings(source) : new Map<string, Bound & { call: ts.Node }>()
-  const bindings = new Map<string, Bound>([...imports, ...required])
+  const required = requires
+    ? requireBindings(source)
+    : new Map<string, Binding & { call: ts.Node }>()
+  const bindings = new Map<string, Binding>([...imports, ...required])
   const owners = ownersOf(source)
 
   // Nodes and scope/phase exit steps share one stack, so deep syntax cannot overflow it.

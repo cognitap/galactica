@@ -17,7 +17,7 @@ import type {
 } from './model.ts'
 import { packageOf } from './workspace.ts'
 
-export type Placement = Pick<ModuleNode, 'package' | 'area'>
+type Placement = Pick<ModuleNode, 'package' | 'area'>
 
 const directoryOf = (path: string): string => {
   const slash = path.lastIndexOf('/')

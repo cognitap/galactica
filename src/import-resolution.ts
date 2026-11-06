@@ -8,14 +8,15 @@
 import { isBuiltin } from 'node:module'
 import { dirname, extname, join } from 'node:path'
 import ts from 'typescript'
-import type { Warning } from './compiler-settings.ts'
+import { canonicalFileName, type Warning } from './compiler-settings.ts'
 import { compilerOptionsOf, type DiscoveredModule, type Discovery } from './discovery.ts'
-import { plainInputs, type Inputs } from './inputs.ts'
+import type { Inputs } from './inputs.ts'
 import { toRepoPath, type RepoPath, type Target } from './model.ts'
 import {
   packageImports,
   sourceCandidates,
   splitSpecifier,
+  starIn,
   workspaceResolver,
   type WorkspaceResolver
 } from './package-resolution.ts'
@@ -23,7 +24,7 @@ import { isWithin } from './paths.ts'
 import { missingFile, readProblem, readRepositoryFile } from './safe-read.ts'
 
 /** A repository file that is no module, such as a stylesheet or a declaration file. */
-export interface OtherFile {
+interface OtherFile {
   readonly kind: 'file'
   readonly path: RepoPath
 }
@@ -143,10 +144,6 @@ function moduleResolutionHost(
   }
 }
 
-const canonicalFileName = ts.sys.useCaseSensitiveFileNames
-  ? (name: string) => name
-  : (name: string) => name.toLowerCase()
-
 export const isRelative = (specifier: string) => /^\.\.?(\/|$)/.test(specifier)
 
 const nodeModules = /[/\\]node_modules[/\\]((?:@[^/\\]+[/\\])?[^/\\]+)/g
@@ -163,17 +160,10 @@ function pathsMatch(
 ): { readonly targets: readonly string[]; readonly star: string } | undefined {
   if (Object.hasOwn(paths, specifier)) return { targets: paths[specifier]!, star: '' }
   const matches = Object.keys(paths).flatMap(key => {
-    const [prefix, suffix, ...more] = key.split('*')
-    if (prefix === undefined || suffix === undefined || more.length > 0) return []
-    const fits =
-      specifier.length >= prefix.length + suffix.length &&
-      specifier.startsWith(prefix) &&
-      specifier.endsWith(suffix)
-    return fits
-      ? [{ prefix, key, star: specifier.slice(prefix.length, specifier.length - suffix.length) }]
-      : []
+    const star = starIn(key, specifier)
+    return star === undefined ? [] : [{ key, star }]
   })
-  const best = matches.sort((a, b) => b.prefix.length - a.prefix.length)[0]
+  const best = matches.sort((a, b) => b.key.indexOf('*') - a.key.indexOf('*'))[0]
   return best && { targets: paths[best.key]!, star: best.star }
 }
 
@@ -188,10 +178,7 @@ function packageNamed(specifier: string): string | undefined {
  * resolution cache per config and remembers every file and directory lookup,
  * so each is made once per run.
  */
-export function importResolver(
-  discovery: Discovery,
-  inputs: Inputs = plainInputs(ts.sys)
-): ImportResolver {
+export function importResolver(discovery: Discovery, inputs: Inputs): ImportResolver {
   const { root } = discovery
   const modules: ReadonlySet<string> = new Set(discovery.modules.map(module => module.path))
   const workspace = workspaceResolver(discovery, inputs)
