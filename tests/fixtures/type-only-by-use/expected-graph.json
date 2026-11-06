@@ -1,0 +1,8 @@
+{
+  "cycles": [
+    ["src/metadata/repository.ts", "src/metadata/service.ts"],
+    ["src/mixed/order.ts", "src/mixed/user.ts"],
+    ["src/reexport/index.ts", "src/reexport/shape.ts"],
+    ["src/verbatim/a.ts", "src/verbatim/b.ts"]
+  ]
+}

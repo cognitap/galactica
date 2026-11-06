@@ -31,6 +31,7 @@ const cases = [
   'jsconfig-aliases',
   'allowjs-mixed',
   'type-only-and-dynamic',
+  'type-only-by-use',
   'react-components',
   'tests-and-stories',
   'package-self-reference',
@@ -49,6 +50,8 @@ const cases = [
 const mapped = new Set<string>(languages)
 const frameworks = new Set(['vue', 'svelte', 'astro'])
 const importLine = /\bfrom\s*['"]|\bimport\s*['"]|\bimport\s*\(|\brequire\s*\(/
+/** `export { name }` or `export default name` of an imported binding passes it on from its own line. */
+const localExportLine = /^export\s*(\{|default\b)/
 
 function mappedFiles(repo: string, dir = repo): string[] {
   return readdirSync(dir, { withFileTypes: true }).flatMap(entry => {
@@ -154,7 +157,9 @@ for (const name of cases) {
       for (const edge of edges) {
         const where = `${path}:${edge.line} -> ${targetKey(edge.to)}`
         const line = sourceLine(repo, path, edge.line)
-        assert.match(line, importLine, `${where} points at a line without an import: ${line}`)
+        const pattern =
+          edge.form === 'reexport' && !importLine.test(line) ? localExportLine : importLine
+        assert.match(line, pattern, `${where} points at a line without an import: ${line}`)
         assert.deepEqual(edge.names, sorted(edge.names), `${where} names are not sorted`)
         if (edge.form === 'reexport') assert.match(line, /\bexport\b/, `${where} reexport`)
         if (edge.dynamic) assert.match(line, /\bimport\s*\(/, `${where} dynamic`)
