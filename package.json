@@ -1,7 +1,7 @@
 {
   "name": "@cognitap/galactica",
   "version": "0.2.2",
-  "description": "Maps a JavaScript or TypeScript repository for agents and humans",
+  "description": "Trace JavaScript and TypeScript imports, find the tests a change can affect, and explore the dependency graph offline.",
   "keywords": [
     "agent-skills",
     "cli",
