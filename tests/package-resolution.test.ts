@@ -449,3 +449,19 @@ test('the root package resolves its own name only when it has exports', t => {
   const [fallbackName] = Object.keys(discover(unnamed, emptyConfig).packages)
   assert.equal(workspaceResolver(discover(unnamed, emptyConfig)).resolve(fallbackName!), undefined)
 })
+
+test('exporting package.json metadata does not warn that it is no module', t => {
+  const resolver = workspace(
+    t,
+    { exports: { '.': './index.ts', './package.json': './package.json' } },
+    { 'index.ts': '' }
+  )
+  resolver.resolve('pkg/package.json')
+  assert.deepEqual(resolver.warnings(), [])
+})
+
+test('a missing target named package.json still warns about a broken export', t => {
+  const resolver = workspace(t, { exports: { './package.json': './missing.ts' } }, {})
+  resolver.resolve('pkg/package.json')
+  assert.equal(resolver.warnings().length, 1)
+})
