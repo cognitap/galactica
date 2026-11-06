@@ -4,6 +4,7 @@
 
 ## Unreleased
 
+- State the Node.js 24.1.0 minimum at the start of the README, before installation.
 - **Breaking:** Repository configuration follows the same regular-file, root and 10 MB policy as source. Before: linked or oversized configs could hang analysis or read outside content. After: unsafe optional configs are skipped with warnings, and an unsafe `galactica.config.json` fails clearly.
 - `init` refuses to read an existing skill file over 10 MB and writes none of its files when that check fails.
 - An import whose names a TypeScript module uses only as types, such as `import { User } from './user'` read only in `user: User`, no longer counts in `cycles` and `health`, the same as `import type`, since TypeScript leaves it out of its output. In immich, `cycles` went from 6 cycles, one of 89 modules, to 5 of at most 4 modules, and from 61 imports to break to 6. `verbatimModuleSyntax` keeps such imports, and with `emitDecoratorMetadata`, a type that a decorated signature names counts as read when the class is defined.
