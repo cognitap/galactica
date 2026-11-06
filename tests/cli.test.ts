@@ -314,6 +314,12 @@ test('bad flags and missing arguments are usage failures', () => {
   }
 })
 
+test('help links the JSON contract on GitHub where packaged CLI users can read it (DEV-718)', () => {
+  const { status, stdout } = galactica(plain, '--help')
+  assert.equal(status, 0)
+  assert.ok(stdout.includes('https://github.com/cognitap/galactica/blob/main/docs/json-output.md'))
+})
+
 test('no command or an unknown one points at help in one line and exits with code 1', () => {
   for (const args of [[], ['nope']]) {
     const { status, stderr } = galactica(plain, ...args)

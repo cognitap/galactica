@@ -1,15 +1,64 @@
 # Galactica
 
-Galactica maps a JavaScript or TypeScript repository, for coding agents and for the people who work with them. Both views come from the same analysis, so they never disagree.
+Galactica gives coding agents file-level import, impact and cycle answers, and gives people an interactive map of the same JavaScript or TypeScript repository.
 
-Requires **Node.js 24.1.0 or newer**.
+Requires **Node.js 24.1.0 or newer**. Experimental `0.x`; this README describes `main`.
 
-- **For agents:** seven commands answer the questions an agent asks while it works, and a skill tells the agent when to ask them.
-- **For humans:** one self-contained HTML page shows where everything lives and what it touches.
+![Immich in dark mode with asset-utils.ts selected, dependencies in cyan and dependents in purple](docs/images/immich-map.png)
 
-Galactica is inspired by [codemap](https://github.com/peterretief/codemap), which draws a similar page for Go modules.
+`asset-utils.ts` selected in [Immich](https://github.com/immich-app/immich/tree/037e5bc0554074bfe91e20b802a6a4ef4a6dd6f9): cyan dependencies, purple dependents.
 
-## Installation
+The same checkout, through the main-branch CLI (excerpt):
+
+```text
+$ npx --prefix / @cognitap/galactica uses web/src/lib/utils/string-utils.ts
+web/src/lib/utils/string-utils.ts (module): 11 dependents within depth 1, 10 tests
+1  web/src/lib/components/album-page/AlbumsList.svelte  normalizeSearchString
+1  web/src/lib/components/asset-viewer/AlbumListItem.svelte  normalizeSearchString
+1  web/src/lib/components/asset-viewer/face-editor/FaceEditor.svelte  normalizeSearchString
+1  web/src/lib/components/shared-components/album-selection/album-selection-utils.ts  normalizeSearchString
+…
+```
+
+## One analysis, two views
+
+| What agents get                                                                                  | What humans get                                                                                  |
+| ------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------ |
+| Importers, dependencies, test reach, cycles and package boundaries as concise text or full JSON. | A single HTML file with areas, layers, search and source links. Open it offline or share it.     |
+| A skill for Codex, Claude Code and Cursor, installed with `init`.                                | Select a module to highlight its dependencies and dependents; expand it to see exported symbols. |
+
+Scope is JavaScript and TypeScript, including Vue, Svelte and Astro script blocks. Impact follows imports between files. Use a language service for symbol-level references and refactoring. Tests loaded through a dev server, runtime paths or fixtures can be missing from import reach, so also search for tests named after the feature.
+
+## Three terms
+
+- **Area:** modules grouped within one package, usually by folder.
+- **Layer:** dependency order within a package; an area imports lower layers, and a cycle shares one layer.
+- **Subject:** the module, area or package passed to `uses` or `deps`.
+
+## How it fits
+
+| Tool                                                                                           | Reach for it for                                                           | Galactica's focus                                                                                             |
+| ---------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------- |
+| [grep / ripgrep](https://github.com/BurntSushi/ripgrep)                                        | Text and pattern searches in any language, including runtime-loaded tests. | Follow resolved JS/TS imports through aliases, workspace packages and barrel re-exports.                      |
+| [LSP / editor navigation](https://code.visualstudio.com/docs/editing/editingevolved)           | Symbol references, definitions and renames.                                | File-level impact and a portable map; `where` locates exported definitions.                                   |
+| [MCP code graphs, e.g. CodeGraphContext](https://github.com/CodeGraphContext/CodeGraphContext) | Indexed symbols, callers, callees and inheritance, through CLI or MCP.     | Focused import questions from one `npx` command, without a server or MCP connection.                          |
+| [madge](https://github.com/pahen/madge)                                                        | Module dependency graphs, importers and circular dependencies.             | Workspace areas/layers, import-reachable tests, an agent skill and an interactive HTML view.                  |
+| [dependency-cruiser](https://github.com/sverweij/dependency-cruiser)                           | Configurable dependency rules, validation and CI enforcement.              | Ready-made graph questions and health findings; no custom dependency-rule language.                           |
+| [aider's repo map](https://aider.chat/docs/repomap.html)                                       | Ranked class/function signatures within a chat token budget.               | Explicit file relationships and complete JSON answers to specific graph questions.                            |
+| [repomix](https://repomix.com/guide/)                                                          | Packing repository source into context for an LLM.                         | Graph answers and a map, rather than a source-code bundle.                                                    |
+| [`vitest related`](https://vitest.dev/guide/cli.html#vitest-related)                           | Running Vitest tests related to source files through static imports.       | Runner-independent test lists without running the target; runtime-discovered tests still need further search. |
+
+## What the benchmark supports
+
+On the recorded Nest impact task, every condition covered all required files and tests. The instructed skill cost **15–37% less**. It also improved test selection when Hono imports went through package names. The value is precise questions about the import graph: impact, cycles and package boundaries, with one command and no server.
+
+The [144-run benchmark and reproducible harness](https://github.com/cognitap/galactica/blob/ebc0802464d3aa2115aca8df7e82dba73c6b7d5c/docs/benchmark.md) cover Hono, Vite and Nest, two models, three skill conditions and four runs per cell. Rename accuracy did not improve, and the instructed condition cost more overall. Edits and test lists were graded statically; target tests were not executed, extra tests were not penalized, and the sample is small. The linked report includes every number, the recorded Galactica version and the limits.
+
+## Reference
+
+The smaller examples below use [Radiant](https://github.com/cognitap/radiant), Cognitap's React interaction components and presentation primitives. Galactica's HTML view was inspired by [codemap](https://github.com/peterretief/codemap) for Go modules.
+
+### Installation
 
 Galactica needs Node.js 24.1.0 or newer. It runs in any repository with no install and no config:
 
@@ -23,7 +72,7 @@ To pin a version for a team, install it as a dev dependency and run it through t
 
 Galactica is experimental while its version is `0.x`: a minor version can change the command output, the config or the skill. The [changelog](CHANGELOG.md) marks each breaking change, and the [release policy](RELEASE_POLICY.md) says what the public contract covers.
 
-## Usage
+### Usage
 
 Run each command from the repository you want to map, or pass that repository with `--root`. The first command in a repository analyzes every file and keeps what each file gives on its own in a cache. A later command parses only the files that changed since. On Radiant, about 500 modules, the first command takes about 0.8 seconds and a later one about 0.1 seconds.
 
@@ -41,7 +90,7 @@ The examples below write `galactica` for `npx --prefix / @cognitap/galactica`.
 | `html`           | Write the human map as one HTML file.                               |
 | `init`           | Install the agent skill into this repository.                       |
 
-Every command prints short text by default and structured output with `--json`, including `html` and `init` results and failures. The [JSON output reference](docs/json-output.md) documents the fields. A subject is a module path, a package name, a package directory or an area path. `uses` and `deps` follow `--depth` import steps, 1 by default, and `overview --all` ranks every module instead of the top five of each area. `overview` also counts the warnings of the analysis, such as a workspace package without a name, which it skips, or a `tsconfig.json` it cannot read, and its `--json` lists them. A command that cannot answer prints one line to stderr and exits with code 1.
+Every command prints short text by default and structured output with `--json`, including `html` and `init` results and failures. The [JSON output reference](docs/json-output.md) documents the fields. A subject is a module path, a package name, a package directory or an area path. `uses` and `deps` follow `--depth` import steps, 1 by default, and `overview --all` ranks every module instead of the top five of each area. `overview` also counts the warnings of the analysis, such as a workspace package without a name, which it skips, or a `tsconfig.json` it cannot read, and its `--json` lists them. In text mode, a command that cannot answer prints one line to stderr and exits with code 1.
 
 `overview --json` adds `unresolvedImports`, every unresolved import with file, line, full specifier and likely cause, including tests and stories. Its existing `unresolved` count stays numeric. The text groups likely build/generated targets, virtual modules or schemes, URLs, and missing or unmapped files; these are hints, not build diagnostics.
 
@@ -168,7 +217,7 @@ galactica html --source-url 'https://gitlab.example.com/group/repo/-/blob/{commi
 
 The template must start with `http://` or `https://` and contain `{path}`. Each segment of the path is percent-encoded. A link to a module has no line, so the template loses its `#...{line}` fragment. `--source-url none` turns links off.
 
-`init` installs the agent skill in `.agents/skills/galactica/`, which Codex reads, and in `.claude/skills/galactica/`, which Claude Code reads. Cursor's agent did not open the skill from either folder in testing, so `init` also writes the rule `.cursor/rules/galactica.mdc`, which Cursor requests by the skill's description and which sends it to the skill. It writes those three files and nothing else, and prints each path with whether it was created, updated or unchanged. The skill tells an agent to run `overview` when it starts in an unfamiliar repository, `where` instead of grep, and `uses` before it edits a file, then the tests `uses` lists. It also tells the agent to check that an edit adds no import cycle, and to break an existing one only when asked or when it causes a load-time bug.
+`init` installs the agent skill in `.agents/skills/galactica/`, which Codex reads, and in `.claude/skills/galactica/`, which Claude Code reads. Cursor's agent did not open the skill from either folder in testing, so `init` also writes the rule `.cursor/rules/galactica.mdc`, which Cursor requests by the skill's description and which sends it to the skill. It writes those three files and nothing else, and prints each path with whether it was created, updated or unchanged. The skill leads with `uses` before an edit, then asks the agent to also grep for tests named after the feature and run both sets. It pairs `where` with grep for definitions and local names, and suggests `overview` when the agent does not know where to start. It also tells the agent to check that an edit adds no import cycle, and to break an existing one only when asked or when it causes a load-time bug.
 
 The skill runs `npx --prefix / @cognitap/galactica` by default. `--command` sets the command it runs instead, for example when Galactica is a dev dependency of a repository you trust, or a build from a checkout:
 
@@ -187,7 +236,7 @@ npx --prefix / skills add cognitap/galactica
 
 Galactica keeps the symbols and imports of each file, and the model built from them, in a cache, so it adds nothing to the repository except the optional skill. The cache is in the user cache folder, under `galactica/` and a hash of the repository's real path: `~/Library/Caches` on macOS, `$XDG_CACHE_HOME` or `~/.cache` on Linux, and `%LOCALAPPDATA%` on Windows. Galactica never reads a cache from the repository, so a repository cannot ship a cache that changes what Galactica reports. It creates the folder readable by you alone, and runs with no cache when that folder is a symlink, belongs to another user or lies inside the repository, or when there is no home folder. Earlier versions kept the cache in `node_modules/.cache/galactica`, which you can delete. A file whose size and modification time are unchanged is not read again, and a file whose content is unchanged is not parsed again. The whole cache is discarded when Galactica, TypeScript, `vue` or `svelte` changes version, or a compiler is installed or removed. Everything that depends on more than one file, such as where an import leads, is worked out again on every run, so the cache never gives a stale answer. Deleting the cache is always safe. `--no-cache` analyzes every file and neither reads nor writes the cache.
 
-## Configuration
+### Configuration
 
 Galactica needs no config. To override a default, add `galactica.config.json` to the repository root, the directory that `--root` names. Every option is optional:
 
@@ -228,7 +277,7 @@ galactica: galactica.config.json: kinds.storyy: unknown kind; expected source, t
 
 A change to the config needs no cache action. The cache holds only what each file gives on its own, so no entry depends on the config. A module that the config leaves out is not read, and a later run parses it again when the config brings it back.
 
-## What it reads
+### What it reads
 
 - JavaScript and TypeScript, including JSX and CommonJS.
 - Vue, Svelte and Astro files. Each one exports its component, named after the file. Galactica reads the imports and exports of a Vue file's `<script>` and `<script setup>`, and of a Svelte file's instance and module scripts, with Galactica's own `vue/compiler-sfc` and `svelte/compiler`, which it installs as optional dependencies. It reads Vue 2 components and Svelte 4 syntax too, since it reads only the script blocks. Only `<script>` and a Svelte module script can export. A file whose compiler is missing, because Galactica was installed with `--omit=optional`, or fails on it, keeps its component and has no imports. Galactica reads an Astro file's frontmatter as text, with no compiler, and not the `<script>` tags in its body.
@@ -250,7 +299,7 @@ Galactica itself loads no module from the repository's `node_modules`. It runs g
 
 Before reading repository content, including compiler configs, workspace manifests and existing installed skill files, Galactica requires a regular file inside the root after following links, of at most 10 MB. Unsafe optional configs are skipped with warnings; an unsafe `galactica.config.json` or an existing skill file that `init` must read fails clearly. An `extends` target outside the root is refused too.
 
-## Performance
+### Performance
 
 The targets are a first run under 10 seconds on a repository of about 3,000 modules, and any command with a warm cache under half a second. `pnpm bench` measures both:
 
@@ -270,7 +319,7 @@ On an Apple M1 Pro with Node.js 26, both targets hold. These are the medians of 
 
 A first run here starts with the files already in the operating system's file cache, and spends most of its time parsing modules. A warm run answers from the cached model: it stats every file and directory the last full analysis depended on, compares git's file listing, and reuses the model when nothing changed, without loading TypeScript. Of its 0.2 seconds, Node.js startup takes about 30 ms, the checks and the model 60 to 90 ms, and the graph 40 to 60 ms. A command after a change runs the full analysis again, apart from the parse of unchanged modules, and discovery and import resolution dominate it.
 
-## Development
+### Development
 
 Build Galactica from a checkout, then run `dist/bin.js` where you would run `galactica`:
 
