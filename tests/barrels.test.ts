@@ -250,3 +250,22 @@ test('a barrel keeps its own re-export edges pointing at the module they name', 
   }
   assert.deepEqual(resolved(specs, 'index.ts'), [reexports('inner.ts', ['a'])])
 })
+
+/** `main.ts` importing `x` through `length` barrels, each passing it on with a named or `*` re-export. */
+const barrelChain = (length: number): Record<string, Spec> => ({
+  'main.ts': { edges: [imports('b0.ts', ['x'])] },
+  ...Object.fromEntries(
+    Array.from({ length }, (_, index) => [
+      `b${index}.ts`,
+      { edges: [reexports(`b${index + 1}.ts`, index % 2 === 0 ? ['x'] : ['*'])] }
+    ])
+  ),
+  [`b${length}.ts`]: { symbols: [defines('x')] }
+})
+
+test('a chain of barrels is followed for 100 barrels, and a longer one stops at its first barrel', () => {
+  const via = Array.from({ length: 100 }, (_, index) => `b${index}.ts`)
+  assert.deepEqual(summary(resolved(barrelChain(100))), [{ to: 'b100.ts', names: ['x'], via }])
+  assert.deepEqual(summary(resolved(barrelChain(101))), [{ to: 'b0.ts', names: ['x'], via: [] }])
+  assert.deepEqual(summary(resolved(barrelChain(5000))), [{ to: 'b0.ts', names: ['x'], via: [] }])
+})

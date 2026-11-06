@@ -23,6 +23,7 @@ export interface Page {
   /** Runs `body` as an async function in the page and gives its result, which must be JSON. */
   run<T>(body: string): Promise<T>
   load(html: string, fragment?: string): Promise<void>
+  screenshot(path: string): Promise<void>
 }
 
 function within<T>(promise: Promise<T>, what: string, ms = patience): Promise<T> {
@@ -73,7 +74,11 @@ async function stop(browser: ChildProcess, exited: Promise<unknown>, dir: string
   rmSync(dir, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 })
 }
 
-export async function openPage(t: TestContext, path: string): Promise<Page> {
+export async function openPage(
+  t: TestContext,
+  path: string,
+  options: { width?: number; colorScheme?: 'light' | 'dark' } = {}
+): Promise<Page> {
   const dir = mkdtempSync(join(tmpdir(), 'galactica-chrome-'))
   const file = join(dir, 'map.html')
   const browser = spawn(
@@ -126,6 +131,19 @@ export async function openPage(t: TestContext, path: string): Promise<Page> {
       method
     )
   await send('Page.enable')
+  if (options.width !== undefined) {
+    await send('Emulation.setDeviceMetricsOverride', {
+      width: options.width,
+      height: 900,
+      deviceScaleFactor: 1,
+      mobile: options.width < 600
+    })
+  }
+  if (options.colorScheme !== undefined) {
+    await send('Emulation.setEmulatedMedia', {
+      features: [{ name: 'prefers-color-scheme', value: options.colorScheme }]
+    })
+  }
 
   const run = async <T>(body: string): Promise<T> => {
     const { result, exceptionDetails } = await send('Runtime.evaluate', {
@@ -147,5 +165,9 @@ export async function openPage(t: TestContext, path: string): Promise<Page> {
     await within(loaded, 'the page loading')
     await run('await new Promise(resolve => requestAnimationFrame(() => setTimeout(resolve)))')
   }
-  return { run, load }
+  const screenshot = async (path: string) => {
+    const { data } = await send('Page.captureScreenshot', { format: 'png' })
+    writeFileSync(path, Buffer.from(data, 'base64'))
+  }
+  return { run, load, screenshot }
 }

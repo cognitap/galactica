@@ -61,16 +61,15 @@ const KINDS = /** @type {const} */ ({
 const SHOWN_AT_FIRST = /** @type {ReadonlySet<ModuleKind>} */ (new Set(['source', 'config']))
 
 /**
- * Text that a narrow box may break only after a slash or before a dot, so a
- * file name never splits inside a word.
+ * Prefer path breaks after slashes, keeping each filename together when it fits.
  * @param {string} text
  */
 function breakable(text) {
   /** @type {Node[]} */
   const nodes = []
-  for (const part of text.split(/(?<=\/)|(?=\.)/)) {
+  for (const part of text.split(/(?<=\/)/)) {
     if (nodes.length > 0) nodes.push(element('wbr'))
-    nodes.push(document.createTextNode(part))
+    nodes.push(element('span', 'path-segment', part))
   }
   return nodes
 }
@@ -347,7 +346,9 @@ function packageSection(pkg, index, boxOf) {
   heading.id = `package-${index}-name`
   section.setAttribute('aria-labelledby', heading.id)
   const dir = element('p')
-  dir.append(element('code', '', pkg.dir === '.' ? 'repository root' : pkg.dir))
+  const path = element('code')
+  path.append(...breakable(pkg.dir === '.' ? 'repository root' : pkg.dir))
+  dir.append(path)
   head.append(heading, dir)
 
   const rows = element('div', 'rows')
@@ -383,14 +384,36 @@ function legend() {
   }
 }
 
+/** Largest source/config packages first, with names breaking ties deterministically. */
+const packageOrder = data.packages
+  .map((pkg, index) => ({
+    pkg,
+    index,
+    size: pkg.rows.flat().reduce((count, area) => {
+      const { source, config } = data.areas[area].kinds
+      return count + source + config
+    }, 0)
+  }))
+  .sort(
+    (a, b) => b.size - a.size || (a.pkg.name < b.pkg.name ? -1 : a.pkg.name > b.pkg.name ? 1 : 0)
+  )
+
 function packageNav() {
   if (data.packages.length < 2) return
   const nav = byId('packages')
-  data.packages.forEach((pkg, index) => {
-    const link = element('a', '', pkg.name)
-    link.setAttribute('href', `#package-${index}`)
-    nav.append(link)
+  const label = element('label', '', 'Package')
+  label.setAttribute('for', 'package-picker')
+  const picker = /** @type {HTMLSelectElement} */ (element('select'))
+  picker.id = 'package-picker'
+  packageOrder.forEach(({ pkg, index }) => {
+    const option = element('option', '', pkg.name)
+    option.setAttribute('value', `package-${index}`)
+    picker.append(option)
   })
+  picker.addEventListener('change', () => {
+    location.hash = picker.value
+  })
+  nav.append(label, picker)
   nav.hidden = false
 }
 
@@ -923,7 +946,7 @@ function draw() {
     areaViews[index] = view
     return view
   }
-  const sections = data.packages.map((pkg, index) => packageSection(pkg, index, boxOf))
+  const sections = packageOrder.map(({ pkg, index }) => packageSection(pkg, index, boxOf))
   byId('map').append(...sections.map(({ section }) => section))
 
   byId('clear-selection').addEventListener('click', () => select(undefined))
@@ -950,10 +973,16 @@ function draw() {
       for (const { line, boxes } of lines) line.hidden = boxes.every(({ box }) => box.hidden)
       empty.hidden = lines.some(({ line }) => !line.hidden)
     }
+    const hiddenKinds = /** @type {ModuleKind[]} */ (Object.keys(KINDS))
+      .filter(kind => !shown.has(kind))
+      .map(kind => ({ kind, count: data.modules.filter(module => module.kind === kind).length }))
+      .filter(({ count }) => count > 0)
+      .map(({ kind, count }) => plural(count, KINDS[kind].one, KINDS[kind].many))
+    const hidden = hiddenKinds.length === 0 ? '' : ` (+${hiddenKinds.join(' and ')} hidden)`
     byId('counts').textContent = [
       plural(data.packages.length, 'package'),
       plural(areas, 'area'),
-      plural(modules, 'module'),
+      plural(modules, 'module') + hidden,
       plural(symbols, 'exported symbol')
     ].join(' · ')
   }

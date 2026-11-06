@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import { test, type TestContext } from 'node:test'
 import { discover } from '../src/discovery.ts'
-import { emptyConfig } from '../src/model.ts'
+import { emptyConfig, type PackageName, type RepoPath } from '../src/model.ts'
 import { splitSpecifier, workspaceResolver } from '../src/package-resolution.ts'
 import { repository, type Files } from './temp-repository.ts'
 
@@ -448,4 +448,49 @@ test('the root package resolves its own name only when it has exports', t => {
   const unnamed = repository(t, { 'index.ts': '' })
   const [fallbackName] = Object.keys(discover(unnamed, emptyConfig).packages)
   assert.equal(workspaceResolver(discover(unnamed, emptyConfig)).resolve(fallbackName!), undefined)
+})
+
+/** `target` under `depth` levels of the `import` condition, as package.json text, since `JSON.stringify` overflows at such depths. */
+const nested = (depth: number, target: string) =>
+  `${'{"import":'.repeat(depth)}${JSON.stringify(target)}${'}'.repeat(depth)}`
+
+test('exports conditions nested thousands deep leave the import unresolved with a warning', t => {
+  const root = repository(t, {
+    'package.json': { name: 'root', workspaces: ['packages/*'] },
+    'packages/pkg/package.json': `{"name":"pkg","exports":{".":${nested(5000, './index.ts')},"./shallow":${nested(20, './index.ts')},"./*":${nested(5000, './src/*.ts')}}}`,
+    'packages/pkg/index.ts': '',
+    'packages/pkg/src/a.ts': ''
+  })
+  const resolver = workspaceResolver(discover(root, emptyConfig))
+  assert.deepEqual(resolver.resolve('pkg'), { kind: 'unresolved', reason: 'too-deep' })
+  assert.deepEqual(resolver.resolve('pkg/shallow'), {
+    kind: 'module',
+    path: 'packages/pkg/index.ts'
+  })
+  assert.equal(
+    resolver.deepSpecifier('pkg' as PackageName, 'packages/pkg/src/a.ts' as RepoPath),
+    undefined
+  )
+  assert.deepEqual(resolver.warnings(), [
+    {
+      path: 'packages/pkg/package.json',
+      message: 'pkg: exports nests conditions or fallbacks more than 32 levels deep'
+    }
+  ])
+})
+
+test('exporting package.json metadata does not warn that it is no module', t => {
+  const resolver = workspace(
+    t,
+    { exports: { '.': './index.ts', './package.json': './package.json' } },
+    { 'index.ts': '' }
+  )
+  resolver.resolve('pkg/package.json')
+  assert.deepEqual(resolver.warnings(), [])
+})
+
+test('a missing target named package.json still warns about a broken export', t => {
+  const resolver = workspace(t, { exports: { './package.json': './missing.ts' } }, {})
+  resolver.resolve('pkg/package.json')
+  assert.equal(resolver.warnings().length, 1)
 })

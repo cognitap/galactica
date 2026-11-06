@@ -357,3 +357,30 @@ test('the analysis writes nothing but the cache file, and nothing at all without
     [...before, join('node_modules', '.cache', 'galactica', 'cache.json')].sort()
   )
 })
+
+test('a file TypeScript cannot parse keeps its module with no symbols or imports, and one warning', t => {
+  const elses = Array.from({ length: 5000 }, (_, index) => `if (x === ${index}) return b`)
+  const root = repository(t, {
+    'src/deep.ts': `import { b } from './b'\nexport function f(x: number) {\n${elses.join('\nelse ')}\n}`,
+    'src/b.ts': 'export const b = 1',
+    'src/main.ts': "import { b } from './b'\nexport const main = b"
+  })
+  const cache = join(root, 'cache')
+  for (const run of ['cold', 'warm']) {
+    const { model, summary } = analyzeRepository(root, emptyConfig, { cache })
+    assert.deepEqual(
+      summary.warnings,
+      [
+        {
+          path: 'src/deep.ts',
+          message:
+            'could not read the file (Maximum call stack size exceeded), so it has no symbols or imports'
+        }
+      ],
+      run
+    )
+    const deep = model.modules['src/deep.ts' as RepoPath]!
+    assert.deepEqual([deep.symbols, deep.edges], [[], []], run)
+    assert.equal(model.modules['src/main.ts' as RepoPath]?.edges.length, 1, run)
+  }
+})

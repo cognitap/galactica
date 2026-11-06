@@ -27,7 +27,8 @@
     "CHANGELOG.md",
     "dist",
     "schema",
-    "skills"
+    "skills",
+    "npm-shrinkwrap.json"
   ],
   "type": "module",
   "scripts": {

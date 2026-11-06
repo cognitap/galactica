@@ -4,7 +4,7 @@
  * `kindOf`, so every command and the page classify a file the same way.
  */
 
-import { posix } from 'node:path'
+import { matchesGlob } from './glob.ts'
 import { ConfigError } from './config.ts'
 import { languages, type Language, type ModuleKind } from './contract.ts'
 import type { Config, RepoPath } from './model.ts'
@@ -40,7 +40,17 @@ export function languageOf(path: RepoPath): Language | undefined {
   return dot > 0 ? languageByExtension.get(name.slice(dot)) : undefined
 }
 
-const testDirectories: ReadonlySet<string> = new Set(['__tests__', 'test', 'tests'])
+const testDirectories: ReadonlySet<string> = new Set([
+  '__tests__',
+  'test',
+  'tests',
+  '__testfixtures__',
+  '__fixtures__',
+  'testdata',
+  'testData',
+  'fixtures',
+  '__mocks__'
+])
 
 /** The first rule that matches decides the kind. A file no rule matches is `source`. */
 const kindRules: readonly {
@@ -51,7 +61,7 @@ const kindRules: readonly {
 }[] = [
   {
     kind: 'test',
-    name: /\.(test|spec)\./,
+    name: /(?:\.(?:test|spec)|-spec)\./,
     folders: directories => directories.some(segment => testDirectories.has(segment))
   },
   {
@@ -72,7 +82,7 @@ const kindRules: readonly {
 function configuredKind(path: RepoPath, kinds: Config['kinds']): ModuleKind | undefined {
   let found: { readonly kind: ModuleKind; readonly key: string } | undefined
   for (const [kind, globs] of Object.entries(kinds) as [ModuleKind, readonly string[]][]) {
-    const index = globs.findIndex(glob => posix.matchesGlob(path, glob))
+    const index = globs.findIndex(glob => matchesGlob(path, glob))
     if (index < 0) continue
     const key = `kinds.${kind}[${index}]`
     if (found)
