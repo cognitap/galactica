@@ -4,6 +4,8 @@
 
 ## Unreleased
 
+## 0.1.5
+
 - Add `health`, which lists concrete findings about the structure with no score: each import cycle with the imports to break, each area with at least 20 source modules and 5 times the median area of its package, and each import outside tests and stories that reaches into another workspace package by a relative path or by a subpath its `exports` does not list, with the public specifier to use instead where one exists. It always exits with code 0. On Vitest it finds 4 cycles, 2 oversized areas and 20 such imports.
 - The page has a Health section above the map, closed at first, that lists the same findings grouped by kind with a count for each. Choosing a finding selects its module or area on the map, and its line links to the import.
 - The agent skill names `health` among the other commands.
