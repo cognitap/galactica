@@ -32,6 +32,7 @@ import {
   type ModuleFacts,
   type RepoPath
 } from './model.ts'
+import { unreadable } from './repository-files.ts'
 import { isScriptLanguage } from './source-file.ts'
 
 /** What a caller reports about a run. It stays out of the `Model`. */
@@ -150,7 +151,17 @@ export function analyzeRepository(
   { cache, inputs = plainInputs(ts.sys) }: Options = {}
 ): Analysis {
   const clock: Clock = { typescript: 0, discovery: 0, parse: 0, resolution: 0, barrels: 0 }
-  const discovery = timed(clock, 'discovery', () => discover(rootDir, config, inputs))
+  const discovered = timed(clock, 'discovery', () => discover(rootDir, config, inputs))
+  const unreadableOf = unreadable(discovered.root)
+  const skippedModules: Warning[] = []
+  const readable = discovered.modules.filter(({ path }) => {
+    const problem = unreadableOf(path)
+    if (problem === undefined) return true
+    inputs.stat(join(discovered.root, path))
+    skippedModules.push({ path, message: `${problem}, so it is skipped` })
+    return false
+  })
+  const discovery = { ...discovered, modules: readable }
   const store = cache === undefined ? undefined : { directory: cache, stamp: currentStamp() }
   const cached: Cache = store ? readCache(store.directory, store.stamp) : new Map()
   const counts: Record<Source, number> = { reused: 0, reread: 0, parsed: 0 }
@@ -221,6 +232,7 @@ export function analyzeRepository(
         ...discovery.warnings,
         ...resolver.warnings(),
         ...unreadWarnings(unread),
+        ...skippedModules,
         ...unparsed
       ].sort((a, b) => compare(a.path, b.path) || compare(a.message, b.message)),
       unresolved: edges.filter(edge => edge.to.kind === 'unresolved').length,
