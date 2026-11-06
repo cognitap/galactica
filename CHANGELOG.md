@@ -6,7 +6,7 @@
 
 ## 0.2.2
 
-- The npm package page now leads with the Immich dependency graph and a shorter quick start for opening a map.
+- The npm package page shows the Immich dependency graph, one-off and global CLI commands, and measured agent benchmark results.
 
 ## 0.2.1
 
