@@ -4,7 +4,9 @@ Does the Galactica skill make a coding agent better at changing a repository tha
 
 ## Results
 
-Galactica helped on one kind of task: naming the tests to run after an edit, when some of those tests reach the changed file in a way grep does not follow. There, the skill with the instruction raised accuracy from 47% to 78% with Sonnet and from 82% to 100% with Opus. On the other four tasks every condition scored 100%. There the skill made the impact question cheaper and most other runs dearer. The skill alone, without the instruction, changed little for Sonnet, which loaded it in 4 of 24 runs.
+Galactica helped on one kind of task: naming the tests to run after an edit, when some of those tests reach the changed file in a way grep does not follow. On the two such tasks, `hono-tests` and `vite-tests`, the skill with the instruction raised the test-selection score from 47% to 78% with Sonnet and from 82% to 100% with Opus. The test-selection score is the share of required tests the agent named. Extra tests are not penalized, so it measures recall, not precision.
+
+On the other four tasks every condition scored 100%. There, Galactica made the impact question 15% to 37% cheaper and most other runs dearer. Per-task savings do not add up to an overall saving: across all six tasks, the instructed condition cost 7% more per run than without with Sonnet, and 17% more with Opus. The skill alone, without the instruction, changed little for Sonnet, which loaded it in 4 of 24 runs.
 
 144 runs: 6 tasks, 3 conditions, 2 models, 4 runs each, $20.36 in all.
 
@@ -17,7 +19,7 @@ Galactica helped on one kind of task: naming the tests to run after an edit, whe
 | Opus   | skill      | 99%      | $0.206       | 9              | 19 of 24       |
 | Opus   | instructed | 100%     | $0.211       | 8              | 24 of 24       |
 
-Accuracy and cost are means over runs. "Used Galactica" counts runs that loaded the skill or ran a Galactica command. No run ended in an error.
+Accuracy and cost are means over runs. Accuracy is the share of required items an answer got: tests named, files listed or references renamed, as [Grading](#grading) defines. "Used Galactica" counts runs that loaded the skill or ran a Galactica command. No run ended in an error.
 
 By task, as mean accuracy and cost per run over 4 runs:
 
@@ -56,6 +58,7 @@ By task, as mean accuracy and cost per run over 4 runs:
 - **Sample size.** Four runs per cell. Differences within one task are only as reliable as their ranges, which the bullets above give. The overall accuracy rows average six tasks, four of which scored 100% everywhere, so they say little beyond the two test tasks.
 - **Self-graded ground truth.** We wrote the tasks and their ground truth, by reading the code with rg. For the test tasks, the required tests are the static import closure plus the vite playground suites, which is close to what `uses` computes, and so favors a graph tool by construction. A reviewer could call the adapters' end-to-end tests optional. Extra tests are not penalized, so an answer that names every test scores 100%. The tests-named column of the summary shows how far each condition over-listed.
 - **Edits are checked statically.** A run passes if the named file changed and parses. Whether each edit is correct was read by hand for a sample of 4, which were.
+- **No tests were run.** The target repositories' test suites were not executed. The test tasks grade the list of tests an answer names, not whether those tests pass.
 - **Harness defects.** Three runs were discarded and rerun: two where `pnpm check` rebuilt `dist` while they ran Galactica, and one where the agent's shell found an older Node.js on its `PATH`. The harness now runs Galactica with the absolute path of the Node.js that runs it. Each discarded run is counted in the spend below, not in the tables. 102 commands were denied, spread evenly across conditions, mostly `sed -i`, `perl` and pipes during renames.
 - **Version.** Galactica at commit `bf57e21` with the skill of that commit, Claude Code 2.1.318.
 
