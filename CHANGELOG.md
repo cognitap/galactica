@@ -4,63 +4,45 @@
 
 ## Unreleased
 
+- The HTML map shows each layer as a column of compact area boxes, with the lowest layer on the left. Narrow screens stack layers as rows, with the highest on top.
+- Selecting an area lists its modules in a panel and draws lines to the areas it depends on and the areas that depend on it.
+- Areas within a layer are ordered so that those lines cross less.
+- The data embedded in the map is a third smaller: 400 KB → 270 KB on Radiant.
+
 ## 0.1.6
 
-- Lead the README with a real Immich map, a CLI excerpt, agent/human views, a glossary, tool comparisons and the measured benchmark's limits; move reference details below the pitch.
-- **Breaking:** `--json` help links to its reference on GitHub. Before: `docs/json-output.md`, absent from the npm package. After: `https://github.com/cognitap/galactica/blob/main/docs/json-output.md`.
-- Add repository topics and a homepage pointing to the README; verify that published releases have their version-specific notes.
-- **Breaking:** Empty and non-JavaScript/TypeScript repositories get an explicit `overview` message. Before: `1 package, 0 modules, 0 areas`. After: `No JavaScript or TypeScript modules found under the repository root.` Exit code stays 0.
-- **Breaking:** Unknown options get a concise message and a nearby suggestion. Before: Node's raw `parseArgs` prose. After: `unknown option --jsno; did you mean --json?`.
-- **Breaking:** Missing or unknown commands point to help in one line. Before: a full usage dump. After: `unknown command overveiw; run --help for commands`.
-- **Breaking:** `health` text calls its findings `cross-package private imports` instead of `internal imports`; JSON keeps `internalImports` unchanged.
-- **Breaking:** `html` prints an explicitly absolute `--out` as an absolute path. Before: `wrote ../../tmp/map.html`. After: `wrote /tmp/map.html`.
-- **Breaking:** The default HTML write adds a hint. Before: only `wrote galactica.html`. After: also suggests `--out <file>` or adding `galactica.html` to `.gitignore`.
-- Add `html --json` and `init --json` reports for successful writes, installation statuses and failures, using schema version 1; existing analysis JSON stays unchanged.
-- **Breaking:** `outline` and `where` text name export aliases. Before: `Root` and `Slot` both looked like `const Slot`. After: the alias says `Root (alias of Slot)`; JSON preserves the exported name and original declaration signature.
-- Add `overview --json` `unresolvedImports`, the complete list with file, line, full specifier and likely cause, including tests and stories; keep the existing numeric `unresolved` count.
-- **Breaking:** `overview` text shows likely unresolved causes near the top. Before: only `9 unresolved imports`. After: counts for build/generated, virtual/scheme, URL and missing/unmapped imports, with a pointer to the complete JSON list.
-- **Breaking:** Shorten specifiers in `deps` text to at most 120 characters. Before: a long data URL printed in full. After: its first 119 characters and `…`; JSON keeps the complete specifier.
-- Speed up workspace package lookup for warm commands by indexing package directories and reusing folder ownership.
-- Generate large HTML maps faster by computing test reach once for the graph instead of walking every module's transitive importers separately.
-- Prune untracked build output and dependency folders inside Git before listing their files, keeping the same mapped modules and ignore rules.
-- Keep imports used by JSX factories named in `jsxFactory` or `jsxFragmentFactory` in runtime cycles, including factories selected only by `tsconfig.json`.
-- State the Node.js 24.1.0 minimum at the start of the README, before installation.
-- **Breaking:** Repository configuration follows the same regular-file, root and 10 MB policy as source. Before: linked or oversized configs could hang analysis or read outside content. After: unsafe optional configs are skipped with warnings, and an unsafe `galactica.config.json` fails clearly.
-- `init` refuses to read an existing skill file over 10 MB and writes none of its files when that check fails.
-- An import whose names a TypeScript module uses only as types, such as `import { User } from './user'` read only in `user: User`, no longer counts in `cycles` and `health`, the same as `import type`, since TypeScript leaves it out of its output. In immich, `cycles` went from 6 cycles, one of 89 modules, to 5 of at most 4 modules, and from 61 imports to break to 6. `verbatimModuleSyntax` keeps such imports, and with `emitDecoratorMetadata`, a type that a decorated signature names counts as read when the class is defined.
-- **Breaking:** `uses` says how each test reaches the subject and lists the closest first. A test beyond distance 1 names the module its path starts from, taken from a path that loads code when it has one, so a test that reaches a cookie parser through a cookie helper no longer looks like it only imports a type. Tests that reach the subject only through a hub, a module that at least 20 modules and 1 in 20 of the repository's modules import, are counted per hub instead of listed. Before: `tests:` then `2  src/middleware/jwt/index.test.ts`. After: `tests, closest first:` then `2  src/middleware/jwt/index.test.ts  via src/helper/cookie/index.ts`, and `114 more tests reach it only through packages/vite/src/node/config.ts, which much of the repository imports`. `--json` adds `via` and `hub` to each test and keeps every test in `tests`.
-- `uses` states, in its text and in `--json` `testsNote`, that it lists only tests that import the subject, so end-to-end, playground and fixture-driven tests can be missing.
-- **Breaking:** the text never names a bare `galactica` command, which fails where Galactica runs through npx or a package manager. Before: `next: galactica where <name> finds a symbol, …` and `galactica cycles shows where to break it`. After: `next: run the same command with where <name> in place of overview to find a symbol, …` and `the cycles command shows where to break it`.
-- The skill leads with when to use Galactica: before changing a JS or TS file, for every importer, the tests to run and import cycles. It suggests `overview` only when you don't know where to start, presents `where` alongside grep, and tells agents to also grep for tests named after the feature. Run `init` again to update an unedited skill.
+This release has breaking changes that should have bumped the minor version. From here on, they do.
 
-- `init` and `html` refuse to write through a symbolic link, which a repository could commit to make them write outside it. `init` checks each of its paths and the folders above them inside the repository, such as a `.claude` linked to `~/.claude`, and writes all its files or none. `html` refuses a page path that is a link, and a linked folder above it inside the repository; an `--out` outside the repository may still sit in a linked folder. Either prints one line, such as `galactica: refused to write galactica.html: it is a symbolic link`, and exits with code 1. `html --out` into the repository now creates missing folders.
-- Galactica keeps its cache only in the user cache folder, never in `node_modules/.cache/galactica`, so a repository can no longer ship a cache that makes the map lie. A cached model that does not parse is analyzed again.
-- **Breaking:** the skill that `init` writes, the skill template and the README run Galactica with `npx --prefix / @cognitap/galactica` instead of `npx @cognitap/galactica`. Run inside a repository, plain npx ran a `node_modules/@cognitap/galactica` that the repository holds, even one its `package.json` does not list, and read the repository's `.npmrc`, so a hostile repository could run its own code in place of Galactica. With `--prefix /`, npm ignores both. Run `init` again to update an unedited skill. Before: `npx @cognitap/galactica overview`. After: `npx --prefix / @cognitap/galactica overview`.
-- Resolve private `package.json` `imports` to Vue, Svelte, Astro and extensionless script source files, including projects whose generated SvelteKit config is unavailable.
-- Treat existing workspace JSON, metadata and asset exports as files rather than unresolved imports.
-- Resolve declaration-only workspace entries and subpaths without inventing runtime dependencies, while preferring available source modules.
-- Classify an npm-shaped import as external when its `paths` alias reaches no file.
-- Resolve imports through symlink and case variants to the discovered source module.
-- **Breaking:** Make unmapped imports visible. Before: existing unsupported files and source excluded from the map were silently omitted. After: they are counted as unresolved; known assets and declarations still create no edge.
+**Security**
 
-- A module that links outside the repository, a module that is no regular file, such as a link to a directory, and a module over 10 MB are skipped, each with a warning that `overview --json` lists. A link to `/dev/zero` hung the analysis, and a link to a file outside the repository put that file's symbols and doc comments into the output.
-- A file nested too deeply for TypeScript to parse, such as a chain of thousands of `else if`, no longer crashes every command. Its module stays, with no symbols or imports, and the analysis adds one warning that names the file.
-- A deeply nested expression, such as a 3,000-term string concatenation or the 1,500-term sum in microsoft/TypeScript's `binderBinaryExpressionStress.ts`, is read in full instead of crashing with `RangeError: Maximum call stack size exceeded`. Galactica now maps microsoft/TypeScript.
-- A workspace `package.json` whose `exports` nests conditions or fallbacks more than 32 levels deep leaves the import unresolved with a warning, instead of crashing.
-- An import that passes through more than 100 barrels points at its first barrel instead of crashing.
-- Read JavaScript aliases from `jsconfig.json` when no `tsconfig.json` is present in the same folder.
-- Resolve workspace package tsconfig extensions before installing dependencies.
-- Suppress TypeScript deprecation and output-layout migration notices that do not affect the map.
-- Do not warn when a workspace package exports `./package.json` metadata.
-- Recognize `*-spec.*` tests and `__testfixtures__`, `__fixtures__`, `testdata`, `testData`, `fixtures` and `__mocks__` folders as tests, so fixtures no longer shape source layers or count as oversized areas.
-- **Breaking:** Match workspace and config globs without backtracking, with documented size and syntax limits. Before, `@(src|scripts)/**` used Node’s matcher; now extglobs, escapes, POSIX named classes and patterns beyond the limits are ignored with a warning. Use `{src,scripts}/**` instead.
-- Pin CI and release actions to commit SHAs and reduce the npm publishing job to Node setup, candidate download and publication.
-- Ship an npm shrinkwrap with exact versions and integrity hashes for the full Vue and Svelte compiler dependency tree used by npm and npx; verify it from the packed package.
-- The HTML map header lists hidden tests, stories and other filtered module kinds beside its visible module count.
-- The HTML map fits phone widths, wraps paths at slashes and keeps filenames together when they fit.
-- The HTML map opens on the largest source and config package and uses a compact package picker, including in large workspaces.
-- **Breaking:** Bound overview layer lists and overview/cycles text at about 6 KB. Before: text listed every area and cycle; after: omitted counts point to the complete `--json` output.
-- **Breaking:** Refuse analysis and HTML generation when the root contains `deno.json` or `deno.jsonc`. Before: Deno repositories produced an incomplete map; after: commands exit with code 1 and explain the unsupported workspace and import-map resolution.
+- **Breaking:** The skill, the template and the README run `npx --prefix / @cognitap/galactica`. Plain `npx` inside a repository could run a copy of Galactica that the repository planted in `node_modules`. Run `init` again to update an unedited skill.
+- `init` and `html` refuse to write through a symbolic link that the repository controls.
+- The cache lives only in the user cache folder, so a repository can't ship a cache that falsifies the map.
+- Modules and configs that link outside the repository, aren't regular files, or are over 10 MB are skipped with a warning.
+- **Breaking:** Workspace and config globs are matched without backtracking. Extglobs and other unsupported syntax are ignored with a warning; write `{src,scripts}/**` instead of `@(src|scripts)/**`.
+
+**Output**
+
+- **Breaking:** `uses` lists tests closest first and says how each one reaches the subject. Tests that only reach it through a widely imported hub are counted, not listed. `--json` adds `via` and `hub`.
+- **Breaking:** `overview` groups unresolved imports by likely cause. `--json` adds the full `unresolvedImports` list. Imports that were previously dropped silently now count as unresolved.
+- **Breaking:** Shorter messages: one line for unknown commands, a suggestion for mistyped options, and an explicit message for repositories with no JS or TS modules. The text output no longer suggests a bare `galactica` command.
+- **Breaking:** `outline` and `where` name export aliases, and `deps` cuts specifiers off at 120 characters.
+- **Breaking:** `health` calls its findings "cross-package private imports"; the JSON field `internalImports` is unchanged.
+- `html --json` and `init --json` report what they wrote.
+- `uses` says that it only lists tests that import the subject.
+
+**Analysis**
+
+- An import whose names are used only as types no longer counts toward `cycles` and `health`. On Immich, `cycles` went from 6 cycles to 5, and the largest from 89 modules to 4.
+- Very deep files and expressions are read in full instead of crashing, so Galactica now maps microsoft/TypeScript.
+- More imports resolve:
+  - `jsconfig.json` aliases;
+  - package `imports` that point at Vue, Svelte and Astro files;
+  - declaration-only workspace entries;
+  - symlink and letter-case variants of a path.
+- More test and fixture folder names are recognized.
+- Warm commands and large HTML maps are faster.
+- The package ships an npm shrinkwrap that pins the Vue and Svelte compilers.
 
 ## 0.1.5
 
