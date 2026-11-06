@@ -1,6 +1,6 @@
 import { spawn } from 'node:child_process'
-import { readFileSync, statSync, writeFileSync } from 'node:fs'
-import { join, relative, resolve } from 'node:path'
+import { readFileSync, statSync } from 'node:fs'
+import { dirname, join, relative, resolve } from 'node:path'
 import { parseArgs, type ParseArgsOptionsConfig } from 'node:util'
 import { cacheDirectory } from './cache.ts'
 import { commandOptions, commandTable, type Input, type Repository } from './commands.ts'
@@ -12,6 +12,7 @@ import { htmlOf } from './html.ts'
 import { toRepoPath, type RepoPath } from './model.ts'
 import { analyze } from './model-cache.ts'
 import { render } from './render.ts'
+import { isBelow, SymlinkRefused, writeBelow } from './safe-write.ts'
 import { templateProblem } from './source-links.ts'
 import { agentFiles, defaultCommand, installSkill, skillTemplate } from './skill.ts'
 
@@ -212,6 +213,13 @@ const failure = (message: string): Result => ({
   stderr: `galactica: ${message}`
 })
 
+/** The refusal in one line, with paths from the current directory. */
+function refusal({ target, link }: SymlinkRefused, cwd: string): Result {
+  const shown = relative(cwd, target)
+  const why = link === target ? 'it is' : `${relative(cwd, link)} is`
+  return failure(`refused to write ${shown}: ${why} a symbolic link`)
+}
+
 /** The flags and root of `html` or `init`, or a failure for an argument or another command's flag. */
 function writerInput(
   name: 'html' | 'init',
@@ -261,8 +269,9 @@ async function html(argv: readonly string[], cwd: string): Promise<Result> {
   const source = template === 'none' ? null : (pageSourceOf(root, template) ?? null)
   const page = htmlOf(repository.graph, source, repository.config.health?.areaModules)
   try {
-    writeFileSync(out, page)
+    writeBelow(isBelow(root, out) ? root : dirname(out), [{ path: out, text: page }])
   } catch (error) {
+    if (error instanceof SymlinkRefused) return refusal(error, cwd)
     return failure(`could not write ${out}: ${(error as Error).message}`)
   }
   if (values.open) openInBrowser(out)
@@ -286,6 +295,7 @@ function init(argv: readonly string[], cwd: string): Result {
   try {
     installed = installSkill(root, files, values.force ?? false)
   } catch (error) {
+    if (error instanceof SymlinkRefused) return refusal(error, cwd)
     return failure(`could not install the skill: ${(error as Error).message}`)
   }
   const lines = installed.map(({ path, status }) => {
