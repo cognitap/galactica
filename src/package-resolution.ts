@@ -7,6 +7,7 @@
 
 import { isAbsolute, join, posix, relative, sep } from 'node:path'
 import ts from 'typescript'
+import { lstatSync } from 'node:fs'
 import type { Discovery } from './discovery.ts'
 import type { Warning } from './compiler-settings.ts'
 import { plainInputs, type Inputs } from './inputs.ts'
@@ -226,7 +227,7 @@ function subpathEntry(
 }
 
 /** Package-relative or external targets of a private import in its nearest package scope. */
-export function packageImports(root: string, inputs: Inputs) {
+export function packageImports(root: string, inputs: Inputs, warnings: Warning[] = []) {
   interface Scope {
     readonly dir: RepoPath
     readonly imports: unknown
@@ -243,8 +244,11 @@ export function packageImports(root: string, inputs: Inputs) {
       }
       pending.push(current)
       const file = parseRepoPath(posix.join(current, 'package.json'))
-      if (inputs.fileExists(join(root, file))) {
-        const manifest = readJson(inputs, root, file, [])
+      if (
+        inputs.fileExists(join(root, file)) ||
+        lstatSync(join(root, file), { throwIfNoEntry: false }) !== undefined
+      ) {
+        const manifest = readJson(inputs, root, file, warnings)
         scope = {
           dir: parseRepoPath(current),
           imports: isRecord(manifest) ? manifest.imports : undefined

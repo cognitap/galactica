@@ -6,7 +6,9 @@
  */
 
 import { dirname, isAbsolute, join, relative, sep } from 'node:path'
+import { lstatSync } from 'node:fs'
 import ts from 'typescript'
+import { missingFile, readRepositoryFile, UnsafeReadError } from './safe-read.ts'
 import type { Inputs } from './inputs.ts'
 import { parseRepoPath, toRepoPath, type RepoPath } from './model.ts'
 import {
@@ -149,6 +151,38 @@ export function compilerSettings(
   const parsed = new Map<string, Parsed | undefined>()
   const extendedConfigCache = new Map<string, ts.ExtendedConfigCacheEntry>()
   const warnings: Warning[] = []
+  let activeConfig = parseRepoPath('tsconfig.json')
+  const refused = new Set<string>()
+  const reportRead = (file: string, error: unknown) => {
+    if (missingFile(error) || refused.has(file)) return
+    refused.add(file)
+    warnings.push({
+      path: isInside(root, file) ? toRepoPath(root, file) : activeConfig,
+      message: error instanceof UnsafeReadError ? error.message : 'could not read config file'
+    })
+  }
+  const safeExists = (file: string): boolean => {
+    const exists = inputs.fileExists(file)
+    if (!exists) {
+      try {
+        if (lstatSync(file, { throwIfNoEntry: false }) === undefined) return false
+      } catch (error) {
+        reportRead(file, error)
+        return false
+      }
+    }
+    if (!isInside(root, file)) return false
+    try {
+      return readRepositoryFile(root, file, {
+        fileExists: inputs.fileExists,
+        stat: inputs.stat,
+        readFile: () => exists
+      })
+    } catch (error) {
+      reportRead(file, error)
+      return false
+    }
+  }
   let members: readonly WorkspacePackage[] | undefined
   /** Resolve a bare extends through the workspace, keeping relative options based at its real file. */
   function workspaceExtends(value: unknown): unknown {
@@ -180,8 +214,13 @@ export function compilerSettings(
     return isInside(join(root, member.dir), target) ? target : value
   }
   function readConfig(path: string): string | undefined {
-    const text = inputs.readFile(path)
-    if (text === undefined) return text
+    let text
+    try {
+      text = readRepositoryFile(root, path, inputs)
+    } catch (error) {
+      reportRead(path, error)
+      return undefined
+    }
     const { config, error } = ts.parseConfigFileTextToJson(path, text)
     if (error || !config || typeof config !== 'object' || !('extends' in config)) return text
     const extended = workspaceExtends(config.extends)
@@ -199,7 +238,7 @@ export function compilerSettings(
       .join(' ')
       .replaceAll(rootPrefix, '')
   const reads = {
-    fileExists: inputs.fileExists,
+    fileExists: safeExists,
     readFile: readConfig,
     directoryExists: inputs.directoryExists,
     realpath: inputs.realpath,
@@ -233,6 +272,8 @@ export function compilerSettings(
   ): ts.ParsedCommandLine | undefined {
     const known = commandLines.get(configFile)
     if (known) return known
+    const previous = activeConfig
+    activeConfig = isInside(root, configFile) ? toRepoPath(root, configFile) : previous
     const commandLine = ts.getParsedCommandLineOfConfigFile(
       configFile,
       undefined,
@@ -241,6 +282,7 @@ export function compilerSettings(
       undefined,
       frameworkExtensions
     )
+    activeConfig = previous
     if (commandLine) commandLines.set(configFile, commandLine)
     return commandLine
   }

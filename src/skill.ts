@@ -7,6 +7,7 @@
 import { createHash } from 'node:crypto'
 import { existsSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
+import { readRepositoryFile } from './safe-read.ts'
 import { refuseLinks, writeBelow } from './safe-write.ts'
 
 /**
@@ -118,7 +119,16 @@ export function installSkill(
     path,
     text,
     target,
-    status: statusOf(existsSync(target) ? readFileSync(target, 'utf8') : undefined, text, force)
+    status: statusOf(
+      existsSync(target)
+        ? readRepositoryFile(root, target, {
+            fileExists: existsSync,
+            readFile: file => readFileSync(file, 'utf8')
+          })
+        : undefined,
+      text,
+      force
+    )
   }))
   writeBelow(
     root,

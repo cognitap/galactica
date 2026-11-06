@@ -14,6 +14,7 @@ import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { performance } from 'node:perf_hooks'
 import ts from 'typescript'
+import { readRepositoryFile } from './safe-read.ts'
 import { resolveBarrels } from './barrels.ts'
 import { compilerOptionsOf, discover, type DiscoveredModule, type Warning } from './discovery.ts'
 import { currentStamp, readCache, writeCache, type Cache, type CacheEntry } from './cache.ts'
@@ -130,7 +131,10 @@ function entryOf(
   const file = join(root, path)
   const { mtimeMs, size } = inputs.stat(file)
   if (cached && cached.mtimeMs === mtimeMs && cached.size === size) return [cached, 'reused']
-  const bytes = readFileSync(file)
+  const bytes = readRepositoryFile(root, file, {
+    fileExists: inputs.fileExists,
+    readFile: file => readFileSync(file)
+  })
   const hash = hashOf(bytes)
   if (cached?.hash === hash) return [{ ...cached, mtimeMs, size }, 'reread']
   const extraction = timed(clock, 'parse', () => extract(path, language, bytes, load))
