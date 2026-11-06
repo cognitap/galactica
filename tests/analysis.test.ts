@@ -120,7 +120,8 @@ test('an import of a name a module imports and exports leads to the module that 
   const root = repository(t, {
     'src/main.ts': [
       "import { a, renamed, Def, ns, type T } from './index'",
-      "import chained from './outer'"
+      "import chained from './outer'",
+      'export const used = [a, renamed, Def, ns, chained]'
     ].join('\n'),
     'src/index.ts': [
       "import { a, b } from './a'",

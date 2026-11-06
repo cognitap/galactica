@@ -26,7 +26,7 @@ import type { Extraction } from './extraction.ts'
 import type { Import, ImportSyntax } from './imports.ts'
 import { compare, type RepoPath, type SymbolFacts } from './model.ts'
 
-export const CACHE_FORMAT = 4
+export const CACHE_FORMAT = 5
 
 export interface CacheEntry extends Extraction {
   readonly hash: string
@@ -194,7 +194,9 @@ function importOf(value: unknown): Import | undefined {
     renames,
     typeOnly,
     dynamic,
-    loadTime
+    loadTime,
+    elided,
+    metadataLoadTime
   } = value
   if (!isString(specifier) || !isSyntax(syntax) || !isLine(line) || !isForm(form)) return undefined
   if (!isStrings(names) || typeof typeOnly !== 'boolean' || typeof dynamic !== 'boolean') {
@@ -203,6 +205,10 @@ function importOf(value: unknown): Import | undefined {
   if (resolutionMode !== undefined && !isMode(resolutionMode)) return undefined
   if (renames !== undefined && !isRenames(renames)) return undefined
   if (loadTime !== undefined && !isStrings(loadTime)) return undefined
+  if (elided !== undefined && elided !== 'unless-verbatim' && elided !== 'unless-metadata') {
+    return undefined
+  }
+  if (metadataLoadTime !== undefined && !isStrings(metadataLoadTime)) return undefined
   return {
     specifier,
     syntax,
@@ -213,7 +219,9 @@ function importOf(value: unknown): Import | undefined {
     ...(renames === undefined ? {} : { renames }),
     typeOnly,
     dynamic,
-    ...(loadTime === undefined ? {} : { loadTime })
+    ...(loadTime === undefined ? {} : { loadTime }),
+    ...(elided === undefined ? {} : { elided }),
+    ...(metadataLoadTime === undefined ? {} : { metadataLoadTime })
   }
 }
 
