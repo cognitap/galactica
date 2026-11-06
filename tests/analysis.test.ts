@@ -240,6 +240,27 @@ test('a config change takes effect on a warm run, which parses no module', t => 
   assert.equal(graph.modules.get('src/a.ts' as RepoPath)?.area, 'src/core')
 })
 
+test('a configured JSX factory keeps its cycle through warm config changes (DEV-735)', t => {
+  const root = repository(t, {
+    'tsconfig.json': { compilerOptions: { jsx: 'react', jsxFactory: 'h' } },
+    'src/a.tsx': "import { h } from './b'; export const a = <div />",
+    'src/b.ts': "import { a } from './a'; export const h = () => a"
+  })
+  const cache = join(repository(t, {}), 'cache')
+  const run = () => analyzeRepository(root, emptyConfig, { cache })
+  assert.equal(graphOf(run().model, emptyConfig).cycles.length, 1)
+  const warm = run()
+  assert.equal(warm.summary.modules.parsed, 0)
+  assert.equal(graphOf(warm.model, emptyConfig).cycles.length, 1)
+  writeFileSync(
+    join(root, 'tsconfig.json'),
+    JSON.stringify({ compilerOptions: { jsx: 'react', jsxFactory: 'other' } })
+  )
+  const changed = run()
+  assert.equal(changed.summary.modules.parsed, 0)
+  assert.equal(graphOf(changed.model, emptyConfig).cycles.length, 0)
+})
+
 test('every fixture gives the same model warm as cold', t => {
   for (const name of fixtureCases()) {
     const root = fixtureRepo(name)
