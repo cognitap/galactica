@@ -1,0 +1,52 @@
+{
+  "areas": [
+    {
+      "path": "packages/app/src",
+      "package": "@fx/app",
+      "layer": 0,
+      "modules": ["packages/app/src/main.test.ts", "packages/app/src/main.ts"]
+    },
+    {
+      "path": "packages/big/src/one",
+      "package": "@fx/big",
+      "layer": 0,
+      "modules": ["packages/big/src/one/a.ts", "packages/big/src/one/b.ts"]
+    },
+    {
+      "path": "packages/big/src/two",
+      "package": "@fx/big",
+      "layer": 0,
+      "modules": ["packages/big/src/two/a.ts", "packages/big/src/two/b.ts"]
+    },
+    {
+      "path": "packages/big/src/widgets",
+      "package": "@fx/big",
+      "layer": 0,
+      "modules": ["packages/big/src/widgets/w01.test.ts", "packages/big/src/widgets/w01.ts", "packages/big/src/widgets/w02.ts", "packages/big/src/widgets/w03.ts", "packages/big/src/widgets/w04.ts", "packages/big/src/widgets/w05.ts", "packages/big/src/widgets/w06.ts", "packages/big/src/widgets/w07.ts", "packages/big/src/widgets/w08.ts", "packages/big/src/widgets/w09.ts", "packages/big/src/widgets/w10.ts", "packages/big/src/widgets/w11.ts", "packages/big/src/widgets/w12.ts", "packages/big/src/widgets/w13.ts", "packages/big/src/widgets/w14.ts", "packages/big/src/widgets/w15.ts", "packages/big/src/widgets/w16.ts", "packages/big/src/widgets/w17.ts", "packages/big/src/widgets/w18.ts", "packages/big/src/widgets/w19.ts", "packages/big/src/widgets/w20.ts"]
+    },
+    {
+      "path": "packages/core/src",
+      "package": "@fx/core",
+      "layer": 0,
+      "modules": ["packages/core/src/format.ts", "packages/core/src/icons/star.ts", "packages/core/src/index.ts", "packages/core/src/internal/secret.ts", "packages/core/src/math.ts"]
+    },
+    {
+      "path": "packages/plain/src",
+      "package": "@fx/plain",
+      "layer": 0,
+      "modules": ["packages/plain/src/index.ts"]
+    },
+    {
+      "path": "packages/plain/src/text",
+      "package": "@fx/plain",
+      "layer": 0,
+      "modules": ["packages/plain/src/text/pad.ts", "packages/plain/src/text/slug.ts"]
+    },
+    {
+      "path": "scripts",
+      "package": "internal-imports",
+      "layer": 0,
+      "modules": ["scripts/shared.ts"]
+    }
+  ]
+}

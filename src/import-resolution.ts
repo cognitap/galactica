@@ -12,7 +12,7 @@ import type { Warning } from './compiler-settings.ts'
 import { compilerOptionsOf, type DiscoveredModule, type Discovery } from './discovery.ts'
 import { plainInputs, type Inputs } from './inputs.ts'
 import { toRepoPath, type RepoPath, type Target } from './model.ts'
-import { splitSpecifier, workspaceResolver } from './package-resolution.ts'
+import { splitSpecifier, workspaceResolver, type WorkspaceResolver } from './package-resolution.ts'
 
 /** A repository file that is no module, such as a stylesheet or a declaration file. */
 export interface OtherFile {
@@ -33,6 +33,7 @@ export interface ImportResolver {
   ) => Resolution
   /** From the workspace resolver, one per package and reason. */
   readonly warnings: () => readonly Warning[]
+  readonly workspace: WorkspaceResolver
 }
 
 function memoized<T>(cache: Map<string, T>, compute: (key: string) => T): (key: string) => T {
@@ -65,7 +66,7 @@ function isInside(dir: string, path: string): boolean {
   return !isAbsolute(rel) && rel !== '..' && !rel.startsWith(`..${sep}`)
 }
 
-const isRelative = (specifier: string) => /^\.\.?(\/|$)/.test(specifier)
+export const isRelative = (specifier: string) => /^\.\.?(\/|$)/.test(specifier)
 
 const nodeModules = /[/\\]node_modules[/\\]((?:@[^/\\]+[/\\])?[^/\\]+)/g
 
@@ -228,6 +229,7 @@ export function importResolver(
       const path = resolveWhole(module, specifier.slice(0, query), mode)
       return path.kind === 'unresolved' ? whole : path
     },
-    warnings: () => workspace.warnings()
+    warnings: () => workspace.warnings(),
+    workspace
   }
 }

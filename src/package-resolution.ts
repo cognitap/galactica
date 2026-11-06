@@ -19,9 +19,34 @@ export type WorkspaceResolution =
   | { readonly kind: 'module'; readonly path: RepoPath }
   | { readonly kind: 'unresolved'; readonly reason: UnresolvedReason }
 
+/** A public specifier of a package and the module it reaches. */
+export interface Entry {
+  readonly specifier: string
+  readonly path: RepoPath
+}
+
 export interface WorkspaceResolver {
   /** Undefined when the specifier names no workspace package, so TypeScript resolves it instead. */
   readonly resolve: (specifier: string) => WorkspaceResolution | undefined
+  /**
+   * For a bare specifier that names a workspace package, the package and
+   * whether the subpath is public: listed in its `exports` with a target, or
+   * any subpath when it has no `exports`.
+   */
+  readonly exposure: (
+    specifier: string
+  ) => { readonly package: PackageName; readonly listed: boolean } | undefined
+  /**
+   * The package's public entries that reach a module: its name, then each
+   * subpath its `exports` lists without a `*`, in the order listed.
+   */
+  readonly entries: (name: PackageName) => readonly Entry[]
+  /**
+   * A public specifier of the package beyond its entries that reaches `path`:
+   * through a `*` subpath of `exports`, or by the module's own path when the
+   * package has no `exports`.
+   */
+  readonly deepSpecifier: (name: PackageName, path: RepoPath) => string | undefined
   /** One per package and reason. */
   readonly warnings: () => readonly Warning[]
 }
@@ -278,15 +303,43 @@ export function workspaceResolver(
     return firstModule([...fields, './index'], locate)
   }
 
+  function lookup(specifier: string) {
+    const parts = splitSpecifier(specifier)
+    const owner = parts && manifests.get(parts.name as PackageName)
+    if (!parts || !owner) return undefined
+    // Every exact target first, so that a guess never overrides what the package states.
+    const result = firstModule([false, true], guess =>
+      resolvePackage(owner, parts.name, parts.subpath, guess)
+    )
+    return { parts, owner, result }
+  }
+
+  /** Whether `specifier` reaches the module at `path`, with no warning when it reaches none. */
+  const reaches = (specifier: string, path: RepoPath) => {
+    const result = lookup(specifier)?.result
+    return result?.kind === 'module' && result.path === path
+  }
+
+  const exportsOf = (name: PackageName) => {
+    const manifest = manifests.get(name)?.manifest
+    return isRecord(manifest) ? manifest.exports : undefined
+  }
+
+  const subpathKeys = (exports: unknown): readonly string[] =>
+    isRecord(exports) && Object.keys(exports).every(key => key.startsWith('.'))
+      ? Object.keys(exports)
+      : ['.']
+
+  const specifierOf = (name: string, subpath: string) =>
+    subpath === '.' ? name : `${name}${subpath.slice(1)}`
+
+  const entryCache = new Map<PackageName, readonly Entry[]>()
+
   return {
     resolve(specifier) {
-      const parts = splitSpecifier(specifier)
-      const owner = parts && manifests.get(parts.name as PackageName)
-      if (!parts || !owner) return undefined
-      // Every exact target first, so that a guess never overrides what the package states.
-      const result = firstModule([false, true], guess =>
-        resolvePackage(owner, parts.name, parts.subpath, guess)
-      )
+      const found = lookup(specifier)
+      if (!found) return undefined
+      const { parts, owner, result } = found
       if (result.kind === 'module') return result
       const key = `${parts.name}\0${result.reason}`
       if (!warned.has(key)) {
@@ -295,6 +348,90 @@ export function workspaceResolver(
       }
       return result
     },
+    exposure(specifier) {
+      const parts = splitSpecifier(specifier)
+      const name = parts?.name as PackageName | undefined
+      if (!parts || name === undefined || !manifests.has(name)) return undefined
+      const exports = exportsOf(name)
+      if (exports === undefined) return { package: name, listed: true }
+      const entry = exportsEntry(exports, parts.subpath)
+      return { package: name, listed: entry !== undefined && entry.target !== null }
+    },
+    entries(name) {
+      const cached = entryCache.get(name)
+      if (cached) return cached
+      const exports = exportsOf(name)
+      const subpaths = exports === undefined ? ['.'] : subpathKeys(exports)
+      const entries = subpaths.flatMap(subpath => {
+        if (subpath.includes('*')) return []
+        const specifier = specifierOf(name, subpath)
+        const result = lookup(specifier)?.result
+        return result?.kind === 'module' ? [{ specifier, path: result.path }] : []
+      })
+      entryCache.set(name, entries)
+      return entries
+    },
+    deepSpecifier(name, path) {
+      const owner = manifests.get(name)
+      if (!owner) return undefined
+      const relativePath = posix.relative(owner.dir === '.' ? '' : owner.dir, path)
+      const exports = exportsOf(name)
+      const subpaths =
+        exports === undefined
+          ? ownPaths(relativePath).map(own => `./${own}`)
+          : subpathKeys(exports).flatMap(key =>
+              key.includes('*') && isRecord(exports)
+                ? patternStars(exports[key], relativePath).map(star => key.replace('*', star))
+                : []
+            )
+      return subpaths.map(subpath => specifierOf(name, subpath)).find(spec => reaches(spec, path))
+    },
     warnings: () => warnings
   }
+}
+
+const scriptExtension = /(\.d)?\.[cm]?[jt]sx?$/
+
+/** The subpaths a module may be imported by, shortest first: its folder for an index, then without its extension. */
+function ownPaths(relativePath: string): readonly string[] {
+  const stem = relativePath.replace(scriptExtension, '')
+  const folder = stem.endsWith('/index') ? [stem.slice(0, -'/index'.length)] : []
+  return [...new Set([...folder, stem, relativePath])]
+}
+
+/** Every string an `exports` target can lead to, through conditions and fallbacks. */
+function targetStrings(target: unknown): readonly string[] {
+  if (typeof target === 'string') return [target]
+  if (Array.isArray(target)) return target.flatMap(targetStrings)
+  return isRecord(target) ? Object.values(target).flatMap(targetStrings) : []
+}
+
+/**
+ * What `*` would stand for in a target pattern such as `./dist/*.js` for the
+ * module at `relativePath` to match it, comparing paths without extensions
+ * and reading an output folder such as `dist` as `src`. Each guess is only a
+ * candidate: the caller keeps one that resolves to the module.
+ */
+function patternStars(target: unknown, relativePath: string): readonly string[] {
+  const stars = targetStrings(target).flatMap(pattern => {
+    const [prefix, suffix, ...more] = posix.normalize(pattern).split('*')
+    if (prefix === undefined || suffix === undefined || more.length > 0) return []
+    const [outDir, ...rest] = prefix.split('/')
+    const prefixes =
+      outDir !== undefined && outDirs.has(outDir) && rest.length > 0
+        ? [prefix, ['src', ...rest].join('/')]
+        : [prefix]
+    const forms = [
+      { path: relativePath, end: suffix },
+      { path: relativePath.replace(scriptExtension, ''), end: suffix.replace(scriptExtension, '') }
+    ]
+    return prefixes.flatMap(start =>
+      forms.flatMap(({ path, end }) =>
+        path.length > start.length + end.length && path.startsWith(start) && path.endsWith(end)
+          ? [path.slice(start.length, path.length - end.length)]
+          : []
+      )
+    )
+  })
+  return [...new Set(stars)]
 }

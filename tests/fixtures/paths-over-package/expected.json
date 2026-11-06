@@ -1,5 +1,5 @@
 {
-  "format": 2,
+  "format": 3,
   "repository": { "name": "@acme/tool" },
   "packages": {
     "@acme/tool": { "dir": "." }

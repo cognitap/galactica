@@ -104,6 +104,14 @@ function definitions(modules: Modules): (to: ModuleTarget, name: string) => Sear
   return definitionOf
 }
 
+/** Where the module at `path` takes `name` from, as `resolveBarrels` follows it, or undefined when it exports no such name. */
+export function definitionFinder(
+  modules: Modules
+): (path: RepoPath, name: string) => { readonly to: Target; readonly name: string } | undefined {
+  const definitionOf = definitions(modules)
+  return (path, name) => definitionOf({ kind: 'module', path }, name).found
+}
+
 function rewritten(edge: Edge, definitionOf: ReturnType<typeof definitions>): readonly Edge[] {
   const { to } = edge
   if (edge.form !== 'import' || to.kind !== 'module' || edge.names.length === 0) return [edge]
@@ -117,13 +125,14 @@ function rewritten(edge: Edge, definitionOf: ReturnType<typeof definitions>): re
     if (edge.loadTime?.includes(name)) group.read.push(definition.name)
   }
   return [...groups.values()].map(({ definition, names, read }) => {
-    const { loadTime: _, via: __, ...rest } = edge
+    const { loadTime: _, via: __, internal, ...rest } = edge
     return {
       ...rest,
       to: definition.to,
       names: [...new Set(names)].sort(),
       ...(read.length === 0 ? {} : { loadTime: [...new Set(read)].sort() }),
-      via: definition.via
+      via: definition.via,
+      ...(internal === undefined ? {} : { internal })
     }
   })
 }

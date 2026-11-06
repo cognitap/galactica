@@ -1,5 +1,5 @@
 {
-  "format": 2,
+  "format": 3,
   "repository": { "name": "allowjs-mixed" },
   "packages": {
     "allowjs-mixed": { "dir": "." }

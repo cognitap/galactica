@@ -1,5 +1,5 @@
 {
-  "format": 2,
+  "format": 3,
   "repository": { "name": "plain-relative" },
   "packages": {
     "plain-relative": { "dir": "." }
