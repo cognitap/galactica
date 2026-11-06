@@ -673,49 +673,42 @@ main {
   color: var(--muted);
 }
 
-.rows {
+.columns {
   display: grid;
-  gap: 1.75rem;
-}
-
-.row {
-  display: grid;
-  grid-template-columns: 4.5rem minmax(0, 1fr);
-  gap: 1rem;
+  grid-template-columns: repeat(var(--layers), minmax(0, 1fr));
+  gap: 0.6rem;
   align-items: start;
-  content-visibility: auto;
-  contain-intrinsic-size: auto 16rem;
-  padding: 0.5rem;
-  margin: -0.5rem;
 }
 
-.row-label {
+.column {
+  min-width: 0;
+  display: grid;
+  gap: 0.5rem;
+}
+
+.column-label {
   margin: 0;
-  padding-top: 0.7rem;
   color: var(--faint);
-  font-size: 0.75rem;
+  font-size: 0.72rem;
   letter-spacing: 0.06em;
   text-transform: uppercase;
   font-variant-numeric: tabular-nums;
+  white-space: nowrap;
 }
 
-.row-areas {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 1rem;
-  align-items: flex-start;
+.column-areas {
+  display: grid;
+  gap: 0.4rem;
   min-width: 0;
 }
 
 .area {
-  flex: 0 1 clamp(18rem, calc(15.5rem + var(--weight, 1) * 1.5rem), 34rem);
-  max-width: 100%;
   min-width: 0;
   background: var(--surface);
   border: 1px solid var(--line);
-  border-top: 3px solid var(--folder);
-  border-radius: 8px;
-  padding: 0.8rem 0.95rem 0.6rem;
+  border-left: 3px solid var(--folder);
+  border-radius: 6px;
+  padding: 0.35rem 0.5rem 0.35rem 0.45rem;
 }
 
 .area-head {
@@ -725,10 +718,27 @@ main {
 
 .area-head h3 {
   margin: 0;
-  font-family: var(--mono);
-  font-size: 0.88rem;
+  font-size: 0.82rem;
   font-weight: 600;
-  line-height: 1.35;
+  line-height: 1.3;
+}
+
+.area-select {
+  width: 100%;
+  overflow-wrap: anywhere;
+}
+
+.area .area-meta {
+  font-size: 0.72rem;
+}
+
+.area .area-head {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.area .relation-tag {
+  font-size: 0.62rem;
+  white-space: normal;
 }
 
 .area-meta {
@@ -944,21 +954,6 @@ main {
 
   main {
     padding-bottom: 50vh;
-  }
-}
-
-@media (max-width: 40rem) {
-  .row {
-    grid-template-columns: minmax(0, 1fr);
-    gap: 0.4rem;
-  }
-
-  .row-label {
-    padding-top: 0;
-  }
-
-  .area {
-    flex-basis: 100%;
   }
 }
 
