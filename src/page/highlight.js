@@ -15,8 +15,8 @@ import { byId, element, plural, formatted, KINDS } from './dom.js'
  */
 export function selectionView(data, view) {
   const RELATIONS = /** @type {const} */ ({
-    uses: { one: 'dependency', many: 'dependencies' },
-    'used-by': { one: 'dependent', many: 'dependents' }
+    uses: { one: 'dependency', many: 'dependencies', short: 'dep', shorts: 'deps' },
+    'used-by': { one: 'dependent', many: 'dependents', short: 'dependent', shorts: 'dependents' }
   })
 
   /** @param {Selection} selection */
@@ -140,14 +140,24 @@ export function selectionView(data, view) {
           box,
           relations.map(relation => `is-${relation}`)
         )
+        // Area boxes are narrow, so their tag counts in short words that keep to one line each.
         label(
           tag,
           relations
             .map(relation =>
-              plural(counts[relation], RELATIONS[relation].one, RELATIONS[relation].many)
+              plural(
+                counts[relation],
+                RELATIONS[relation].short,
+                RELATIONS[relation].shorts
+              ).replace(' ', '\u00a0')
             )
             .join(' · ')
         )
+        tag.title = relations
+          .map(relation =>
+            plural(counts[relation], RELATIONS[relation].one, RELATIONS[relation].many)
+          )
+          .join(' · ')
       }
       if (selection.kind === 'area') {
         const { box, select } = areaViews[selection.index]
