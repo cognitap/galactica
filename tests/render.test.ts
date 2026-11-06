@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
 import { commandTable, type Input } from '../src/commands.ts'
-import { commands, type Failure } from '../src/contract.ts'
+import { commands, type Failure, type Overview, type Cycles } from '../src/contract.ts'
 import { graphOf } from '../src/graph.ts'
 import { emptyConfig, type RepoPath } from '../src/model.ts'
 import { LIST_LIMIT, render } from '../src/render.ts'
@@ -182,4 +182,74 @@ test('a failure renders as its one-line message', () => {
   assert.equal(render(failure), 'galactica: no module, package or area named x')
   const output = commandTable.outline.run(repository, input('src/nope.ts'))
   assert.equal(render(output), 'galactica: no module named src/nope.ts')
+})
+
+test('overview caps broad layers and the whole report while preserving JSON data', () => {
+  const areas = Array.from({ length: 12052 }, (_, index) => ({
+    path: `packages/babel/fixtures/case-${index}`,
+    layer: 0,
+    modules: 1,
+    top: []
+  }))
+  const output: Overview = {
+    schemaVersion: 1,
+    command: 'overview',
+    all: false,
+    cycles: 0,
+    unresolved: 0,
+    warnings: [],
+    packages: [{ name: 'babel', dir: '.', modules: areas.length, areas }]
+  }
+  const before = JSON.stringify(output)
+  const result = render(output)
+  assert.ok(Buffer.byteLength(result) < 8192, `overview has ${Buffer.byteLength(result)} bytes`)
+  assert.match(result, /layer 0: .*… and \d+ more, use --json/)
+  assert.equal(JSON.stringify(output), before)
+  assert.equal(output.packages[0]?.areas.length, 12052)
+})
+
+test('overview caps many packages and layers, including --all rankings', () => {
+  const output: Overview = {
+    schemaVersion: 1,
+    command: 'overview',
+    all: true,
+    cycles: 0,
+    unresolved: 0,
+    warnings: [],
+    packages: Array.from({ length: 500 }, (_, index) => ({
+      name: `p${index}`,
+      dir: `packages/p${index}`,
+      modules: 100,
+      areas: Array.from({ length: 100 }, (_, layer) => ({
+        path: `packages/p${index}/src/area${layer}`,
+        layer,
+        modules: 1,
+        top: [
+          { path: `packages/p${index}/src/area${layer}/main.ts`, importers: 2, exports: ['main'] }
+        ]
+      }))
+    }))
+  }
+  const result = render(output)
+  assert.ok(Buffer.byteLength(result) < 8192, `overview has ${Buffer.byteLength(result)} bytes`)
+  assert.match(result, /more.*use --json/)
+  assert.equal(output.packages.length, 500)
+})
+
+test('cycles caps the entire report with its total and full JSON intact', () => {
+  const output: Cycles = {
+    schemaVersion: 1,
+    command: 'cycles',
+    cycles: Array.from({ length: 300 }, (_, index) => ({
+      loadTime: false,
+      modules: Array.from({ length: 100 }, (_, member) => `src/cycle${index}/module${member}.ts`),
+      imports: []
+    }))
+  }
+  const before = JSON.stringify(output)
+  const result = render(output)
+  assert.match(result, /^300 import cycles, 0 used at load time/)
+  assert.ok(Buffer.byteLength(result) < 8192, `cycles has ${Buffer.byteLength(result)} bytes`)
+  assert.match(result, /more.*use --json/)
+  assert.equal(JSON.stringify(output), before)
 })
