@@ -4,6 +4,17 @@
 
 ## Unreleased
 
+- Read JavaScript aliases from `jsconfig.json` when no `tsconfig.json` is present in the same folder.
+- Resolve workspace package tsconfig extensions before installing dependencies.
+- Suppress TypeScript deprecation and output-layout migration notices that do not affect the map.
+- Do not warn when a workspace package exports `./package.json` metadata.
+- Recognize `*-spec.*` tests and `__testfixtures__`, `__fixtures__`, `testdata`, `testData`, `fixtures` and `__mocks__` folders as tests, so fixtures no longer shape source layers or count as oversized areas.
+- **Breaking:** Match workspace and config globs without backtracking, with documented size and syntax limits. Before, `@(src|scripts)/**` used Node’s matcher; now extglobs, escapes, POSIX named classes and patterns beyond the limits are ignored with a warning. Use `{src,scripts}/**` instead.
+- Pin CI and release actions to commit SHAs and reduce the npm publishing job to Node setup, candidate download and publication.
+- Ship an npm shrinkwrap with exact versions and integrity hashes for the full Vue and Svelte compiler dependency tree used by npm and npx; verify it from the packed package.
+- The HTML map header lists hidden tests, stories and other filtered module kinds beside its visible module count.
+- The HTML map fits phone widths, wraps paths at slashes and keeps filenames together when they fit.
+- The HTML map opens on the largest source and config package and uses a compact package picker, including in large workspaces.
 - **Breaking:** Bound overview layer lists and overview/cycles text at about 6 KB. Before: text listed every area and cycle; after: omitted counts point to the complete `--json` output.
 
 ## 0.1.5

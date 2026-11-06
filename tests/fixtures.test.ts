@@ -28,6 +28,7 @@ const cases = [
   'cycle',
   'cycle-kinds',
   'javascript',
+  'jsconfig-aliases',
   'allowjs-mixed',
   'type-only-and-dynamic',
   'react-components',

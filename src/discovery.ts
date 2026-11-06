@@ -3,7 +3,7 @@
  * run before any file is parsed.
  */
 
-import { basename, dirname, join, posix, resolve } from 'node:path'
+import { basename, dirname, join, resolve } from 'node:path'
 import ts from 'typescript'
 import {
   compilerSettings,
@@ -12,6 +12,7 @@ import {
   type Warning
 } from './compiler-settings.ts'
 import type { Language, ModuleKind } from './contract.ts'
+import { globProblem, matchesGlob } from './glob.ts'
 import { plainInputs, type Inputs } from './inputs.ts'
 import {
   parseRepoPath,
@@ -64,7 +65,7 @@ function compare(a: string, b: string): number {
 
 /** Whether the config's `include` and `exclude` keep the module at `path`. */
 function selected(path: RepoPath, { include, exclude }: Config): boolean {
-  const matches = (glob: string) => posix.matchesGlob(path, glob)
+  const matches = (glob: string) => matchesGlob(path, glob)
   return (include === undefined || include.some(matches)) && !exclude.some(matches)
 }
 
@@ -84,6 +85,19 @@ export function discover(
   })
 
   const warnings: Warning[] = []
+  const configGlobs: readonly (readonly [string, string])[] = [
+    ...(config.include ?? []).map((glob, index) => [`include[${index}]`, glob] as const),
+    ...config.exclude.map((glob, index) => [`exclude[${index}]`, glob] as const),
+    ...Object.entries(config.kinds).flatMap(([kind, globs]) =>
+      globs.map((glob, index) => [`kinds.${kind}[${index}]`, glob] as const)
+    ),
+    ...config.areas.map(({ glob }) => [`areas[${JSON.stringify(glob)}]`, glob] as const)
+  ]
+  for (const [key, glob] of configGlobs) {
+    const problem = globProblem(glob)
+    if (problem)
+      warnings.push({ path: parseRepoPath('galactica.config.json'), message: `${key}: ${problem}` })
+  }
   const manifest = readJson(inputs, root, parseRepoPath('package.json'), warnings)
   const name = nameOf(manifest) ?? (basename(root) as PackageName)
   const patterns = workspacePatterns(inputs, root, manifest, warnings)
