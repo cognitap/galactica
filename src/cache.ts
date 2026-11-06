@@ -1,5 +1,6 @@
 /**
- * The cache of what each module gives on its own, kept between runs. It is a
+ * The cache of what each module gives on its own, kept between runs, in a
+ * folder of the user's that the mapped repository cannot reach. It is a
  * boundary: the file is parsed into typed entries here, and anything missing,
  * unreadable, corrupt or written by another build reads as an empty cache.
  * Writing it never fails a run, and deleting it is always safe.
@@ -7,17 +8,18 @@
 
 import { createHash, randomBytes } from 'node:crypto'
 import {
+  lstatSync,
   mkdirSync,
   readdirSync,
   readFileSync,
+  realpathSync,
   renameSync,
   rmSync,
-  statSync,
   writeFileSync
 } from 'node:fs'
 import { createRequire } from 'node:module'
 import { homedir } from 'node:os'
-import { basename, dirname, extname, isAbsolute, join, resolve } from 'node:path'
+import { basename, dirname, extname, isAbsolute, join, relative, sep } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { symbolKinds } from './contract.ts'
 import type { Extraction } from './extraction.ts'
@@ -88,32 +90,51 @@ export interface Environment {
   readonly home: string
 }
 
-const currentEnvironment = (): Environment => ({
-  platform: process.platform,
-  env: process.env,
-  home: homedir()
-})
+function currentEnvironment(): Environment {
+  let home = ''
+  try {
+    home = homedir()
+  } catch {}
+  return { platform: process.platform, env: process.env, home }
+}
 
 function userCacheDirectory({ platform, env, home }: Environment): string {
   if (platform === 'darwin') return join(home, 'Library', 'Caches')
-  if (platform === 'win32') return env.LOCALAPPDATA ?? join(home, 'AppData', 'Local')
-  const xdg = env.XDG_CACHE_HOME
-  return xdg !== undefined && isAbsolute(xdg) ? xdg : join(home, '.cache')
+  const local = platform === 'win32' ? env.LOCALAPPDATA : env.XDG_CACHE_HOME
+  if (local !== undefined && isAbsolute(local)) return local
+  return platform === 'win32' ? join(home, 'AppData', 'Local') : join(home, '.cache')
+}
+
+const isWithin = (parent: string, path: string) => {
+  const rel = relative(parent, path)
+  return rel === '' || (!isAbsolute(rel) && rel !== '..' && !rel.startsWith(`..${sep}`))
 }
 
 /**
- * Where the cache of `root` lives: under its `node_modules/.cache`, which
- * every repository already ignores, else in the user's cache directory, in a
- * folder named by a hash of the root's absolute path.
+ * The cache folder of `root`: in the user's cache directory, in a folder
+ * named by a hash of the root's real path, created for this user alone. The
+ * repository being mapped must never supply its own cache, so there is none
+ * when that folder is not this user's own directory, is a symlink, or lies
+ * inside the root, and none without an absolute user cache directory.
  */
-export function cacheDirectory(root: string, environment = currentEnvironment()): string {
-  const absolute = resolve(root)
-  const nodeModules = join(absolute, 'node_modules')
-  if (statSync(nodeModules, { throwIfNoEntry: false })?.isDirectory()) {
-    return join(nodeModules, '.cache', 'galactica')
+export function cacheDirectory(
+  root: string,
+  environment = currentEnvironment()
+): string | undefined {
+  const base = userCacheDirectory(environment)
+  if (!isAbsolute(base)) return undefined
+  try {
+    const real = realpathSync(root)
+    const key = createHash('sha256').update(real).digest('hex').slice(0, 16)
+    const directory = join(base, 'galactica', key)
+    mkdirSync(directory, { recursive: true, mode: 0o700 })
+    const stat = lstatSync(directory)
+    const uid = process.getuid?.()
+    if (!stat.isDirectory() || (uid !== undefined && stat.uid !== uid)) return undefined
+    return isWithin(real, realpathSync(directory)) ? undefined : directory
+  } catch {
+    return undefined
   }
-  const key = createHash('sha256').update(absolute).digest('hex').slice(0, 16)
-  return join(userCacheDirectory(environment), 'galactica', key)
 }
 
 const cacheFile = (directory: string) => join(directory, 'cache.json')
@@ -261,8 +282,8 @@ export function replaceFile(file: string, text: string): void {
     `${basename(file)}.${process.pid}.${randomBytes(4).toString('hex')}.tmp`
   )
   try {
-    mkdirSync(directory, { recursive: true })
-    writeFileSync(temporary, text)
+    mkdirSync(directory, { recursive: true, mode: 0o700 })
+    writeFileSync(temporary, text, { flag: 'wx', mode: 0o600 })
     renameSync(temporary, file)
   } catch {
     try {

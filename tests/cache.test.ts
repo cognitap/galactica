@@ -1,7 +1,17 @@
 import assert from 'node:assert/strict'
-import { chmodSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from 'node:fs'
-import { join } from 'node:path'
-import { test } from 'node:test'
+import {
+  chmodSync,
+  mkdirSync,
+  readdirSync,
+  readFileSync,
+  realpathSync,
+  rmSync,
+  statSync,
+  symlinkSync,
+  writeFileSync
+} from 'node:fs'
+import { join, sep } from 'node:path'
+import { test, type TestContext } from 'node:test'
 import {
   cacheDirectory,
   CACHE_FORMAT,
@@ -82,26 +92,77 @@ const cache: Cache = new Map([
 const { version } = JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8'))
 const cacheText = (directory: string) => readFileSync(join(directory, 'cache.json'), 'utf8')
 
-test('the cache lives under node_modules/.cache/galactica when the root has node_modules', t => {
+/** A home of its own, so the cache folder is created where the test can see it. */
+function homeFor(t: TestContext) {
+  const home = realpathSync(repository(t, {}))
+  const at = (root: string, platform: NodeJS.Platform = 'linux', env: Environment['env'] = {}) =>
+    cacheDirectory(root, { platform, env, home })
+  return { home, at }
+}
+
+test('the cache lives in the user cache directory, by a hash of the root, even when the root has node_modules', t => {
+  const { home, at } = homeFor(t)
   const root = repository(t, { 'node_modules/.keep': '' })
-  assert.equal(cacheDirectory(root), join(root, 'node_modules', '.cache', 'galactica'))
+  const key = at(root)!.split(sep).at(-1)!
+  assert.match(key, /^[0-9a-f]{16}$/)
+  assert.equal(at(root, 'darwin'), join(home, 'Library/Caches/galactica', key))
+  assert.equal(at(root, 'linux'), join(home, '.cache/galactica', key))
+  assert.equal(
+    at(root, 'linux', { XDG_CACHE_HOME: join(home, 'xdg') }),
+    join(home, 'xdg/galactica', key)
+  )
+  assert.equal(
+    at(root, 'linux', { XDG_CACHE_HOME: 'relative' }),
+    join(home, '.cache/galactica', key)
+  )
+  assert.equal(
+    at(root, 'win32', { LOCALAPPDATA: join(home, 'local') }),
+    join(home, 'local/galactica', key)
+  )
+  assert.equal(
+    at(root, 'win32', { LOCALAPPDATA: 'relative' }),
+    join(home, 'AppData/Local/galactica', key)
+  )
+  assert.equal(statSync(at(root)!).mode & 0o777, 0o700)
+  assert.deepEqual(readdirSync(join(root, 'node_modules')), ['.keep'])
+  assert.notEqual(at(repository(t, {})), at(root))
 })
 
-test('without node_modules, the cache lives in the user cache directory, by a hash of the root', t => {
-  const root = repository(t, { 'package.json': {} })
-  const other = repository(t, { 'package.json': {} })
-  const on = (platform: NodeJS.Platform, env: Environment['env'] = {}) =>
-    cacheDirectory(root, { platform, env, home: '/home/me' })
-  const key = on('linux').split('/').at(-1)!
-  assert.match(key, /^[0-9a-f]{16}$/)
-  assert.equal(on('darwin'), join('/home/me/Library/Caches/galactica', key))
-  assert.equal(on('linux'), join('/home/me/.cache/galactica', key))
-  assert.equal(on('linux', { XDG_CACHE_HOME: '/xdg' }), join('/xdg/galactica', key))
-  assert.equal(on('linux', { XDG_CACHE_HOME: 'relative' }), join('/home/me/.cache/galactica', key))
-  assert.equal(on('win32', { LOCALAPPDATA: '/local' }), join('/local/galactica', key))
-  assert.equal(on('win32'), join('/home/me/AppData/Local/galactica', key))
-  const elsewhere = cacheDirectory(other, { platform: 'linux', env: {}, home: '/home/me' })
-  assert.notEqual(elsewhere, on('linux'))
+test('a root reached through a symlink shares the cache of its real path', t => {
+  const { home, at } = homeFor(t)
+  const root = repository(t, {})
+  const link = join(home, 'link')
+  symlinkSync(root, link)
+  assert.equal(at(link), at(root))
+})
+
+test('there is no cache without an absolute user cache directory', t => {
+  const root = repository(t, {})
+  assert.equal(cacheDirectory(root, { platform: 'linux', env: {}, home: '' }), undefined)
+  assert.equal(cacheDirectory(root, { platform: 'win32', env: {}, home: 'relative' }), undefined)
+})
+
+test('there is no cache when the cache folder would lie inside the repository', t => {
+  const root = realpathSync(repository(t, {}))
+  assert.equal(cacheDirectory(root, { platform: 'linux', env: {}, home: root }), undefined)
+  const { home, at } = homeFor(t)
+  const outside = at(root)!
+  rmSync(outside, { recursive: true })
+  symlinkSync(join(root, 'cache'), outside)
+  mkdirSync(join(root, 'cache'))
+  assert.equal(at(root), undefined)
+  assert.deepEqual(readdirSync(join(home, '.cache/galactica')).length, 1)
+})
+
+test('there is no cache when the cache folder is a symlink, wherever it leads', t => {
+  const { at } = homeFor(t)
+  const root = repository(t, {})
+  const elsewhere = repository(t, {})
+  const directory = at(root)!
+  rmSync(directory, { recursive: true })
+  symlinkSync(elsewhere, directory)
+  assert.equal(at(root), undefined)
+  assert.deepEqual(readdirSync(elsewhere), [])
 })
 
 test('a written cache reads back the same, and replaces the previous one', t => {
