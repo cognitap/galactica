@@ -87,6 +87,7 @@ export type Subject =
 export interface Warning {
   /** The file the problem is in. */
   readonly path: string
+  /** One line. An ignored glob names its workspace pattern or config key and the reason. */
   readonly message: string
 }
 
