@@ -1,52 +1,10 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
 import { graphOf } from '../src/graph.ts'
-import {
-  emptyConfig,
-  MODEL_FORMAT,
-  type Edge,
-  type Model,
-  type ModuleFacts,
-  type PackageName,
-  type RepoPath,
-  type SymbolFacts
-} from '../src/model.ts'
+import { emptyConfig, type RepoPath } from '../src/model.ts'
 import { loaded, validConfigs } from './config-examples.ts'
 
-const edge = (to: string, fields: Partial<Edge> = {}): Edge => ({
-  to: { kind: 'module', path: to as RepoPath },
-  line: 1,
-  form: 'import',
-  names: ['x'],
-  typeOnly: false,
-  dynamic: false,
-  via: [],
-  ...fields
-})
-
-const defines = (name: string, line = 1): SymbolFacts => ({
-  name,
-  kind: 'const',
-  line,
-  default: false,
-  signature: `const ${name}`
-})
-
-type Spec = Partial<Pick<ModuleFacts, 'symbols' | 'edges'>>
-
-function modelOf(specs: Readonly<Record<string, Spec>>): Model {
-  return {
-    format: MODEL_FORMAT,
-    repository: { name: 'acme' },
-    packages: { ['acme' as PackageName]: { dir: '.' as RepoPath } },
-    modules: Object.fromEntries(
-      Object.entries(specs).map(([path, { symbols = [], edges = [] }]) => [
-        path,
-        { path: path as RepoPath, hash: 'h', symbols, edges }
-      ])
-    )
-  }
-}
+import { defines, edge, modelOf } from './models.ts'
 
 test('each module is placed in its package and area, with its kind and language', () => {
   const graph = graphOf(

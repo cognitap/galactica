@@ -1,12 +1,10 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
 import {
-  MODEL_FORMAT,
   parseRepoPath,
   removeModule,
   replaceModule,
   toRepoPath,
-  type Model,
   type ModuleFacts,
   type RepoPath
 } from '../src/model.ts'
@@ -15,14 +13,10 @@ function facts(path: string, hash = 'h'): ModuleFacts {
   return { path: path as RepoPath, hash, symbols: [], edges: [] }
 }
 
-function modelOf(...paths: string[]): Model {
-  return paths.reduce<Model>((model, path) => replaceModule(model, facts(path)), {
-    format: MODEL_FORMAT,
-    repository: { name: 'acme' },
-    packages: {},
-    modules: {}
-  })
-}
+import { modelOf as modelFrom } from './models.ts'
+
+const modelOf = (...paths: string[]) =>
+  modelFrom(Object.fromEntries(paths.toSorted().map(path => [path, {}])))
 
 test('parseRepoPath normalizes separators, ./ prefixes and trailing slashes', () => {
   assert.equal(parseRepoPath('src\\ui\\Button.tsx'), 'src/ui/Button.tsx')

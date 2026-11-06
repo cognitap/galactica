@@ -1,20 +1,17 @@
 import assert from 'node:assert/strict'
-import { spawnSync } from 'node:child_process'
 import {
   chmodSync,
   existsSync,
   readdirSync,
   readFileSync,
-  realpathSync,
   utimesSync,
   writeFileSync
 } from 'node:fs'
 import { join } from 'node:path'
 import { test } from 'node:test'
 import { cacheDirectory } from '../src/cache.ts'
+import { cliRunner } from './cli.ts'
 import { git, gitRepository, repository } from './temp-repository.ts'
-
-const cli = new URL('../dist/bin.js', import.meta.url).pathname
 
 const commit = (root: string) =>
   git(root, '-c', 'user.name=t', '-c', 'user.email=t@example.com', 'commit', '--quiet', '-m', 'm')
@@ -67,19 +64,9 @@ test("a repository's git config and hooks never run a program", t => {
     utimesSync(join(root, file), later, later)
   }
 
-  const home = realpathSync(repository(t, {}))
-  const env = {
-    ...process.env,
-    HOME: home,
-    USERPROFILE: home,
-    XDG_CACHE_HOME: join(home, '.cache'),
-    LOCALAPPDATA: join(home, 'AppData', 'Local')
-  }
+  const { run: galactica, env, home } = cliRunner(t)
   const run = (...args: string[]) => {
-    const { status, stderr } = spawnSync('node', [cli, ...args, '--root', root], {
-      encoding: 'utf8',
-      env
-    })
+    const { status, stderr } = galactica(root, ...args, '--root', root)
     assert.equal(status, 0, stderr)
   }
   const page = join(markers, 'map.html')

@@ -1,10 +1,10 @@
 import assert from 'node:assert/strict'
-import { spawnSync } from 'node:child_process'
 import { test, type TestContext } from 'node:test'
 import type { Overview } from '../src/contract.ts'
+import { cliRunner } from './cli.ts'
 import { repository } from './temp-repository.ts'
 
-const cli = new URL('../dist/bin.js', import.meta.url).pathname
+const { run: galactica } = cliRunner()
 const url = `data:text/javascript,${'export const x = 1;'.repeat(40)}`
 function fixture(t: TestContext) {
   return repository(t, {
@@ -23,10 +23,7 @@ function fixture(t: TestContext) {
   })
 }
 function run(root: string, ...args: string[]) {
-  const result = spawnSync(process.execPath, [cli, ...args, '--root', root, '--no-cache'], {
-    encoding: 'utf8',
-    timeout: 10000
-  })
+  const result = galactica(root, ...args, '--root', root, '--no-cache')
   assert.equal(result.status, 0, result.stderr)
   return result.stdout
 }
