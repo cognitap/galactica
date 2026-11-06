@@ -225,17 +225,35 @@ export function nameOf(manifest: unknown): PackageName | undefined {
   return typeof name === 'string' && name !== '' ? (name as PackageName) : undefined
 }
 
+const packageFinders = new WeakMap<Model['packages'], (path: RepoPath) => PackageName | undefined>()
+
+/** Index package directories once, then memoize the containing package of each probed folder. */
+function packageFinder(packages: Model['packages']) {
+  const folders = new Map<string, PackageName | undefined>()
+  for (const [name, { dir }] of Object.entries(packages)) {
+    if (!folders.has(dir)) folders.set(dir, name as PackageName)
+  }
+  if (!folders.has('.')) folders.set('.', undefined)
+  return (path: RepoPath): PackageName | undefined => {
+    if (folders.has(path)) return folders.get(path)
+    const pending: string[] = []
+    let folder = posix.dirname(path)
+    while (!folders.has(folder)) {
+      pending.push(folder)
+      folder = posix.dirname(folder)
+    }
+    const owner = folders.get(folder)
+    for (const folder of pending) folders.set(folder, owner)
+    return owner
+  }
+}
+
 /** The package whose `dir` is the longest prefix of `path`. The root package, at ".", contains every path. */
 export function packageOf(packages: Model['packages'], path: RepoPath): PackageName | undefined {
-  let owner: PackageName | undefined
-  let depth = -1
-  for (const [name, { dir }] of Object.entries(packages) as [PackageName, { dir: RepoPath }][]) {
-    const length = dir === '.' ? 0 : dir.length
-    const contains = dir === '.' || path === dir || path.startsWith(`${dir}/`)
-    if (contains && length > depth) {
-      owner = name
-      depth = length
-    }
+  let find = packageFinders.get(packages)
+  if (find === undefined) {
+    find = packageFinder(packages)
+    packageFinders.set(packages, find)
   }
-  return owner
+  return find(path)
 }

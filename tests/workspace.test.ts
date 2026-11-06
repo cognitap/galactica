@@ -191,3 +191,26 @@ test('packageOf picks the longest directory prefix, and the root contains every 
   assert.equal(of('packages/application/index.ts'), 'root')
   assert.equal(packageOf(packages(members), parseRepoPath('scripts/x.ts')), undefined)
 })
+
+test('package lookup does not rescan every package for each module (DEV-730)', () => {
+  let scans = 0
+  const packages = new Proxy(
+    Object.fromEntries(
+      Array.from({ length: 100 }, (_, index) => [
+        `pkg${index}`,
+        { dir: parseRepoPath(`packages/pkg${index}`) }
+      ])
+    ) as Model['packages'],
+    {
+      ownKeys(target) {
+        scans++
+        return Reflect.ownKeys(target)
+      }
+    }
+  )
+  for (let index = 0; index < 1000; index++) {
+    const owner = `pkg${index % 100}`
+    assert.equal(packageOf(packages, parseRepoPath(`packages/${owner}/src/file${index}.ts`)), owner)
+  }
+  assert.ok(scans <= 2, `package map was enumerated ${scans} times for 1,000 modules`)
+})
