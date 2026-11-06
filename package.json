@@ -33,7 +33,7 @@
   "type": "module",
   "scripts": {
     "prepare": "husky",
-    "build": "rimraf dist && tsc -p tsconfig.build.json && node --input-type=module -e \"import { cpSync } from 'node:fs'; cpSync('src/page', 'dist/page', { recursive: true })\"",
+    "build": "rimraf dist && tsc -p tsconfig.build.json && node scripts/build-page.ts",
     "typecheck": "tsc --noEmit",
     "test": "pnpm test:coverage && node scripts/pack-and-test.ts",
     "test:coverage": "pnpm build && c8 node --test tests/*.test.ts",
@@ -55,6 +55,7 @@
   "devDependencies": {
     "@types/node": "26.6.5",
     "c8": "12.0.0",
+    "esbuild": "0.28.2",
     "husky": "9.1.7",
     "lint-staged": "17.6.0",
     "oxfmt": "0.72.0",

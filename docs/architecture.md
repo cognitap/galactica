@@ -40,7 +40,7 @@ Extractions depend only on a module's bytes. Everything that depends on more tha
 
 - **Commands.** Each entry in `src/commands.ts` is a pure function from the graph to a `--json` object: `src/queries.ts` for `where`, `outline`, `uses` and `deps`, `src/overview.ts` and `src/health.ts`. `src/subjects.ts` resolves the argument. `src/contract.ts` types the JSON and imports nothing.
 - **Text.** `src/render.ts` builds the text of each command from its JSON object alone.
-- **HTML.** `src/page-data.ts` turns the graph into the compact data the page embeds. `src/html.ts` inlines it with the files in `src/page/` into one page. `src/source-links.ts` and `src/git-source.ts` work out source links; `src/row-order.ts` orders boxes within a row.
+- **HTML.** `src/page-data.ts` turns the graph into the compact data the page embeds. `scripts/build-page.ts` bundles the plain JavaScript in `src/page/` with esbuild; `src/html.ts` inlines that bundle, the stylesheet and the data into one page. The page entry delegates rendering to `map-view.js`, interaction and URL state to `navigation.js`, and search controls, health findings and selection highlighting to their own modules. `src/source-links.ts` and `src/git-source.ts` work out source links; `src/row-order.ts` orders boxes within a row.
 - **Skill.** `src/skill.ts` writes the files `init` installs from `skills/galactica/SKILL.md`.
 
 Adding a command is one entry in `src/commands.ts`, one renderer in `src/render.ts` and its types in `src/contract.ts`. Adding a framework is one entry in `src/frameworks.ts`.

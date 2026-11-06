@@ -35,13 +35,13 @@ Run `dist/bin.js` wherever you would run `galactica`. To try the skill against y
 | `pnpm test:node`     | Build and the Node unit and CLI suites on the pinned development Node. |
 | `pnpm test:package`  | Build and the packed-package smoke test.                               |
 
-CLI tests run the built `dist/`; unit tests import `src/` directly.
+CLI tests run the built `dist/`; unit tests import `src/` directly. HTML tests also read the built browser assets. The build bundles the plain JavaScript page with esbuild.
 
 ### Coverage
 
 `pnpm test:coverage` fails below 90% lines, 85% branches and 90% functions in aggregate. It writes `coverage/`, with an HTML report at `coverage/lcov-report/index.html`, LCOV and a JSON summary. CI uploads it, including when a floor fails.
 
-Coverage includes every production module under `src/`, even modules no test loads, and the pure page helpers `search.js`, `links.js` and `indexes.js`. Source maps merge CLI subprocess coverage from `dist/` into the same source files. The browser-only `src/page/page.js` is outside the Node percentage; `tests/page.test.ts` checks it in Chrome.
+Coverage includes every production module under `src/`, even modules no test loads, and the pure page helpers `search.js`, `links.js` and `indexes.js`. Source maps merge CLI subprocess coverage from `dist/` into the same source files. The DOM modules listed in `.c8rc.json` are outside the Node percentage; `tests/page.test.ts` checks their bundled behavior in Chrome.
 
 ### Chrome
 

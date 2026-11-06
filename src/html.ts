@@ -8,7 +8,9 @@ import type { Graph } from './model.ts'
 import { pageData, type PageData } from './page-data.ts'
 import type { PageSource } from './source-links.ts'
 
-const pageFile = (name: string) => readFileSync(new URL(`./page/${name}`, import.meta.url), 'utf8')
+// Source tests and the installed module both read the package's built browser assets.
+const pageFile = (name: string) =>
+  readFileSync(new URL(`../dist/page/${name}`, import.meta.url), 'utf8')
 
 const escapeHtml = (text: string) =>
   text
@@ -20,13 +22,6 @@ const escapeHtml = (text: string) =>
 /** Every `<` escaped, so no `</script` or `<!--` in a signature or doc can end the data block early. */
 const embedded = (data: PageData) => JSON.stringify(data).replaceAll('<', '\\u003c')
 
-/** The page script with each import of a sibling script replaced by that script, so the page stays one file. */
-const pageScript = () =>
-  pageFile('page.js').replaceAll(
-    /^import \{[^}]*\} from '\.\/([\w-]+\.js)'\n/gm,
-    (_, name: string) => pageFile(name)
-  )
-
 /** `areaModules` is the config's `health.areaModules`, undefined for the relative rule. */
 export function htmlOf(
   graph: Graph,
@@ -36,7 +31,7 @@ export function htmlOf(
   const slots: Readonly<Record<string, string>> = {
     title: escapeHtml(`${graph.repository.name} · Galactica`),
     style: pageFile('page.css'),
-    script: pageScript(),
+    script: pageFile('page.js'),
     data: embedded(pageData(graph, source, areaModules))
   }
   return pageFile('page.html').replaceAll(/\{\{(\w+)\}\}/g, (_, slot: string) => slots[slot]!)
