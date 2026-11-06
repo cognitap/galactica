@@ -1,5 +1,7 @@
 # JSON output
 
+[README](../README.md) · [Commands](commands.md) · [Configuration](configuration.md) · [How it reads a repository](how-it-reads.md) · [Security](security.md) · **JSON output**
+
 For agent and tool authors. Every command prints one JSON object with `--json`, including `html` and `init` results and failures. The types are in `src/contract.ts`. Fields not documented here are not part of the contract.
 
 ## Rules
