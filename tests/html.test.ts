@@ -50,12 +50,10 @@ test('the embedded data parses back to the page data, whatever the symbols conta
 
 test('the stylesheet and the page scripts are inlined, and the title names the repository', () => {
   const page = (name: string) =>
-    readFileSync(new URL(`../src/page/${name}`, import.meta.url), 'utf8')
+    readFileSync(new URL(`../dist/page/${name}`, import.meta.url), 'utf8')
   assert.ok(html.includes(page('page.css')))
-  assert.ok(html.includes(page('search.js')))
-  assert.ok(html.includes(page('links.js')))
-  assert.ok(html.includes(page('page.js').replace(/^import .*\n/gm, '')))
-  assert.doesNotMatch(html, /^import /m)
+  assert.ok(html.includes(page('page.js')))
+  assert.doesNotMatch(html, /^\s*(?:import|export)\s/m)
   assert.match(html, /<title>acme · Galactica<\/title>/)
   assert.doesNotMatch(html, /\{\{\w+\}\}/)
 })

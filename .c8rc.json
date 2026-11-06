@@ -2,7 +2,16 @@
   "all": true,
   "src": ["src"],
   "include": ["src/**/*.ts", "src/page/*.js", "dist/**/*.js"],
-  "exclude": ["src/page/page.js", "dist/page/**"],
+  "exclude": [
+    "src/page/page.js",
+    "src/page/dom.js",
+    "src/page/map-view.js",
+    "src/page/navigation.js",
+    "src/page/highlight.js",
+    "src/page/health.js",
+    "src/page/search-field.js",
+    "dist/page/**"
+  ],
   "exclude-after-remap": true,
   "reporter": ["text", "lcov", "json-summary"],
   "check-coverage": true,
