@@ -16,6 +16,7 @@ import type {
   Output,
   Overview,
   Reached,
+  ReachedTest,
   Subject,
   SymbolRef,
   Uses,
@@ -164,11 +165,42 @@ function cycleLines(cycles: readonly Cycle[], subject: Subject): readonly string
   })
 }
 
-function renderUses({ subject, depth, modules, tests, cycles }: Uses): readonly string[] {
+function testLine(test: ReachedTest): string {
+  return test.via === undefined
+    ? reachedLine(test)
+    : `${test.distance}  ${test.path}  via ${test.via}`
+}
+
+/** One line per hub, most tests first, for the tests that reach the subject only through it. */
+function hubLines(tests: readonly ReachedTest[]): readonly string[] {
+  const counts = new Map<string, number>()
+  for (const { hub } of tests) if (hub !== undefined) counts.set(hub, (counts.get(hub) ?? 0) + 1)
+  return [...counts]
+    .sort(([a, countA], [b, countB]) => countB - countA || (a < b ? -1 : 1))
+    .map(
+      ([hub, count]) =>
+        `${count} more ${count === 1 ? 'test reaches' : 'tests reach'} it only through ${hub}, which much of the repository imports`
+    )
+}
+
+function renderUses({
+  subject,
+  depth,
+  modules,
+  tests,
+  testsNote,
+  cycles
+}: Uses): readonly string[] {
+  const listed = tests.filter(({ hub }) => hub === undefined)
+  const hubOnly = tests.length - listed.length
+  const more = hubOnly === 0 ? '' : ` and ${hubOnly} more only through widely imported modules`
   return [
-    `${subjectLabel(subject)}: ${plural(modules.length, 'dependent')} within depth ${depth}, ${plural(tests.length, 'test')}`,
+    `${subjectLabel(subject)}: ${plural(modules.length, 'dependent')} within depth ${depth}, ${plural(listed.length, 'test')}${more}`,
     ...(modules.length === 0 ? ['no dependents'] : capped(modules.map(reachedLine))),
-    ...(tests.length === 0 ? ['no tests'] : ['tests:', ...capped(tests.map(reachedLine))]),
+    ...(tests.length === 0
+      ? ['no tests']
+      : ['tests, closest first:', ...capped(listed.map(testLine)), ...hubLines(tests)]),
+    testsNote,
     ...cycleLines(cycles, subject)
   ]
 }

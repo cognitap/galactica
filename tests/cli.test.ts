@@ -18,6 +18,7 @@ import { dirname, join, relative } from 'node:path'
 import { after, test, type TestContext } from 'node:test'
 import { cacheDirectory, CACHE_FORMAT } from '../src/cache.ts'
 import { loadConfig } from '../src/config.ts'
+import { TESTS_NOTE } from '../src/queries.ts'
 import { commands } from '../src/contract.ts'
 import { MODEL_CACHE_FORMAT } from '../src/model-cache.ts'
 import { gitlab, invalidConfigs, validConfigs } from './config-examples.ts'
@@ -133,7 +134,7 @@ test('a command prints text by default and its JSON object with --json', () => {
 test('uses and deps follow edges in a plain repository', () => {
   assert.equal(
     galactica(plain, 'uses', 'src/math.ts').stdout,
-    'src/math.ts (module): 1 dependent within depth 1, 0 tests\n1  src/main.ts  PI, add\nno tests\n'
+    `src/math.ts (module): 1 dependent within depth 1, 0 tests\n1  src/main.ts  PI, add\nno tests\n${TESTS_NOTE}\n`
   )
   const deps = JSON.parse(galactica(plain, 'deps', 'src/main.ts', '--json').stdout)
   assert.deepEqual(deps.unresolved, [{ from: 'src/main.ts', specifier: './gone' }])

@@ -77,6 +77,18 @@ export interface Reached extends ModuleRef {
   readonly names: readonly string[]
 }
 
+/** A test that depends on the subject of `uses`, and how it reaches it. */
+export interface ReachedTest extends Reached {
+  /**
+   * The module outside the subject that imports it on the test's path, on a
+   * shortest path of imports that load code when there is one. Omitted when the
+   * test imports the subject itself.
+   */
+  readonly via?: string
+  /** Set when every path from the test passes through this module, which much of the repository imports. */
+  readonly hub?: string
+}
+
 /** What `uses` and `deps` were asked about, after resolution. */
 export type Subject =
   | { readonly kind: 'module'; readonly path: string; readonly package: string }
@@ -180,7 +192,9 @@ export interface Uses extends Envelope<'uses'> {
    * Every test module that depends on the subject at any distance, ignoring
    * `depth`: the question is which tests to run. Same order as `modules`.
    */
-  readonly tests: readonly Reached[]
+  readonly tests: readonly ReachedTest[]
+  /** Which tests `tests` can miss: those that load the subject other than by importing it. */
+  readonly testsNote: string
   /** The cycles a module of the subject is in, ordered as `cycles` orders them. */
   readonly cycles: readonly Cycle[]
 }

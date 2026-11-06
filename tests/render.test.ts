@@ -1,9 +1,10 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
 import { commandTable, type Input } from '../src/commands.ts'
-import { commands, type Failure, type Overview, type Cycles } from '../src/contract.ts'
+import { commands, type Failure, type Overview, type Cycles, type Uses } from '../src/contract.ts'
 import { graphOf } from '../src/graph.ts'
 import { emptyConfig, type RepoPath } from '../src/model.ts'
+import { TESTS_NOTE } from '../src/queries.ts'
 import { LIST_LIMIT, render } from '../src/render.ts'
 import { defines, edge, edgeTo, modelOf } from './models.ts'
 
@@ -100,8 +101,9 @@ test('uses and deps print a header, one module per line, and say when a list is 
     [
       'src/cn.ts (module): 1 dependent within depth 1, 1 test',
       '1  src/ui/Button.tsx  cn',
-      'tests:',
-      '2  src/ui/Button.test.tsx'
+      'tests, closest first:',
+      '2  src/ui/Button.test.tsx  via src/ui/Button.tsx',
+      TESTS_NOTE
     ].join('\n')
   )
   assert.equal(
@@ -116,7 +118,7 @@ test('uses and deps print a header, one module per line, and say when a list is 
   )
   assert.equal(
     text('uses', 'src/ui/Button.test.tsx'),
-    'src/ui/Button.test.tsx (module): 0 dependents within depth 1, 0 tests\nno dependents\nno tests'
+    `src/ui/Button.test.tsx (module): 0 dependents within depth 1, 0 tests\nno dependents\nno tests\n${TESTS_NOTE}`
   )
 })
 
@@ -169,8 +171,8 @@ test('a long list stops after the limit and points at --json', () => {
   const lines = render(
     commandTable.uses.run({ graph: wide, config: emptyConfig, warnings: [] }, input('lib/cn.ts'))
   ).split('\n')
-  assert.equal(lines.length, 1 + LIST_LIMIT + 2)
-  assert.equal(lines.at(-2), '… 3 more, use --json')
+  assert.equal(lines.length, 1 + LIST_LIMIT + 3)
+  assert.equal(lines.at(-3), '… 3 more, use --json')
 })
 
 test('a failure renders as its one-line message', () => {
@@ -252,4 +254,45 @@ test('cycles caps the entire report with its total and full JSON intact', () => 
   assert.ok(Buffer.byteLength(result) < 8192, `cycles has ${Buffer.byteLength(result)} bytes`)
   assert.match(result, /more.*use --json/)
   assert.equal(JSON.stringify(output), before)
+})
+
+test('uses text lists the tests outside hubs, then counts those that reach the subject only through each hub', () => {
+  const at = (path: string, distance: number, fields: { via?: string; hub?: string } = {}) => ({
+    path,
+    package: 'acme',
+    area: 'src',
+    kind: 'test' as const,
+    distance,
+    names: distance === 1 ? ['parse'] : [],
+    ...fields
+  })
+  const uses: Uses = {
+    schemaVersion: 1,
+    command: 'uses',
+    subject: { kind: 'module', path: 'src/sourcemap.ts', package: 'acme' },
+    depth: 1,
+    modules: [],
+    tests: [
+      at('src/sourcemap.test.ts', 1),
+      at('src/css.test.ts', 2, { via: 'src/css.ts' }),
+      at('src/a.test.ts', 3, { via: 'src/css.ts', hub: 'src/config.ts' }),
+      at('src/b.test.ts', 3, { via: 'src/css.ts', hub: 'src/config.ts' }),
+      at('src/c.test.ts', 4, { via: 'src/send.ts', hub: 'src/server.ts' })
+    ],
+    testsNote: 'Only tests that import it.',
+    cycles: []
+  }
+  assert.equal(
+    render(uses),
+    [
+      'src/sourcemap.ts (module): 0 dependents within depth 1, 2 tests and 3 more only through widely imported modules',
+      'no dependents',
+      'tests, closest first:',
+      '1  src/sourcemap.test.ts  parse',
+      '2  src/css.test.ts  via src/css.ts',
+      '2 more tests reach it only through src/config.ts, which much of the repository imports',
+      '1 more test reaches it only through src/server.ts, which much of the repository imports',
+      'Only tests that import it.'
+    ].join('\n')
+  )
 })
