@@ -95,6 +95,7 @@ export interface Failure {
   readonly schemaVersion: typeof SCHEMA_VERSION
   readonly command: Command
   readonly error: {
+    /** usage also covers unsupported Deno roots (deno.json or deno.jsonc). */
     readonly code: 'not-found' | 'ambiguous' | 'usage'
     readonly message: string
   }

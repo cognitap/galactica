@@ -16,6 +16,7 @@
 - The HTML map fits phone widths, wraps paths at slashes and keeps filenames together when they fit.
 - The HTML map opens on the largest source and config package and uses a compact package picker, including in large workspaces.
 - **Breaking:** Bound overview layer lists and overview/cycles text at about 6 KB. Before: text listed every area and cycle; after: omitted counts point to the complete `--json` output.
+- **Breaking:** Refuse analysis and HTML generation when the root contains `deno.json` or `deno.jsonc`. Before: Deno repositories produced an incomplete map; after: commands exit with code 1 and explain the unsupported workspace and import-map resolution.
 
 ## 0.1.5
 
