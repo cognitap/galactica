@@ -75,7 +75,7 @@ export function currentStamp(): Stamp {
     galactica: versionOf(join(here, '..', 'package.json')),
     build: buildHash(),
     typescript: dependencyVersion('typescript'),
-    vue: dependencyVersion('vue'),
+    vue: dependencyVersion('@vue/compiler-sfc'),
     svelte: dependencyVersion('svelte')
   }
 }

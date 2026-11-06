@@ -132,7 +132,7 @@ function astroBlocks(text: string): readonly ScriptBlock[] {
 }
 
 const frameworks: Readonly<Record<FrameworkLanguage, Framework>> = {
-  vue: { compiler: 'vue/compiler-sfc', blocks: vueBlocks },
+  vue: { compiler: '@vue/compiler-sfc', blocks: vueBlocks },
   svelte: { compiler: 'svelte/compiler', blocks: svelteBlocks },
   astro: { blocks: astroBlocks }
 }

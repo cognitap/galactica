@@ -6,7 +6,7 @@ import { extract, type Extraction } from '../src/extraction.ts'
 import type { RepoPath } from '../src/model.ts'
 
 const require = createRequire(import.meta.url)
-const vue = () => require('vue/compiler-sfc')
+const vue = () => require('@vue/compiler-sfc')
 const svelte = () => require('svelte/compiler')
 
 const component = (name: string) => ({

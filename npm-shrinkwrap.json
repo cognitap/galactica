@@ -18,8 +18,8 @@
         "node": ">=24.1.0"
       },
       "optionalDependencies": {
-        "svelte": "5.57.3",
-        "vue": "3.5.44"
+        "@vue/compiler-sfc": "3.5.44",
+        "svelte": "5.57.3"
       }
     },
     "node_modules/@babel/helper-string-parser": {
@@ -193,52 +193,6 @@
         "@vue/shared": "3.5.44"
       }
     },
-    "node_modules/@vue/reactivity": {
-      "version": "3.5.44",
-      "resolved": "https://registry.npmjs.org/@vue/reactivity/-/reactivity-3.5.44.tgz",
-      "integrity": "sha512-u+QJdKeBBEADkPdevsL+6E12QlYVfBD8Zcw5qjDQKtamI6l14KyqazJMobhCKelhWN5zpyKUiEDoTyHE93cqWw==",
-      "license": "MIT",
-      "optional": true,
-      "dependencies": {
-        "@vue/shared": "3.5.44"
-      }
-    },
-    "node_modules/@vue/runtime-core": {
-      "version": "3.5.44",
-      "resolved": "https://registry.npmjs.org/@vue/runtime-core/-/runtime-core-3.5.44.tgz",
-      "integrity": "sha512-uEa/ndwjhrrhnOfb2p+sZy6zeoamJOISqaLSJGk/8R6nABT1ZldpzcJoPzKj+zHVomVBPcmQYyC2r4LtvDV6CQ==",
-      "license": "MIT",
-      "optional": true,
-      "dependencies": {
-        "@vue/reactivity": "3.5.44",
-        "@vue/shared": "3.5.44"
-      }
-    },
-    "node_modules/@vue/runtime-dom": {
-      "version": "3.5.44",
-      "resolved": "https://registry.npmjs.org/@vue/runtime-dom/-/runtime-dom-3.5.44.tgz",
-      "integrity": "sha512-3fc4ARcXVhVBaJ3ujWiNZJARD6pkyRcwG+ZYhMzjKtKUp7MAY0HLwr7r3Smep3Li6ZaWT6ewdmx8XqdaD5oNZg==",
-      "license": "MIT",
-      "optional": true,
-      "dependencies": {
-        "@vue/reactivity": "3.5.44",
-        "@vue/runtime-core": "3.5.44",
-        "@vue/shared": "3.5.44",
-        "csstype": "^3.2.3"
-      }
-    },
-    "node_modules/@vue/server-renderer": {
-      "version": "3.5.44",
-      "resolved": "https://registry.npmjs.org/@vue/server-renderer/-/server-renderer-3.5.44.tgz",
-      "integrity": "sha512-R4S1UoH4h5Frrauv8Z5XE5TxV9oBiUSgWIC4TyVK1FK+RocRnOLwFA5Xcmo2011RlgJp+AbZCnw6afrhlgRuUQ==",
-      "license": "MIT",
-      "optional": true,
-      "dependencies": {
-        "@vue/compiler-ssr": "3.5.44",
-        "@vue/runtime-dom": "3.5.44",
-        "@vue/shared": "3.5.44"
-      }
-    },
     "node_modules/@vue/shared": {
       "version": "3.5.44",
       "resolved": "https://registry.npmjs.org/@vue/shared/-/shared-3.5.44.tgz",
@@ -288,13 +242,6 @@
       "engines": {
         "node": ">=6"
       }
-    },
-    "node_modules/csstype": {
-      "version": "3.2.3",
-      "resolved": "https://registry.npmjs.org/csstype/-/csstype-3.2.3.tgz",
-      "integrity": "sha512-z1HGKcYy2xA8AGQfwrn0PAy+PB7X/GSj3UVJW9qKyn43xWa+gl5nXmU4qqLMRzWVLFC8KusUX8T/0kCiOYpAIQ==",
-      "license": "MIT",
-      "optional": true
     },
     "node_modules/devalue": {
       "version": "5.9.4",
@@ -478,28 +425,6 @@
       },
       "engines": {
         "node": ">=14.17"
-      }
-    },
-    "node_modules/vue": {
-      "version": "3.5.44",
-      "resolved": "https://registry.npmjs.org/vue/-/vue-3.5.44.tgz",
-      "integrity": "sha512-dvvmaOCG7lAMkJTPqPwWeGMsPS6DIsFsfZDUgBp9V6mHf9b3+/wyVwYR4Es+WV6uJC0FKRxp81Obcq0ZwUcGFQ==",
-      "license": "MIT",
-      "optional": true,
-      "dependencies": {
-        "@vue/compiler-dom": "3.5.44",
-        "@vue/compiler-sfc": "3.5.44",
-        "@vue/runtime-dom": "3.5.44",
-        "@vue/server-renderer": "3.5.44",
-        "@vue/shared": "3.5.44"
-      },
-      "peerDependencies": {
-        "typescript": "*"
-      },
-      "peerDependenciesMeta": {
-        "typescript": {
-          "optional": true
-        }
       }
     },
     "node_modules/zimmerframe": {
