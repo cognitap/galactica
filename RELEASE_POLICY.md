@@ -85,8 +85,10 @@ stored token; the first publication by hand has no CI provenance.
 Fix the cause and rerun the failed publish job; it reuses the original
 candidate. The job checks npm before uploading, skips an existing version
 only when its integrity matches, and retries verification while npm propagates
-the release. A different integrity fails immediately. Never change source or
-regenerate a candidate to retry. To verify manually:
+the release. A different integrity fails immediately. Never regenerate a candidate or change
+its source to retry. If the publishing workflow itself needs a fix, dispatch it
+on `main` with `publish` and `candidate_run_id` set to the original run ID; it
+skips preparation and publishes that run's existing artifact. To verify manually:
 
 ```sh
 pnpm view @cognitap/galactica@<version> dist.integrity
