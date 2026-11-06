@@ -74,9 +74,11 @@ npx --prefix / @cognitap/galactica init
 
 ## What the benchmark supports
 
-On the recorded Nest impact task, every condition covered all required files and tests. The instructed skill cost **15–37% less**. It also improved test selection when Hono imports went through package names. The value is precise questions about the import graph: impact, cycles and package boundaries, with one command and no server.
+Galactica helps most when an agent must name the tests to run after an edit, and some of those tests reach the changed file in a way grep does not follow. On the two such tasks, Hono tests that import through a package name and Vite tests that load code through a dev server, the instructed skill raised Sonnet's test-selection score from **47% to 78%**, and Opus's from 82% to 100%. The score is the share of required tests the agent named; extra tests are not penalized.
 
-The [144-run benchmark and reproducible harness](https://github.com/cognitap/galactica/blob/main/docs/benchmark.md) cover Hono, Vite and Nest, two models, three skill conditions and four runs per cell. Rename accuracy did not improve, and the instructed condition cost more overall. Edits and test lists were graded statically; target tests were not executed, extra tests were not penalized, and the sample is small. The linked report includes every number, the recorded Galactica version and the limits.
+Cost depends on the task. On the one impact task, every condition found every file and test, and Galactica made the answers 15–37% cheaper. Across all six tasks, the instructed condition cost more per run: 7% more with Sonnet and 17% more with Opus. Renames did not improve.
+
+The sample is small: 144 runs, four per task, model and condition, on three repositories. Edits were graded statically, and the target repositories' test suites were not executed. The [benchmark report](https://github.com/cognitap/galactica/blob/main/docs/benchmark.md) is authoritative, with every number, the method and its limits.
 
 ## Limits
 
