@@ -28,7 +28,7 @@ Run `dist/bin.js` wherever you would run `galactica`. To try the skill against y
 
 | Command              | Runs                                                                   |
 | -------------------- | ---------------------------------------------------------------------- |
-| `pnpm check`         | Format, lint, typecheck, `pnpm test`.                                  |
+| `pnpm check`         | Shrinkwrap check, format, lint, typecheck, `pnpm test`.                |
 | `pnpm test`          | Build, every suite with coverage, then the packed-package smoke test.  |
 | `pnpm test:coverage` | Build and every suite with coverage.                                   |
 | `pnpm test:browser`  | Build and the HTML map tests in headless Chrome.                       |
@@ -75,6 +75,21 @@ pnpm bench /tmp/synthetic
 It runs the built CLI for `overview` and for `uses` of the most-imported source module, cold and then warm, and prints the median and range of 5 runs with the time of each phase. `--runs` sets the number of runs, `--uses` the module, `--json` prints JSON, and `--check` exits with code 1 when a median misses its target. The synthetic repository is a pnpm workspace shaped like Radiant, and the same options always write the same files. CI runs `pnpm bench --check` on 3,000 synthetic modules.
 
 The agent benchmark lives in [bench/agents](bench/agents/README.md), and its results in [docs/benchmark.md](docs/benchmark.md).
+
+## Production lockfiles
+
+`pnpm-lock.yaml` locks development dependencies. `npm-shrinkwrap.json` locks the production compiler tree used by npm and npx. Keep both committed.
+
+After changing `dependencies` or `optionalDependencies` in `package.json`, run:
+
+```sh
+pnpm shrinkwrap:update
+pnpm shrinkwrap:check
+```
+
+The update runs npm in a temporary directory with only production metadata and scripts disabled, seeded from the existing lock. Review the shrinkwrap diff and run `pnpm check`, which also installs and verifies the complete locked production tree. `pnpm check` and release preparation reject drift between the manifest, root metadata and locked compiler versions with a repair command.
+
+`pnpm version <version> --no-git-tag-version` runs the version hook to synchronize the shrinkwrap's top-level and root package versions without refreshing dependencies. For other metadata changes, such as the Node baseline, run `pnpm shrinkwrap:sync`. It validates the locked versions before writing.
 
 ## Releases
 

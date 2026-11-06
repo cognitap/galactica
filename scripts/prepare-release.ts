@@ -29,6 +29,8 @@ const git = (...args: string[]) => execFileSync('git', args, { cwd: root, encodi
 const run = (command: string, args: string[]) =>
   execFileSync(command, args, { cwd: root, stdio: 'inherit' })
 
+run(process.execPath, ['scripts/shrinkwrap.ts', '--check'])
+
 rmSync(directory, { recursive: true, force: true })
 
 assert.match(

@@ -46,8 +46,12 @@
     "lint": "oxlint --deny-warnings",
     "format": "oxfmt",
     "format:check": "oxfmt --check",
-    "check": "pnpm format:check && pnpm lint && pnpm typecheck && pnpm test",
-    "release:prepare": "node scripts/prepare-release.ts"
+    "check": "pnpm shrinkwrap:check && pnpm format:check && pnpm lint && pnpm typecheck && pnpm test",
+    "release:prepare": "node scripts/prepare-release.ts",
+    "shrinkwrap:check": "node scripts/shrinkwrap.ts --check",
+    "shrinkwrap:update": "node scripts/shrinkwrap.ts --update",
+    "shrinkwrap:sync": "node scripts/shrinkwrap.ts --sync-metadata",
+    "version": "node scripts/shrinkwrap.ts --sync-metadata"
   },
   "dependencies": {
     "typescript": "6.0.3"
