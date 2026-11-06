@@ -14,7 +14,8 @@ import assert from 'node:assert/strict'
 import { execFileSync } from 'node:child_process'
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
-import { dirname, join, resolve } from 'node:path'
+import { dirname, join, posix, resolve } from 'node:path'
+import { createRequire } from 'node:module'
 import { fileURLToPath } from 'node:url'
 import type { Output } from '../src/contract.ts'
 
@@ -52,8 +53,113 @@ try {
     writeFileSync(join(repository, path), content)
   }
   run('pnpm', ['add', '--prefer-offline', '--ignore-scripts', '--reporter=silent', archive])
+  const shrinkwrapText = run('tar', ['-xOf', archive, 'package/npm-shrinkwrap.json'])
+  const shrinkwrap = JSON.parse(shrinkwrapText) as {
+    packages: Record<
+      string,
+      {
+        version: string
+        resolved?: string
+        integrity?: string
+        dependencies?: Record<string, string>
+        optionalDependencies?: Record<string, string>
+      }
+    >
+  }
+  assert.ok(shrinkwrap.packages['node_modules/vue'], 'locks the Vue compiler tree')
+  assert.ok(shrinkwrap.packages['node_modules/svelte'], 'locks the Svelte compiler tree')
+  for (const [path, entry] of Object.entries(shrinkwrap.packages)) {
+    if (path === '') continue
+    assert.match(entry.version, /^\d+\.\d+\.\d+/, `${path} has an exact version`)
+    assert.match(
+      entry.resolved ?? '',
+      /^https:\/\/registry\.npmjs\.org\//,
+      `${path} has a registry URL`
+    )
+    assert.ok(entry.integrity?.startsWith('sha512-'), `${path} has an integrity hash`)
+  }
   const installed = join(repository, 'node_modules', name)
   assert.ok(existsSync(join(installed, 'schema/galactica.config.schema.json')), 'ships the schema')
+
+  // npm/npx honors a published shrinkwrap; pnpm uses the consumer's own lockfile.
+  const npmRepository = join(work, 'npm-repository')
+  mkdirSync(npmRepository)
+  writeFileSync(
+    join(npmRepository, 'package.json'),
+    JSON.stringify({ name: 'npm-consumer', private: true })
+  )
+  run(
+    'npm',
+    [
+      'install',
+      '--ignore-scripts',
+      '--omit=dev',
+      '--no-audit',
+      '--no-fund',
+      '--install-strategy=nested',
+      archive
+    ],
+    npmRepository
+  )
+  const npmInstalled = join(npmRepository, 'node_modules', name)
+  assert.equal(readFileSync(join(npmInstalled, 'npm-shrinkwrap.json'), 'utf8'), shrinkwrapText)
+  // npm may nest or hoist the locked packages. Walk the actual dependency graph,
+  // comparing each package to the entry that Node would reach in the lock's tree.
+  const verified = new Set<string>()
+  const verifyTree = (lockedPath: string, actualPath: string): void => {
+    const entry = shrinkwrap.packages[lockedPath]
+    assert.ok(entry, `${lockedPath} is locked`)
+    const actual = JSON.parse(readFileSync(join(actualPath, 'package.json'), 'utf8')) as {
+      version: string
+    }
+    // The archive manifest owns Galactica's version; pnpm version does not
+    // rewrite the shrinkwrap's root metadata when preparing a release.
+    if (lockedPath !== '') {
+      assert.equal(
+        actual.version,
+        entry.version,
+        `${lockedPath} installs its shrinkwrapped version`
+      )
+    }
+    if (verified.has(lockedPath)) return
+    verified.add(lockedPath)
+    for (const dependency of Object.keys({
+      ...entry.dependencies,
+      ...entry.optionalDependencies
+    })) {
+      let owner = lockedPath
+      let target = posix.join(owner, 'node_modules', dependency)
+      while (!(target in shrinkwrap.packages) && owner !== '.') {
+        owner = posix.dirname(owner || '.')
+        target = posix.join(owner, 'node_modules', dependency)
+      }
+      assert.ok(target in shrinkwrap.packages, `${dependency} is in the locked tree`)
+      const paths = createRequire(join(actualPath, 'package.json')).resolve.paths(dependency) ?? []
+      const directory = paths
+        .map(path => join(path, dependency))
+        .find(path => existsSync(join(path, 'package.json')))
+      assert.ok(directory, `${dependency} is installed`)
+      verifyTree(target, directory)
+    }
+  }
+  verifyTree('', npmInstalled)
+  assert.equal(
+    verified.size,
+    Object.keys(shrinkwrap.packages).length,
+    'checks the complete production tree'
+  )
+  const npmUses = JSON.parse(
+    run(
+      join(npmRepository, 'node_modules', '.bin', 'galactica'),
+      ['uses', 'src/a.ts', '--root', repository, '--json'],
+      npmRepository
+    )
+  ) as Output
+  assert.ok('modules' in npmUses)
+  assert.deepEqual(
+    npmUses.modules.map(module => module.path),
+    ['src/App.vue', 'src/Card.svelte', 'src/main.ts']
+  )
 
   assert.equal(galactica('--version'), version)
 

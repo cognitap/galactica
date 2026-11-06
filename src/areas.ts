@@ -4,7 +4,7 @@
  * its parent.
  */
 
-import { posix } from 'node:path'
+import { matchesGlob } from './glob.ts'
 import { ConfigError } from './config.ts'
 import type {
   AreaPath,
@@ -31,7 +31,7 @@ function configuredArea(
   path: RepoPath,
   owner: PackageName
 ): AreaPath | undefined {
-  const rule = rules.find(({ glob }) => posix.matchesGlob(path, glob))
+  const rule = rules.find(({ glob }) => matchesGlob(path, glob))
   if (rule === undefined) return undefined
   if (packageOf(model.packages, rule.area as string as RepoPath) !== owner) {
     throw new ConfigError(

@@ -8,6 +8,14 @@
 - A deeply nested expression, such as a 3,000-term string concatenation or the 1,500-term sum in microsoft/TypeScript's `binderBinaryExpressionStress.ts`, is read in full instead of crashing with `RangeError: Maximum call stack size exceeded`. Galactica now maps microsoft/TypeScript.
 - A workspace `package.json` whose `exports` nests conditions or fallbacks more than 32 levels deep leaves the import unresolved with a warning, instead of crashing.
 - An import that passes through more than 100 barrels points at its first barrel instead of crashing.
+- Read JavaScript aliases from `jsconfig.json` when no `tsconfig.json` is present in the same folder.
+- Resolve workspace package tsconfig extensions before installing dependencies.
+- Suppress TypeScript deprecation and output-layout migration notices that do not affect the map.
+- Do not warn when a workspace package exports `./package.json` metadata.
+- Recognize `*-spec.*` tests and `__testfixtures__`, `__fixtures__`, `testdata`, `testData`, `fixtures` and `__mocks__` folders as tests, so fixtures no longer shape source layers or count as oversized areas.
+- **Breaking:** Match workspace and config globs without backtracking, with documented size and syntax limits. Before, `@(src|scripts)/**` used Node’s matcher; now extglobs, escapes, POSIX named classes and patterns beyond the limits are ignored with a warning. Use `{src,scripts}/**` instead.
+- Pin CI and release actions to commit SHAs and reduce the npm publishing job to Node setup, candidate download and publication.
+- Ship an npm shrinkwrap with exact versions and integrity hashes for the full Vue and Svelte compiler dependency tree used by npm and npx; verify it from the packed package.
 
 ## 0.1.5
 
