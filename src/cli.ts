@@ -136,6 +136,13 @@ async function analyzed(
   root: string,
   noCache: boolean | undefined
 ): Promise<Repository | { readonly problem: string }> {
+  for (const file of ['deno.json', 'deno.jsonc']) {
+    if (statSync(join(root, file), { throwIfNoEntry: false })?.isFile()) {
+      return {
+        problem: `${file}: Deno repositories are not supported; workspace and import-map resolution would give an incomplete map`
+      }
+    }
+  }
   try {
     const config = loadConfig(root)
     const options = noCache ? {} : { cache: cacheDirectory(root) }
