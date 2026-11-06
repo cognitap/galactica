@@ -28,6 +28,17 @@ Packages are sorted by name. Areas are sorted by layer, lowest first, then by pa
 
 `unresolved` counts imports with no mapped module, known non-module file or external package. Existing workspace JSON, assets and declarations are treated like their relative imports and create no module edge. Existing unsupported files and source omitted from the map remain unresolved. Symlink and case variants that the filesystem resolves point to the discovered module. Private package `imports` mappings include framework files and extensionless scripts under bundler resolution.
 
+`unresolvedImports` lists every such import across all mapped source, config, test and story modules. It is uncapped and sorted by `from`, then `line`, then `specifier`; its length equals the unchanged numeric `unresolved` field. Each entry has the module's `from` path, the import's one-based `line`, its full `specifier` and a likely `cause` inferred from the specifier:
+
+| Cause     | Likely meaning                                                                                                             |
+| --------- | -------------------------------------------------------------------------------------------------------------------------- |
+| `build`   | A target under a build/generated directory, a framework `$types` file or a native `.node` binary that may need generating. |
+| `virtual` | A scheme such as `astro:` or `jsr:`, or a bundler virtual specifier beginning with NUL.                                    |
+| `url`     | An HTTP(S), data, file, blob or FTP URL.                                                                                   |
+| `missing` | Another missing, excluded, unsupported or otherwise unmapped target, including an unresolved alias.                        |
+
+These groups are hints, not a diagnosis of the build or filesystem. A file grouped as missing may exist outside the mapped modules. Text shows the group counts near the top and points to the complete JSON list. For example: `{"from":"src/main.ts","line":3,"specifier":"astro:content","cause":"virtual"}`. This field is additive; `schemaVersion` and the existing count keep their types.
+
 `warnings` lists every problem the analysis worked around, sorted by `path`, then `message`. `path` is the file the problem is in, such as a `package.json` without a name, a second package with a name another package already has, or a `tsconfig.json` or `jsconfig.json` TypeScript reports an error in. TypeScript deprecation and output-layout migration notices are omitted because they do not affect reading the map. A valid `"./package.json": "./package.json"` metadata export does not warn. `message` is one line, and names files under the root by their path from the root. An ignored workspace or config glob also adds a warning: `path` names `pnpm-workspace.yaml`, `package.json` or `galactica.config.json`, and `message` names the pattern or config key and the reason it was ignored. A config that is not a regular file inside the repository after following links, or is over 10 MB, is skipped with a warning naming the file and refusal reason. A required unsafe `galactica.config.json` instead returns the existing `usage` failure. The text of `overview` gives only their number. Galactica 0.1.0 printed no `warnings`.
 
 ```json
@@ -55,6 +66,7 @@ Packages are sorted by name. Areas are sorted by layer, lowest first, then by pa
   ],
   "cycles": 2,
   "unresolved": 0,
+  "unresolvedImports": [],
   "warnings": [
     {
       "path": "packages/legacy/package.json",
@@ -170,6 +182,8 @@ The subject has one of three shapes: `{ "kind": "module", "path", "package" }`, 
 `galactica deps @acme/ui --json`
 
 `modules` lists the workspace modules the subject depends on within `--depth`, sorted by `distance`, then path. It excludes modules inside the subject. An import through a barrel reaches both the barrel and the module that defines the name, so `deps` and `uses` agree at distance 1. The walk goes on from the defining module only, not from the barrel. `packages` lists the workspace packages those modules belong to, except the subject's own, sorted. `external` lists the npm package names the subject imports, without subpaths or versions, sorted. `unresolved` lists imports inside the subject with no mapped module, known asset/declaration or external package, sorted by `from`, then `specifier`.
+
+For a package or area, starting modules are source and config only: its tests and stories, including fixtures classified as tests, are not starting points. A module subject starts from that exact file even when it is a test or story. `external` and `unresolved` cover the starting modules only, not all transitive dependencies; `unresolved` deduplicates by `from` and `specifier` and does not include a line. Use `overview.unresolvedImports` to list every unresolved import with its line across all mapped modules. Specifiers over 120 characters are shortened in text only; JSON always keeps them complete.
 
 When a `paths` alias reaches no file, an npm-shaped specifier falls back to its package name in `deps.external`; a workspace package still resolves through its own exports, and private or non-package aliases stay unresolved. These resolution fixes keep the existing JSON fields and schema version.
 

@@ -43,6 +43,10 @@ The examples below write `galactica` for `npx --prefix / @cognitap/galactica`.
 
 Every command except `html` and `init` prints short text by default and structured output with `--json`. The [JSON output reference](docs/json-output.md) documents the fields. A subject is a module path, a package name, a package directory or an area path. `uses` and `deps` follow `--depth` import steps, 1 by default, and `overview --all` ranks every module instead of the top five of each area. `overview` also counts the warnings of the analysis, such as a workspace package without a name, which it skips, or a `tsconfig.json` it cannot read, and its `--json` lists them. A command that cannot answer prints one line to stderr and exits with code 1.
 
+`overview --json` adds `unresolvedImports`, every unresolved import with file, line, full specifier and likely cause, including tests and stories. Its existing `unresolved` count stays numeric. The text groups likely build/generated targets, virtual modules or schemes, URLs, and missing or unmapped files; these are hints, not build diagnostics.
+
+`deps` of a package or area starts from its source and config modules. Test and story modules, including fixtures classified as tests, are not starting points; imports made only by those files are omitted. `deps` of a module starts from that exact file, even a test or story. Its external and unresolved lists describe the starting modules only. Use `overview --json` for all unresolved imports in the mapped repository. Text shortens long specifiers; JSON keeps them complete.
+
 These options apply across commands:
 
 | Option          | Effect                                                            |

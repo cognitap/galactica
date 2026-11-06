@@ -4,6 +4,9 @@
 
 ## Unreleased
 
+- Add `overview --json` `unresolvedImports`, the complete list with file, line, full specifier and likely cause, including tests and stories; keep the existing numeric `unresolved` count.
+- **Breaking:** `overview` text shows likely unresolved causes near the top. Before: only `9 unresolved imports`. After: counts for build/generated, virtual/scheme, URL and missing/unmapped imports, with a pointer to the complete JSON list.
+- **Breaking:** Shorten specifiers in `deps` text to at most 120 characters. Before: a long data URL printed in full. After: its first 119 characters and `…`; JSON keeps the complete specifier.
 - Speed up workspace package lookup for warm commands by indexing package directories and reusing folder ownership.
 - Generate large HTML maps faster by computing test reach once for the graph instead of walking every module's transitive importers separately.
 - Prune untracked build output and dependency folders inside Git before listing their files, keeping the same mapped modules and ignore rules.

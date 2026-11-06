@@ -3,12 +3,28 @@
  * most imported source and config modules of each area.
  */
 
-import { SCHEMA_VERSION, type Overview, type Warning } from './contract.ts'
+import { SCHEMA_VERSION, type Overview, type Warning, type UnresolvedImport } from './contract.ts'
 import { compare, type Graph, type RepoPath } from './model.ts'
 import { isSourceOrConfig } from './source-file.ts'
 
 /** Modules listed per area unless `--all`. */
 export const TOP = 5
+
+/** Hints only: a missing generated or virtual module is often expected before a build. */
+function likelyCause(specifier: string): UnresolvedImport['cause'] {
+  if (/^(?:https?|data|file|blob|ftp):/i.test(specifier)) return 'url'
+  if (/^[a-z][\w+.-]*:/i.test(specifier) && !/^[a-z]:[\\/]/i.test(specifier)) return 'virtual'
+  if (specifier.startsWith('\0')) return 'virtual'
+  if (
+    /(?:^|[/\\])(?:dist|build|out|generated|__generated__|\.next|\.nuxt|\.svelte-kit|\.astro)(?:[/\\]|$)/i.test(
+      specifier
+    ) ||
+    /(?:^|[/\\])\$types(?:\.|$)/.test(specifier) ||
+    /\.node(?:$|[?#])/.test(specifier)
+  )
+    return 'build'
+  return 'missing'
+}
 
 /**
  * The modules other than tests and stories with an edge to `path` itself. An
@@ -52,14 +68,29 @@ export function overview(graph: Graph, all: boolean, warnings: readonly Warning[
         areas: placed
       }
     })
-  const edges = [...graph.modules.values()].flatMap(({ facts }) => facts.edges)
+  const unresolvedImports: UnresolvedImport[] = []
+  for (const [from, { facts }] of graph.modules) {
+    for (const { to, line } of facts.edges) {
+      if (to.kind === 'unresolved')
+        unresolvedImports.push({
+          from,
+          line,
+          specifier: to.specifier,
+          cause: likelyCause(to.specifier)
+        })
+    }
+  }
+  unresolvedImports.sort(
+    (a, b) => compare(a.from, b.from) || a.line - b.line || compare(a.specifier, b.specifier)
+  )
   return {
     schemaVersion: SCHEMA_VERSION,
     command: 'overview',
     all,
     packages,
     cycles: graph.cycles.length,
-    unresolved: edges.filter(edge => edge.to.kind === 'unresolved').length,
+    unresolved: unresolvedImports.length,
+    unresolvedImports,
     warnings
   }
 }

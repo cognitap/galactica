@@ -199,6 +199,7 @@ test('overview caps broad layers and the whole report while preserving JSON data
     all: false,
     cycles: 0,
     unresolved: 0,
+    unresolvedImports: [],
     warnings: [],
     packages: [{ name: 'babel', dir: '.', modules: areas.length, areas }]
   }
@@ -216,7 +217,10 @@ test('overview caps many packages and layers, including --all rankings', () => {
     command: 'overview',
     all: true,
     cycles: 0,
-    unresolved: 0,
+    unresolved: 1,
+    unresolvedImports: [
+      { from: 'src/main.ts', line: 1, specifier: 'astro:content', cause: 'virtual' }
+    ],
     warnings: [],
     packages: Array.from({ length: 500 }, (_, index) => ({
       name: `p${index}`,
@@ -236,6 +240,8 @@ test('overview caps many packages and layers, including --all rankings', () => {
   assert.ok(Buffer.byteLength(result) < 8192, `overview has ${Buffer.byteLength(result)} bytes`)
   assert.match(result, /more.*use --json/)
   assert.equal(output.packages.length, 500)
+  assert.match(result, /virtual\/scheme: 1/)
+  assert.ok(result.split('\n')[1]!.includes('unresolved import by likely cause'))
 })
 
 test('cycles caps the entire report with its total and full JSON intact', () => {
