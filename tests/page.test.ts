@@ -410,7 +410,7 @@ for (const width of [390, 1280]) {
           scrollWidth: document.documentElement.scrollWidth,
           background: getComputedStyle(document.body).backgroundColor,
           filenameLines: tops.size,
-          splits: [...document.querySelectorAll('.area-select wbr, .module-name wbr')]
+          splits: [...document.querySelectorAll('.detail-title wbr, .module-name wbr')]
             .map(node => node.previousSibling.textContent)
         }
       `)
@@ -444,3 +444,55 @@ for (const width of [390, 1280]) {
     )
   }
 }
+
+// Nine layers like Radiant's: a chain of areas, with 22 long-named areas in one layer.
+const layered: Record<string, Spec> = {}
+for (let layer = 0; layer < 9; layer += 1) {
+  layered[`src/layer${layer}/NavigationMenu${layer}.ts`] =
+    layer === 0 ? {} : { edges: [edge(`src/layer${layer - 1}/NavigationMenu${layer - 1}.ts`)] }
+}
+for (let index = 0; index < 22; index += 1) {
+  layered[`src/components/CheckboxGroupItem${index}/index.ts`] = {
+    edges: [edge('src/layer3/NavigationMenu3.ts')]
+  }
+}
+const layeredHtml = htmlOf(graphOf(modelOf(layered), emptyConfig))
+
+test(
+  'nine layers fit side by side at 1440px, lowest on the left, with no box overflowing',
+  { skip },
+  async t => {
+    const tab = await openPage(t, chrome!, { width: 1440 })
+    await tab.load(layeredHtml, '#area=src%2Flayer4')
+    const state = await tab.run<{
+      labels: string[]
+      leftToRight: boolean
+      tallest: number
+      scrollWidth: number
+      overflowing: string[]
+    }>(`
+      const columns = [...document.querySelectorAll('.column')]
+      const lefts = columns.map(column => column.getBoundingClientRect().left)
+      return {
+        labels: columns.map(column => column.querySelector('.column-label').textContent),
+        leftToRight: lefts.every((left, index) => index === 0 || left > lefts[index - 1]),
+        tallest: Math.max(...columns.map(column => column.querySelectorAll('.area').length)),
+        scrollWidth: document.documentElement.scrollWidth,
+        overflowing: [...document.querySelectorAll('.area')]
+          .filter(box => box.scrollWidth > box.clientWidth)
+          .map(box => box.querySelector('.area-select').title)
+      }
+    `)
+    assert.deepEqual(
+      state.labels,
+      Array.from({ length: 9 }, (_, layer) => `Layer ${layer}`)
+    )
+    assert.ok(state.leftToRight, 'columns run from the lowest layer on the left')
+    assert.equal(state.tallest, 23)
+    assert.ok(state.scrollWidth <= 1440, `${state.scrollWidth}px page overflows 1440px`)
+    assert.deepEqual(state.overflowing, [])
+    if (process.env['PAGE_SCREENSHOT_DIR']) {
+      await tab.screenshot(`${process.env['PAGE_SCREENSHOT_DIR']}/dev-751-1440.png`)
+    }
+  }
+)

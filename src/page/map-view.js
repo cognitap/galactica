@@ -20,6 +20,23 @@ export function mapView(data, onSelection) {
   /** @param {number} folder */
   const folderKey = folder => (folder < PALETTE ? String(folder) : 'other')
   /**
+   * The last segment of an area path, the name its node shows, with break
+   * opportunities between words so a long name wraps instead of overflowing.
+   * @param {string} path
+   */
+  function nodeName(path) {
+    if (path === '.') return [element('span', 'package-root', 'package root')]
+    const name = path.slice(path.lastIndexOf('/') + 1)
+    /** @type {Node[]} */
+    const nodes = []
+    for (const word of name.split(/(?<=[a-z0-9])(?=[A-Z])|(?<=[-_.])/)) {
+      if (nodes.length > 0) nodes.push(element('wbr'))
+      nodes.push(document.createTextNode(word))
+    }
+    return nodes
+  }
+
+  /**
    * A path whose last segment reads first, with the folders before it dimmed.
    * @param {string} path
    */
@@ -158,13 +175,12 @@ export function mapView(data, onSelection) {
     const title = element('h3')
     const select = selectButton('area-select', `Select ${area.path}`)
     select.setAttribute('aria-controls', 'detail')
-    select.append(...areaTitle(area.label))
+    select.append(...nodeName(area.label))
     title.append(select)
     const tag = relationTag()
     const count = element('span')
-    const symbols = element('span')
     const meta = element('p', 'area-meta')
-    meta.append(count, symbols)
+    meta.append(count)
     if (area.cycle) meta.append(element('span', 'cycle-mark', 'cycle'))
     head.append(title, tag, meta)
     box.append(head)
@@ -173,9 +189,7 @@ export function mapView(data, onSelection) {
     const filter = kinds => {
       const { modules, exported } = listedIn(area, kinds)
       count.textContent = plural(modules.length, 'module')
-      symbols.textContent = plural(exported, 'symbol')
       box.hidden = modules.length === 0
-      box.style.setProperty('--weight', String(Math.sqrt(exported)))
       return { shown: modules.length, exported }
     }
     return { index, box, select, tag, filter }
@@ -306,18 +320,20 @@ export function mapView(data, onSelection) {
     dir.append(path)
     head.append(heading, dir)
 
-    const rows = element('div', 'rows')
-    const lines = pkg.rows.map(row => {
-      const line = element('div', 'row')
-      const areas = element('div', 'row-areas')
+    // One column per layer, the lowest on the left, so the map reads from foundations up.
+    const columns = element('div', 'columns')
+    columns.style.setProperty('--layers', String(pkg.rows.length))
+    const lines = pkg.rows.toReversed().map(row => {
+      const line = element('div', 'column')
+      const areas = element('div', 'column-areas')
       const boxes = row.map(boxOf)
       areas.append(...boxes.map(({ box }) => box))
-      line.append(element('p', 'row-label', `Layer ${data.areas[row[0]].layer}`), areas)
-      rows.append(line)
+      line.append(element('p', 'column-label', `Layer ${data.areas[row[0]].layer}`), areas)
+      columns.append(line)
       return { line, boxes }
     })
     const empty = element('p', 'empty', 'Every module here is of a kind the filter hides.')
-    section.append(head, rows, empty)
+    section.append(head, columns, empty)
     if (pkg.areaCycles.length > 0 || pkg.moduleCycles.length > 0) section.append(cyclesSection(pkg))
     return { section, lines, empty }
   }
