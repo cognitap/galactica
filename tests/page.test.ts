@@ -470,6 +470,7 @@ test(
       tallest: number
       scrollWidth: number
       overflowing: string[]
+      legend: string
     }>(`
       const columns = [...document.querySelectorAll('.column')]
       const lefts = columns.map(column => column.getBoundingClientRect().left)
@@ -480,7 +481,8 @@ test(
         scrollWidth: document.documentElement.scrollWidth,
         overflowing: [...document.querySelectorAll('.area')]
           .filter(box => box.scrollWidth > box.clientWidth)
-          .map(box => box.querySelector('.area-select').title)
+          .map(box => box.querySelector('.area-select').title),
+        legend: document.querySelector('.legend-note').innerText
       }
     `)
     assert.deepEqual(
@@ -491,8 +493,62 @@ test(
     assert.equal(state.tallest, 23)
     assert.ok(state.scrollWidth <= 1440, `${state.scrollWidth}px page overflows 1440px`)
     assert.deepEqual(state.overflowing, [])
+    assert.match(state.legend, /Columns are layers, the lowest on the left/)
+    assert.doesNotMatch(state.legend, /Rows are layers/)
     if (process.env['PAGE_SCREENSHOT_DIR']) {
       await tab.screenshot(`${process.env['PAGE_SCREENSHOT_DIR']}/dev-751-1440.png`)
     }
   }
 )
+
+for (const width of [390, 700]) {
+  test(
+    `at ${width}px the layers stack as rows, the highest on top, and search and selection still work`,
+    { skip },
+    async t => {
+      const tab = await openPage(t, chrome!, { width })
+      await tab.load(layeredHtml)
+      const run = <T>(body: string) => tab.run<T>(helpers + body)
+      const state = await run<{
+        labels: string[]
+        topToBottom: boolean
+        scrollWidth: number
+        legend: string
+        chosen: string
+        panel: string[]
+        sideBySide: boolean
+      }>(`
+        const columns = [...document.querySelectorAll('.column')]
+          .sort((a, b) => a.getBoundingClientRect().top - b.getBoundingClientRect().top)
+        const tops = columns.map(column => column.getBoundingClientRect().top)
+        const [first, second] = [...columns.find(column => column.querySelectorAll('.area').length > 1)
+          .querySelectorAll('.area')].map(box => box.getBoundingClientRect().top)
+        const sideBySide = first === second
+        await type('NavigationMenu7'); await press('Enter')
+        return {
+          labels: columns.map(column => column.querySelector('.column-label').textContent),
+          topToBottom: tops.every((top, index) => index === 0 || top > tops[index - 1]),
+          scrollWidth: document.documentElement.scrollWidth,
+          legend: document.querySelector('.legend-note').innerText,
+          chosen: decodeURIComponent(location.hash),
+          panel: rows(),
+          sideBySide
+        }
+      `)
+      assert.deepEqual(
+        state.labels,
+        Array.from({ length: 9 }, (_, layer) => `Layer ${8 - layer}`)
+      )
+      assert.ok(state.topToBottom)
+      assert.ok(state.sideBySide, 'a row fills its width with boxes side by side')
+      assert.ok(state.scrollWidth <= width, `${state.scrollWidth}px page overflows ${width}px`)
+      assert.match(state.legend, /Rows are layers, the highest on top/)
+      assert.doesNotMatch(state.legend, /Columns are layers/)
+      assert.equal(state.chosen, '#module=src/layer7/NavigationMenu7.ts')
+      assert.deepEqual(state.panel, ['NavigationMenu7.ts'])
+      if (process.env['PAGE_SCREENSHOT_DIR']) {
+        await tab.screenshot(`${process.env['PAGE_SCREENSHOT_DIR']}/dev-755-${width}.png`)
+      }
+    }
+  )
+}
