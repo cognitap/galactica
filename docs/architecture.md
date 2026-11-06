@@ -16,7 +16,7 @@ argv ─► cli ─► config ─► model cache ──hit───────�
 
 ## 1. Command line
 
-`src/bin.ts` checks the Node.js version through `src/node-version.ts` before anything else loads, then runs `src/cli.ts`. The CLI parses argv against the command table in `src/commands.ts`, loads `galactica.config.json` once through `src/config.ts`, analyzes the repository and prints the result. It holds no command logic.
+`src/bin.ts` checks the Node.js version through `src/node-version.ts` before anything else loads, then runs `src/cli.ts`. `src/cli-input.ts` parses argv against the command metadata and validates both analysis and writer inputs. `src/cli.ts` routes the request, loads `galactica.config.json` once through `src/config.ts`, analyzes the repository and prints the result. HTML writing and skill installation live in `src/cli-writers.ts`, loaded only for those commands.
 
 ## 2. Model cache
 
