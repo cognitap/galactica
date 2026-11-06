@@ -533,7 +533,7 @@ test('init installs the skill with the given command, and a second run changes n
   )
   assert.match(
     readFileSync(join(root, skillPaths[0]!), 'utf8'),
-    /`npx @cognitap\/galactica overview`/
+    /`npx --prefix \/ @cognitap\/galactica overview`/
   )
 })
 
