@@ -25,11 +25,11 @@ Agents run Galactica on repositories they just cloned or downloaded. Treat the m
 
 ### Performance
 
-A first run on about 3,000 modules takes under 10 seconds, and a command with a warm cache under half a second. Do not merge changes that break these targets. CI checks them with `pnpm bench --check`.
+A first run on about 3,000 modules takes under 10 seconds, and a command with a warm cache under half a second. Do not merge changes that break these targets. CI checks them with `pnpm bench --check`; [CONTRIBUTING.md](CONTRIBUTING.md#benchmarks) shows how to run it.
 
 ### Node.js
 
-Support Node.js 24.1.0 and newer, the agreed support baseline. CI tests the latest Node.js 24 and 26. `src/node-version.ts`, `package.json` `engines` and `tests/node-version.test.ts` keep the minimum in one place. Keep `src/bin.ts` and `src/node-version.ts` free of other imports and of syntax older Node.js cannot parse, so an older version gets the one-line refusal.
+Support Node.js 24.1.0 and newer; [CONTRIBUTING.md](CONTRIBUTING.md#nodejs-versions) says where the minimum is stated and how CI tests it. Keep `src/bin.ts` and `src/node-version.ts` free of other imports and of syntax older Node.js cannot parse, so an older version gets the one-line refusal.
 
 ## Terms
 
@@ -43,24 +43,24 @@ Support Node.js 24.1.0 and newer, the agreed support baseline. CI tests the late
 - **Cycle:** source and config modules that reach each other through imports, type-only imports and re-exports aside.
 - **Type-only import:** an import the compiled module does not make: written `import type`, or in TypeScript with no name read as a value, unless `verbatimModuleSyntax` or decorator metadata keeps it.
 - **Load time:** an import is used at load time when the importer reads its name in code that runs while the module evaluates.
-- **Internal import:** an import into another workspace package past its public entries.
+- **Cross-package private import:** an import into another workspace package past its public entries. `health` lists them; its JSON field is `internalImports`.
 
 ## Architecture map
 
-| Stage            | Modules                                                                                                                                         |
-| ---------------- | ----------------------------------------------------------------------------------------------------------------------------------------------- |
-| Command line     | `bin`, `node-version`, `cli`, `commands`, `config`                                                                                              |
-| Model cache      | `model-cache`, `inputs`, `cache`                                                                                                                |
-| Discover         | `repository-files`, `workspace`, `discovery`, `compiler-settings`, `source-file`                                                                |
-| Extract          | `analysis`, `extraction`, `syntax`, `symbols`, `imports`, `load-time`, `frameworks`                                                             |
-| Resolve          | `import-resolution`, `package-resolution`, `internal-imports`, `barrels`                                                                        |
-| Model and graph  | `model`, `graph`, `areas`, `layers`, `cycles`, `strongly-connected`                                                                             |
-| Commands         | `subjects`, `queries`, `overview`, `health`, `contract`, `render`                                                                               |
-| HTML page        | `html`, `page-data`, `source-links`, `git-source`, `row-order`, `page/`                                                                         |
-| Skill            | `skill`, `skills/galactica/SKILL.md`                                                                                                            |
-| Trust boundary   | `safe-read`, `glob`, `safe-write`, `repository-files`                                                                                           |
+| Stage           | Modules                                                                             |
+| --------------- | ----------------------------------------------------------------------------------- |
+| Command line    | `bin`, `node-version`, `cli`, `cli-input`, `cli-writers`, `commands`, `config`      |
+| Model cache     | `model-cache`, `inputs`, `cache`, `cache-schema`                                    |
+| Discover        | `repository-files`, `workspace`, `discovery`, `compiler-settings`, `source-file`    |
+| Extract         | `analysis`, `extraction`, `syntax`, `symbols`, `imports`, `load-time`, `frameworks` |
+| Resolve         | `import-resolution`, `package-resolution`, `internal-imports`, `barrels`            |
+| Model and graph | `model`, `graph`, `areas`, `layers`, `cycles`, `strongly-connected`                 |
+| Commands        | `subjects`, `queries`, `overview`, `health`, `contract`, `render`                   |
+| HTML page       | `html`, `page-data`, `source-links`, `git-source`, `row-order`, `page/`             |
+| Skill           | `skill`, `skills/galactica/SKILL.md`                                                |
+| Trust boundary  | `safe-read`, `glob`, `safe-write`, `repository-files`, `paths`, `json`              |
 
-All modules are under `src/`. A new command is one entry in `commands.ts`, one renderer in `render.ts` and its types in `contract.ts`. A new framework is one entry in `frameworks.ts`.
+All modules are under `src/`. A new analysis command is one entry in `commandTable` in `commands.ts`, one renderer in `render.ts` and its types in `contract.ts`; `cli-input.ts` derives parsing and help from the table. `html` and `init` write files through `cli-writers.ts`. A new framework is one entry in the `frameworks` table in `frameworks.ts`, plus its language in `languages` in `contract.ts`, which imports nothing by design.
 
 ## Commands
 

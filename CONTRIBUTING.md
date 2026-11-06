@@ -49,7 +49,7 @@ The browser tests need Google Chrome in its usual location, or `CHROME_PATH` set
 
 ### Node.js versions
 
-Galactica supports Node.js 24.1.0 and newer. That is the support baseline for the first release: the Node.js 24 line from 24.1.0, and every later major. `package.json` `engines` and the startup check in `src/node-version.ts` state the same minimum, and `tests/node-version.test.ts` keeps them equal. Older versions, Node.js 22 included, get a one-line refusal. Keep `src/bin.ts` and `src/node-version.ts` free of other imports and of syntax older Node.js cannot parse, so that refusal still prints.
+Galactica supports Node.js 24.1.0 and newer. That is the support baseline for the first release: the Node.js 24 line from 24.1.0, and every later major. `package.json` `engines` and the startup check in `src/node-version.ts` state the same minimum, and `tests/node-version.test.ts` keeps them equal. Older versions, Node.js 22 included, get a one-line refusal; [AGENTS.md](AGENTS.md#nodejs) says how to keep it printing.
 
 CI runs the Node unit and CLI suites on the latest Node.js 24 and 26 on Linux. The main check uses `.nvmrc` for coverage, browser tests and the packed-package test.
 
@@ -65,14 +65,14 @@ Run `node scripts/test-node.ts` directly, not through pnpm: pnpm pins script run
 
 ## Benchmarks
 
-`pnpm bench` measures the speed targets: a first run under 10 seconds on about 3,000 modules, and a warm command under half a second.
+`pnpm bench` measures the [speed targets](AGENTS.md#performance).
 
 ```sh
 node scripts/synthetic-repo.ts /tmp/synthetic --modules 3000
 pnpm bench /tmp/synthetic
 ```
 
-It runs the built CLI for `overview` and for `uses` of the most-imported source module, cold and then warm, and prints the median and range of 5 runs with the time of each phase. `--runs` sets the number of runs, `--uses` the module, `--json` prints JSON, and `--check` exits with code 1 when a median misses its target. The synthetic repository is a pnpm workspace shaped like Radiant, and the same options always write the same files. CI runs `pnpm bench --check` on 3,000 synthetic modules.
+It runs the built CLI for `overview` and for `uses` of the most-imported source module, cold and then warm, and prints the median and range of 5 runs with the time of each phase. `--runs` sets the number of runs, `--uses` the module, `--json` prints JSON, and `--check` exits with code 1 when a median misses its target. The synthetic repository is a pnpm workspace with about 6.5 imports and 3.4 exported symbols per module, 14% of imports type-only and a few modules that most others import. The same options always write the same files. CI runs `pnpm bench --check` on 3,000 synthetic modules.
 
 The agent benchmark lives in [bench/agents](bench/agents/README.md), and its results in [docs/benchmark.md](docs/benchmark.md).
 

@@ -52,7 +52,7 @@ By default, Galactica reads the kind from the name and folder:
 
 - Names such as `*.test.ts`, `*.spec.ts` and `app.e2e-spec.ts` are tests, as are modules under `__tests__`, `test`, `tests`, `__testfixtures__`, `__fixtures__`, `testdata`, `testData`, `fixtures` or `__mocks__`.
 - Names such as `*.stories.tsx` are stories.
-- A module in a folder whose name starts with a dot is `config`, such as `.storybook/main.ts` or `.github/scripts/release.mjs`. The subfolders of `.storybook` are the exception: they hold what stories render, such as Radiant's demo components in `.storybook/examples/`, so their modules are stories.
+- A module in a folder whose name starts with a dot is `config`, such as `.storybook/main.ts` or `.github/scripts/release.mjs`. The subfolders of `.storybook` are the exception: they hold what stories render, such as demo components in `.storybook/examples/`, so their modules are stories.
 
 A module that matches the globs of a kind in `kinds` has that kind, whatever its name and folder say. A module can match the globs of one kind only.
 
