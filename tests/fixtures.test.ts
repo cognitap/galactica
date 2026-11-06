@@ -35,6 +35,7 @@ const cases = [
   'react-components',
   'tests-and-stories',
   'package-self-reference',
+  'package-imports',
   'paths-over-package',
   'paths-catch-all',
   'import-query',

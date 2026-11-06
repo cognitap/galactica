@@ -17,6 +17,7 @@ export type UnresolvedReason = 'blocked' | 'no-export' | 'missing' | 'build-outp
 
 export type WorkspaceResolution =
   | { readonly kind: 'module'; readonly path: RepoPath }
+  | { readonly kind: 'file'; readonly path: RepoPath }
   | { readonly kind: 'unresolved'; readonly reason: UnresolvedReason }
 
 /** A public specifier of a package and the module it reaches. */
@@ -112,7 +113,7 @@ const probes: readonly {
   { extensions: ['.d.ts', '.ts', '.js'], sources: scriptSources }
 ]
 
-function candidates(path: string): readonly string[] {
+export function sourceCandidates(path: string): readonly string[] {
   for (const { extensions, sources } of probes) {
     const extension = extensions.find(extension => path.endsWith(extension))
     if (extension) {
@@ -152,18 +153,20 @@ function unresolved(reason: UnresolvedReason): WorkspaceResolution {
   return { kind: 'unresolved', reason }
 }
 
-/** The first option that reaches a module, else the first option's failure. */
+/** Prefer a source module, then an existing non-module file, else the first failure. */
 function firstModule<T>(
   options: readonly T[],
   resolveOne: (option: T) => WorkspaceResolution
 ): WorkspaceResolution {
   let failure = unresolved('no-export')
+  let file: WorkspaceResolution | undefined
   for (const [index, option] of options.entries()) {
     const result = resolveOne(option)
     if (result.kind === 'module') return result
+    if (result.kind === 'file' && file === undefined) file = result
     if (index === 0) failure = result
   }
-  return failure
+  return file ?? failure
 }
 
 const isRecord = (value: unknown): value is Readonly<Record<string, unknown>> =>
@@ -197,6 +200,14 @@ function exportsEntry(
 ): { readonly target: unknown; readonly star: string } | undefined {
   const isSubpathMap = isRecord(exports) && Object.keys(exports).every(key => key.startsWith('.'))
   const map: Readonly<Record<string, unknown>> = isSubpathMap ? exports : { '.': exports }
+  return subpathEntry(map, subpath)
+}
+
+/** Exact keys win, then the longest wildcard prefix and suffix. */
+function subpathEntry(
+  map: Readonly<Record<string, unknown>>,
+  subpath: string
+): { readonly target: unknown; readonly star: string } | undefined {
   if (Object.hasOwn(map, subpath) && !subpath.includes('*'))
     return { target: map[subpath], star: '' }
   const matches = Object.keys(map).flatMap(key => {
@@ -212,6 +223,77 @@ function exportsEntry(
     (a, b) => b.prefix.length - a.prefix.length || b.key.length - a.key.length
   )[0]
   return best && { target: map[best.key], star: best.star }
+}
+
+/** Package-relative or external targets of a private import in its nearest package scope. */
+export function packageImports(root: string, inputs: Inputs) {
+  interface Scope {
+    readonly dir: RepoPath
+    readonly imports: unknown
+  }
+  const scopes = new Map<string, Scope | undefined>()
+  function scopeAt(dir: string): Scope | undefined {
+    const pending: string[] = []
+    let current = dir
+    let scope: Scope | undefined
+    for (;;) {
+      if (scopes.has(current)) {
+        scope = scopes.get(current)
+        break
+      }
+      pending.push(current)
+      const file = parseRepoPath(posix.join(current, 'package.json'))
+      if (inputs.fileExists(join(root, file))) {
+        const manifest = readJson(inputs, root, file, [])
+        scope = {
+          dir: parseRepoPath(current),
+          imports: isRecord(manifest) ? manifest.imports : undefined
+        }
+        break
+      }
+      if (current === '.') break
+      current = posix.dirname(current)
+    }
+    for (const path of pending) scopes.set(path, scope)
+    return scope
+  }
+
+  return (
+    from: RepoPath,
+    specifier: string,
+    active: ReadonlySet<string>
+  ): readonly {
+    readonly dir: RepoPath
+    readonly target: string
+  }[] => {
+    const scope = scopeAt(posix.dirname(from))
+    if (!scope || !isRecord(scope.imports)) return []
+    const map = scope.imports
+    function targets(value: unknown, star: string, depth: number): readonly string[] | undefined {
+      if (depth >= maxNesting || value === null) return []
+      if (typeof value === 'string') {
+        const target = value.replaceAll('*', star)
+        if (!target.startsWith('#')) return [target]
+        const entry = subpathEntry(map, target)
+        return entry ? targets(entry.target, entry.star, depth + 1) : []
+      }
+      if (Array.isArray(value))
+        return value.flatMap(option => targets(option, star, depth + 1) ?? [])
+      if (isRecord(value)) {
+        for (const [condition, option] of Object.entries(value)) {
+          if (!active.has(condition)) continue
+          const found = targets(option, star, depth + 1)
+          if (found !== undefined) return found
+        }
+      }
+      return undefined
+    }
+    const entry = subpathEntry(map, specifier)
+    return (entry ? (targets(entry.target, entry.star, 0) ?? []) : []).map(target => ({
+      dir: scope.dir,
+      target
+    }))
+  }
 }
 
 function isInside(dir: string, path: string): boolean {
@@ -257,7 +339,17 @@ export function workspaceResolver(
   const warned = new Set<string>()
 
   const asModule = (path: string): RepoPath | undefined =>
-    candidates(path).find(candidate => modules.has(candidate)) as RepoPath | undefined
+    sourceCandidates(path).find(candidate => modules.has(candidate)) as RepoPath | undefined
+
+  /** Existing assets and declarations are meaningful targets even without a module node. */
+  function asFile(path: string): RepoPath | undefined {
+    const declarations = /\.[cm]?js$/.test(path)
+      ? [path.replace(/\.([cm]?)js$/, '.d.$1ts')]
+      : [`${path}.d.ts`, `${path}/index.d.ts`]
+    return [...sourceCandidates(path), path, ...declarations].find(candidate =>
+      inputs.fileExists(join(discovery.root, candidate))
+    ) as RepoPath | undefined
+  }
 
   /** A path can lie under the outDirs of several configs, so the first whose source is a module wins. */
   function fromBuild(path: string): WorkspaceResolution {
@@ -281,11 +373,15 @@ export function workspaceResolver(
       const found = asModule(path)
       if (found) return { kind: 'module', path: found }
       const built = fromBuild(path)
-      if (built.kind === 'module' || !guess) return built
-      const source = bundledSources(posix.relative(dir, path), packageName, subpath)
-        .map(source => asModule(posix.join(dir, source)))
-        .find(source => source !== undefined)
-      return source ? { kind: 'module', path: source } : built
+      if (built.kind === 'module') return built
+      if (guess) {
+        const source = bundledSources(posix.relative(dir, path), packageName, subpath)
+          .map(source => asModule(posix.join(dir, source)))
+          .find(source => source !== undefined)
+        if (source) return { kind: 'module', path: source }
+      }
+      const file = asFile(path)
+      return file ? { kind: 'file', path: file } : built
     }
   }
 
@@ -346,7 +442,7 @@ export function workspaceResolver(
       const found = lookup(specifier)
       if (!found) return undefined
       const { parts, owner, result } = found
-      if (result.kind === 'module') return result
+      if (result.kind !== 'unresolved') return result
       const key = `${parts.name}\0${result.reason}`
       const metadata =
         parts.subpath === './package.json' &&

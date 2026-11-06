@@ -17,7 +17,7 @@ function workspace(t: TestContext, manifest: object, files: Files) {
   return workspaceResolver(discover(root, emptyConfig))
 }
 
-/** Each specifier's resolution, as the module path or `unresolved: <reason>`. */
+/** Each specifier's module path, existing file, or unresolved reason. */
 function resolutions(
   t: TestContext,
   manifest: object,
@@ -29,7 +29,14 @@ function resolutions(
     specifiers.map(specifier => {
       const result = resolver.resolve(specifier)
       if (!result) return [specifier, 'not in the workspace']
-      return [specifier, result.kind === 'module' ? result.path : `unresolved: ${result.reason}`]
+      return [
+        specifier,
+        result.kind === 'unresolved'
+          ? `unresolved: ${result.reason}`
+          : result.kind === 'file'
+            ? `file: ${result.path}`
+            : result.path
+      ]
     })
   )
 }
@@ -394,7 +401,7 @@ test('a target the package states wins over a guess from another condition', t =
   )
 })
 
-test('a target that reaches no module is missing', t => {
+test('existing non-module targets resolve as files and missing targets stay unresolved', t => {
   assert.deepEqual(
     resolutions(
       t,
@@ -402,7 +409,7 @@ test('a target that reaches no module is missing', t => {
       { 'styles.css': '' },
       ['pkg/styles', 'pkg/gone']
     ),
-    { 'pkg/styles': 'unresolved: missing', 'pkg/gone': 'unresolved: missing' }
+    { 'pkg/styles': 'file: packages/pkg/styles.css', 'pkg/gone': 'unresolved: missing' }
   )
 })
 
@@ -493,4 +500,20 @@ test('a missing target named package.json still warns about a broken export', t 
   const resolver = workspace(t, { exports: { './package.json': './missing.ts' } }, {})
   resolver.resolve('pkg/package.json')
   assert.equal(resolver.warnings().length, 1)
+})
+
+test('existing declarations never hide source modules in other conditions or build mappings', t => {
+  assert.deepEqual(
+    resolutions(
+      t,
+      {
+        exports: { types: './dist/index.d.ts', import: './dist/index.js' }
+      },
+      { 'dist/index.d.ts': 'export interface API {}', 'src/index.ts': 'export const api = 1' },
+      ['pkg']
+    ),
+    {
+      pkg: 'packages/pkg/src/index.ts'
+    }
+  )
 })
