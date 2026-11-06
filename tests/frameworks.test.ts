@@ -39,15 +39,17 @@ const app: Files = {
 }
 
 /** A package in the target whose compiler entry, when required, writes `loaded-<name>` at the root. */
-function plantedCompiler(name: string, entry: string): Files {
-  const marker = `require('node:fs').writeFileSync(require('node:path').join(__dirname, '..', '..', 'loaded-${name}'), '')`
+function plantedCompiler(name: string, entry?: string): Files {
+  const parents = name.startsWith('@') ? "'..', '..', '..'" : "'..', '..'"
+  const marker = `require('node:fs').writeFileSync(require('node:path').join(__dirname, ${parents}, 'loaded-${name.replaceAll('/', '-')}'), '')`
+  const file = `${entry ?? 'index'}.js`
   return {
     [`node_modules/${name}/package.json`]: {
       name,
       version: '1.0.0',
-      exports: { [`./${entry}`]: `./${entry}.js`, './package.json': './package.json' }
+      exports: { [entry ? `./${entry}` : '.']: `./${file}`, './package.json': './package.json' }
     },
-    [`node_modules/${name}/${entry}.js`]: `${marker}\nexports.parse = () => { throw new Error('planted') }`
+    [`node_modules/${name}/${file}`]: `${marker}\nexports.parse = () => { throw new Error('planted') }`
   }
 }
 
@@ -55,6 +57,7 @@ test('a compiler in the repository being mapped is never loaded', t => {
   const root = repository(t, {
     ...app,
     ...plantedCompiler('vue', 'compiler-sfc'),
+    ...plantedCompiler('@vue/compiler-sfc'),
     ...plantedCompiler('svelte', 'compiler')
   })
   const cache = join(root, 'node_modules', '.cache', 'galactica')
@@ -68,7 +71,7 @@ test('a compiler in the repository being mapped is never loaded', t => {
   assert.match(output, /src\/App\.vue/)
   assert.match(output, /src\/Card\.svelte/)
   assert.deepEqual(
-    ['vue', 'svelte'].filter(name => existsSync(join(root, `loaded-${name}`))),
+    ['vue', '@vue-compiler-sfc', 'svelte'].filter(name => existsSync(join(root, `loaded-${name}`))),
     []
   )
 })
@@ -99,7 +102,7 @@ test('installed without its optional dependencies, each framework warns once, an
   assert.deepEqual(summary.warnings, [
     {
       path: 'src/App.vue',
-      message: 'vue/compiler-sfc is not installed with Galactica; 2 .vue files have no imports'
+      message: '@vue/compiler-sfc is not installed with Galactica; 2 .vue files have no imports'
     },
     {
       path: 'src/Card.svelte',
@@ -116,7 +119,8 @@ test('a cache written without the compilers is discarded once they are installed
   const uses = () => cli(join(folder, 'dist', 'bin.js'), root, 'uses', 'src/a.ts', '--json')
   const dependents = () => JSON.parse(uses()).modules.map(({ path }: { path: string }) => path)
   assert.deepEqual(dependents(), [])
-  link('vue')
+  link('@vue/compiler-sfc')
+  assert.deepEqual(dependents(), ['src/App.vue'])
   link('svelte')
   assert.deepEqual(dependents(), ['src/App.vue', 'src/Card.svelte'])
 })

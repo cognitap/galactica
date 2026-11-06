@@ -57,6 +57,7 @@ const files: Record<string, string> = {
 
 try {
   if (!archiveArg) run('pnpm', ['pack', '--out', archive], root)
+  assert.doesNotMatch(run('tar', ['-tf', archive], root), /\.map$/m, 'ships no source maps')
   for (const [path, content] of Object.entries(files)) {
     mkdirSync(dirname(join(repository, path)), { recursive: true })
     writeFileSync(join(repository, path), content)
@@ -75,7 +76,8 @@ try {
       }
     >
   }
-  assert.ok(shrinkwrap.packages['node_modules/vue'], 'locks the Vue compiler tree')
+  assert.ok(shrinkwrap.packages['node_modules/@vue/compiler-sfc'], 'locks the Vue compiler tree')
+  assert.ok(!shrinkwrap.packages['node_modules/vue'], 'does not install the Vue runtime')
   assert.ok(shrinkwrap.packages['node_modules/svelte'], 'locks the Svelte compiler tree')
   for (const [path, entry] of Object.entries(shrinkwrap.packages)) {
     if (path === '') continue
