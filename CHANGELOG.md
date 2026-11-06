@@ -4,6 +4,13 @@
 
 ## Unreleased
 
+- Resolve private `package.json` `imports` to Vue, Svelte, Astro and extensionless script source files, including projects whose generated SvelteKit config is unavailable.
+- Treat existing workspace JSON, metadata and asset exports as files rather than unresolved imports.
+- Resolve declaration-only workspace entries and subpaths without inventing runtime dependencies, while preferring available source modules.
+- Classify an npm-shaped import as external when its `paths` alias reaches no file.
+- Resolve imports through symlink and case variants to the discovered source module.
+- **Breaking:** Make unmapped imports visible. Before: existing unsupported files and source excluded from the map were silently omitted. After: they are counted as unresolved; known assets and declarations still create no edge.
+
 - A module that links outside the repository, a module that is no regular file, such as a link to a directory, and a module over 10 MB are skipped, each with a warning that `overview --json` lists. A link to `/dev/zero` hung the analysis, and a link to a file outside the repository put that file's symbols and doc comments into the output.
 - A file nested too deeply for TypeScript to parse, such as a chain of thousands of `else if`, no longer crashes every command. Its module stays, with no symbols or imports, and the analysis adds one warning that names the file.
 - A deeply nested expression, such as a 3,000-term string concatenation or the 1,500-term sum in microsoft/TypeScript's `binderBinaryExpressionStress.ts`, is read in full instead of crashing with `RangeError: Maximum call stack size exceeded`. Galactica now maps microsoft/TypeScript.
