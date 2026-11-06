@@ -7,7 +7,8 @@
 
 import { randomBytes } from 'node:crypto'
 import { lstatSync, mkdirSync, renameSync, rmdirSync, rmSync, writeFileSync } from 'node:fs'
-import { basename, dirname, isAbsolute, join, relative, sep } from 'node:path'
+import { basename, dirname, join, relative, sep } from 'node:path'
+import { isBelow } from './paths.ts'
 
 /** A write refused because `link`, `target` itself or a folder above it, is a symbolic link. */
 export class SymlinkRefused extends Error {
@@ -24,12 +25,6 @@ export interface FileWrite {
   /** Absolute, below the folder written to. */
   readonly path: string
   readonly text: string
-}
-
-/** Whether `path` is below `folder`, judged from the paths alone. */
-export function isBelow(folder: string, path: string): boolean {
-  const rest = relative(folder, path)
-  return rest !== '' && !rest.startsWith(`..${sep}`) && rest !== '..' && !isAbsolute(rest)
 }
 
 /** Each path from the first component below `folder` down to `path`. */

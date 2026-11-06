@@ -7,6 +7,7 @@ import ts from 'typescript'
 import type { SymbolKind } from './contract.ts'
 import { bindingsOf } from './imports.ts'
 import type { SymbolFacts } from './model.ts'
+import { compare } from './model.ts'
 
 const maxLength = 160
 
@@ -699,10 +700,6 @@ function scopeOf(source: ts.SourceFile): Scope {
     }
   }
   return { source, locals, functions, imported: new Set(bindingsOf(source).keys()) }
-}
-
-function compare(a: string, b: string): number {
-  return a < b ? -1 : a > b ? 1 : 0
 }
 
 /** The module's exported declarations, one per name, sorted by line, then name. */

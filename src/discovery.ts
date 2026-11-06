@@ -15,6 +15,7 @@ import type { Language, ModuleKind } from './contract.ts'
 import { globProblem, matchesGlob } from './glob.ts'
 import { plainInputs, type Inputs } from './inputs.ts'
 import {
+  compare,
   parseRepoPath,
   toRepoPath,
   type Config,
@@ -57,10 +58,6 @@ export interface Discovery {
   readonly builds: readonly Build[]
   /** Sorted by path, then message. */
   readonly warnings: readonly Warning[]
-}
-
-function compare(a: string, b: string): number {
-  return a < b ? -1 : a > b ? 1 : 0
 }
 
 /** Whether the config's `include` and `exclude` keep the module at `path`. */

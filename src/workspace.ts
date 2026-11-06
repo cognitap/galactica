@@ -7,9 +7,9 @@
 import { join, posix } from 'node:path'
 import type { Warning } from './compiler-settings.ts'
 import { globProblem, matchesGlob } from './glob.ts'
-import { missingFile, readRepositoryFile, UnsafeReadError } from './safe-read.ts'
 import type { Inputs } from './inputs.ts'
 import { parseRepoPath, type Model, type PackageName, type RepoPath } from './model.ts'
+import { missingFile, readProblem, readRepositoryFile } from './safe-read.ts'
 
 /** Globs over package directories. A leading `!` excludes. */
 export type WorkspacePatterns = readonly string[]
@@ -33,7 +33,7 @@ export function readJson(
     if (missingFile(error)) return undefined
     warnings.push({
       path,
-      message: error instanceof UnsafeReadError ? error.message : 'could not read file'
+      message: readProblem(error, 'could not read file')
     })
     return undefined
   }
@@ -133,7 +133,7 @@ export function workspacePatterns(
     if (!missingFile(error))
       warnings.push({
         path: yamlPath,
-        message: error instanceof UnsafeReadError ? error.message : 'could not read file'
+        message: readProblem(error, 'could not read file')
       })
   }
   if (yaml !== undefined) {

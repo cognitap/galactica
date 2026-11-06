@@ -5,12 +5,13 @@
  * defaults that resolve like a bundler and allow JavaScript.
  */
 
-import { dirname, isAbsolute, join, relative, sep } from 'node:path'
 import { lstatSync } from 'node:fs'
+import { dirname, isAbsolute, join, sep } from 'node:path'
 import ts from 'typescript'
-import { missingFile, readRepositoryFile, UnsafeReadError } from './safe-read.ts'
 import type { Inputs } from './inputs.ts'
 import { parseRepoPath, toRepoPath, type RepoPath } from './model.ts'
+import { isWithin } from './paths.ts'
+import { missingFile, readProblem, readRepositoryFile } from './safe-read.ts'
 import {
   readJson,
   workspacePackages,
@@ -157,8 +158,8 @@ export function compilerSettings(
     if (missingFile(error) || refused.has(file)) return
     refused.add(file)
     warnings.push({
-      path: isInside(root, file) ? toRepoPath(root, file) : activeConfig,
-      message: error instanceof UnsafeReadError ? error.message : 'could not read config file'
+      path: isWithin(root, file) ? toRepoPath(root, file) : activeConfig,
+      message: readProblem(error, 'could not read config file')
     })
   }
   const safeExists = (file: string): boolean => {
@@ -171,7 +172,7 @@ export function compilerSettings(
         return false
       }
     }
-    if (!isInside(root, file)) return false
+    if (!isWithin(root, file)) return false
     try {
       return readRepositoryFile(root, file, {
         fileExists: inputs.fileExists,
@@ -211,7 +212,7 @@ export function compilerSettings(
           : 'tsconfig.json'
     }
     const target = join(root, member.dir, subpath)
-    return isInside(join(root, member.dir), target) ? target : value
+    return isWithin(join(root, member.dir), target) ? target : value
   }
   function readConfig(path: string): string | undefined {
     let text
@@ -273,7 +274,7 @@ export function compilerSettings(
     const known = commandLines.get(configFile)
     if (known) return known
     const previous = activeConfig
-    activeConfig = isInside(root, configFile) ? toRepoPath(root, configFile) : previous
+    activeConfig = isWithin(root, configFile) ? toRepoPath(root, configFile) : previous
     const commandLine = ts.getParsedCommandLineOfConfigFile(
       configFile,
       undefined,
@@ -315,7 +316,7 @@ export function compilerSettings(
       files: new Set(commandLine.fileNames),
       references: (commandLine.projectReferences ?? [])
         .map(reference => ts.resolveProjectReferencePath(reference))
-        .filter(reference => isInside(root, reference))
+        .filter(reference => isWithin(root, reference))
     }
     parsed.set(configFile, result)
     return result
@@ -337,7 +338,7 @@ export function compilerSettings(
   return {
     configOf(file) {
       const seen = new Set<string>()
-      for (let dir = dirname(file); isInside(root, dir); dir = dirname(dir)) {
+      for (let dir = dirname(file); isWithin(root, dir); dir = dirname(dir)) {
         const typescript = join(dir, 'tsconfig.json')
         const configFile = reads.fileExists(typescript) ? typescript : join(dir, 'jsconfig.json')
         const found = reads.fileExists(configFile) && claiming(configFile, file, seen)
@@ -365,12 +366,7 @@ function buildOf(
   { options }: ts.ParsedCommandLine
 ): Build | undefined {
   const { outDir } = options
-  return outDir && isInside(root, outDir) && !isInside(outDir, configFile)
+  return outDir && isWithin(root, outDir) && !isWithin(outDir, configFile)
     ? { outDir, rootDir: options.rootDir ?? dirname(configFile) }
     : undefined
-}
-
-function isInside(root: string, path: string): boolean {
-  const rel = relative(root, path)
-  return !isAbsolute(rel) && rel !== '..' && !rel.startsWith(`..${sep}`)
 }

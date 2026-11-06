@@ -14,17 +14,17 @@ import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { performance } from 'node:perf_hooks'
 import ts from 'typescript'
-import { readRepositoryFile } from './safe-read.ts'
 import { resolveBarrels } from './barrels.ts'
-import { compilerOptionsOf, discover, type DiscoveredModule, type Warning } from './discovery.ts'
 import { currentStamp, readCache, writeCache, type Cache, type CacheEntry } from './cache.ts'
+import { compilerOptionsOf, discover, type DiscoveredModule, type Warning } from './discovery.ts'
 import { extract, hashOf } from './extraction.ts'
 import { compilerOf, unreadWarnings, type Unread } from './frameworks.ts'
 import { importResolver, type ImportResolver } from './import-resolution.ts'
-import { reachFinder, withInstead } from './internal-imports.ts'
-import { plainInputs, type Inputs } from './inputs.ts'
 import { asCompiled, resolutionModeOf } from './imports.ts'
+import { plainInputs, type Inputs } from './inputs.ts'
+import { reachFinder, withInstead } from './internal-imports.ts'
 import {
+  compare,
   compareEdges,
   MODEL_FORMAT,
   type Config,
@@ -34,6 +34,7 @@ import {
   type RepoPath
 } from './model.ts'
 import { unreadable } from './repository-files.ts'
+import { readRepositoryFile } from './safe-read.ts'
 import { isScriptLanguage } from './source-file.ts'
 
 /** What a caller reports about a run. It stays out of the `Model`. */
@@ -63,10 +64,6 @@ export interface Summary {
 export interface Analysis {
   readonly model: Model
   readonly summary: Summary
-}
-
-function compare(a: string, b: string): number {
-  return a < b ? -1 : a > b ? 1 : 0
 }
 
 const extensionOf = (path: string) => /(\.d)?\.[^./]+$/.exec(path)?.[0] ?? '(none)'

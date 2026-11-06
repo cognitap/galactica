@@ -6,11 +6,10 @@
  */
 
 import { isBuiltin } from 'node:module'
-import { dirname, extname, isAbsolute, join, relative, sep } from 'node:path'
+import { dirname, extname, join } from 'node:path'
 import ts from 'typescript'
 import type { Warning } from './compiler-settings.ts'
 import { compilerOptionsOf, type DiscoveredModule, type Discovery } from './discovery.ts'
-import { missingFile, readRepositoryFile, UnsafeReadError } from './safe-read.ts'
 import { plainInputs, type Inputs } from './inputs.ts'
 import { toRepoPath, type RepoPath, type Target } from './model.ts'
 import {
@@ -20,6 +19,8 @@ import {
   workspaceResolver,
   type WorkspaceResolver
 } from './package-resolution.ts'
+import { isWithin } from './paths.ts'
+import { missingFile, readProblem, readRepositoryFile } from './safe-read.ts'
 
 /** A repository file that is no module, such as a stylesheet or a declaration file. */
 export interface OtherFile {
@@ -127,10 +128,10 @@ function moduleResolutionHost(
       try {
         return readRepositoryFile(root, file, inputs)
       } catch (error) {
-        if (!missingFile(error) && isInside(root, file))
+        if (!missingFile(error) && isWithin(root, file))
           warnings.push({
             path: toRepoPath(root, file),
-            message: error instanceof UnsafeReadError ? error.message : 'could not read file'
+            message: readProblem(error, 'could not read file')
           })
         return undefined
       }
@@ -145,11 +146,6 @@ function moduleResolutionHost(
 const canonicalFileName = ts.sys.useCaseSensitiveFileNames
   ? (name: string) => name
   : (name: string) => name.toLowerCase()
-
-function isInside(dir: string, path: string): boolean {
-  const rel = relative(dir, path)
-  return !isAbsolute(rel) && rel !== '..' && !rel.startsWith(`..${sep}`)
-}
 
 export const isRelative = (specifier: string) => /^\.\.?(\/|$)/.test(specifier)
 
@@ -228,14 +224,14 @@ export function importResolver(
    * `../node_modules/pkg/Foo.astro`, belongs to its package.
    */
   function inRepository(file: string, specifier: string): Resolution | undefined {
-    if (!isInside(root, file)) return undefined
+    if (!isWithin(root, file)) return undefined
     const path = toRepoPath(root, file)
     const name = packageOfFile(`/${path}`)
     if (name) return { kind: 'external', name }
     if (modules.has(path)) return { kind: 'module', path }
     const actual = realPath(file)
     const realRoot = realPath(root)
-    if (actual === undefined || realRoot === undefined || !isInside(realRoot, actual))
+    if (actual === undefined || realRoot === undefined || !isWithin(realRoot, actual))
       return undefined
     if (canonicalModules === undefined) {
       canonicalModules = new Map(
@@ -306,7 +302,7 @@ export function importResolver(
           continue
         }
         const absolute = join(root, dir, target)
-        if (!isInside(join(root, dir), absolute)) continue
+        if (!isWithin(join(root, dir), absolute)) continue
         const paths = extensionless ? sourceCandidates(absolute) : [absolute]
         const file = paths.find(path => host.fileExists(path))
         const resolved = file && inRepository(file, specifier)
