@@ -29,10 +29,19 @@ const work = mkdtempSync(join(tmpdir(), 'galactica-package-'))
 const archive = resolve(archiveArg ?? join(work, 'galactica.tgz'))
 const repository = join(work, 'repository')
 const env = { ...process.env, NODE_PATH: undefined }
-const run = (command: string, args: readonly string[], cwd = repository) =>
-  execFileSync(command, args, { cwd, env, encoding: 'utf8', timeout: 180_000 })
+const cliHome = join(work, 'home')
+mkdirSync(cliHome)
+const cliEnv = {
+  ...env,
+  HOME: cliHome,
+  USERPROFILE: cliHome,
+  XDG_CACHE_HOME: join(cliHome, '.cache'),
+  LOCALAPPDATA: join(cliHome, 'AppData', 'Local')
+}
+const run = (command: string, args: readonly string[], cwd = repository, environment = env) =>
+  execFileSync(command, args, { cwd, env: environment, encoding: 'utf8', timeout: 180_000 })
 const galactica = (...args: string[]) =>
-  run(join(repository, 'node_modules', '.bin', 'galactica'), args).trimEnd()
+  run(join(repository, 'node_modules', '.bin', 'galactica'), args, repository, cliEnv).trimEnd()
 const json = (...args: string[]) => JSON.parse(galactica(...args, '--json')) as Output
 
 const files: Record<string, string> = {
@@ -112,15 +121,11 @@ try {
     const actual = JSON.parse(readFileSync(join(actualPath, 'package.json'), 'utf8')) as {
       version: string
     }
-    // The archive manifest owns Galactica's version; pnpm version does not
-    // rewrite the shrinkwrap's root metadata when preparing a release.
-    if (lockedPath !== '') {
-      assert.equal(
-        actual.version,
-        entry.version,
-        `${lockedPath} installs its shrinkwrapped version`
-      )
-    }
+    assert.equal(
+      actual.version,
+      entry.version,
+      `${lockedPath || 'root'} installs its shrinkwrapped version`
+    )
     if (verified.has(lockedPath)) return
     verified.add(lockedPath)
     for (const dependency of Object.keys({
@@ -152,7 +157,8 @@ try {
     run(
       join(npmRepository, 'node_modules', '.bin', 'galactica'),
       ['uses', 'src/a.ts', '--root', repository, '--json'],
-      npmRepository
+      npmRepository,
+      cliEnv
     )
   ) as Output
   assert.ok('modules' in npmUses)
