@@ -957,6 +957,30 @@ main {
   }
 }
 
+/* Columns stop fitting on phones, so layers stack as rows again, the highest on top. */
+@media (max-width: 48rem) {
+  .columns {
+    display: flex;
+    flex-direction: column-reverse;
+    align-items: stretch;
+    gap: 1.25rem;
+  }
+
+  .column-areas {
+    grid-template-columns: repeat(auto-fill, minmax(8.5rem, 1fr));
+  }
+
+  .on-wide {
+    display: none;
+  }
+}
+
+@media (min-width: 48.01rem) {
+  .on-narrow {
+    display: none;
+  }
+}
+
 .health {
   padding-bottom: 2rem;
   display: grid;

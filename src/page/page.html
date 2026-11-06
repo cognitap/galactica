@@ -68,10 +68,11 @@
         aria-label="Legend"
       >
         <p class="legend-note">
-          Each package is a section, and each box in it is an area, a folder of modules. Columns are
-          layers, the lowest on the left: an area imports only from columns to its left, unless it is
-          marked <span class="cycle-mark">cycle</span>, which means it and other areas in its column
-          depend on each other. Select a box to list its modules in the panel,
+          Each package is a section, and each box in it is an area, a folder of modules. <span class="on-wide">Columns are layers, the lowest on the left: an area imports
+          only from columns to its left</span><span class="on-narrow">Rows are layers, the highest on
+          top: an area imports only from rows below it</span>, unless it is marked
+          <span class="cycle-mark">cycle</span>, which means it and other areas in its layer depend on
+          each other. Select a box to list its modules in the panel,
           where <span class="arrows">←&#8239;3</span> counts the code that imports a module and
           <span class="arrows">→&#8239;5</span> the modules it imports. Select a box, or the
           circle at the end of a module's row, to mark its

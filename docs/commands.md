@@ -147,7 +147,7 @@ The page is one file that loads nothing from the network, so it opens from disk 
 ### Reading the map
 
 - Each package is a section, largest first; a package picker jumps between them.
-- Each layer is a column, the lowest on the left, and each area is a box in its layer's column. The leftmost column imports no other area, and each column imports only from columns to its left, except areas marked as a cycle. A box's colour marks its top-level folder.
+- Each layer is a column, the lowest on the left, and each area is a box in its layer's column. The leftmost column imports no other area, and each column imports only from columns to its left, except areas marked as a cycle. Below 48rem, as on phones, layers stack as rows instead, the highest on top. A box's colour marks its top-level folder.
 - Selecting an area lists its modules in a panel beside the map, or at the bottom of a narrow screen. Each module expands to list its exported symbols with signatures and docs. Clearing the selection closes the panel.
 - The Show buttons filter by kind. Source and config modules show at first; tests and stories stay hidden until you show them. A module's kind comes from its name and folder, or from [`kinds`](configuration.md#kinds) in the config. To leave generated files out entirely, list them in `exclude`.
 - Search finds areas, modules and exported symbols, including what the filter hides. Press `/` to focus it, the arrow keys to move, Enter to go and Escape to close or clear. Exact matches come first, then prefixes, then substrings.
