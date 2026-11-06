@@ -122,7 +122,10 @@ export interface Overview extends Envelope<'overview'> {
   }[]
   readonly cycles: number
   readonly unresolved: number
-  /** Every warning of the analysis, sorted by path, then message. */
+  /**
+   * Analysis problems, sorted by path, then message. Compiler deprecation and
+   * output-layout migration notices and valid package.json metadata exports are omitted.
+   */
   readonly warnings: readonly Warning[]
 }
 
