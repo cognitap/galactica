@@ -64,7 +64,16 @@ export function draw(data) {
   /** @type {Selection | undefined} */
   let selection
   let shown = SHOWN_AT_FIRST
-  const describe = () => light(selection, shown)
+  const describe = () => {
+    view.showArea(
+      selection === undefined
+        ? undefined
+        : selection.kind === 'area'
+          ? selection.index
+          : data.modules[selection.index].area
+    )
+    light(selection, shown)
+  }
   /** @param {Selection | undefined} next */
   const select = next => {
     selection = next
@@ -75,7 +84,7 @@ export function draw(data) {
   const toggleSelection = next =>
     select(selection?.kind === next.kind && selection.index === next.index ? undefined : next)
 
-  const view = mapView(data, toggleSelection, describe)
+  const view = mapView(data, toggleSelection)
   const { areas: areaViews, modules: moduleViews } = view
   const light = selectionView(data, view)
   byId('clear-selection').addEventListener('click', () => select(undefined))
@@ -105,7 +114,6 @@ export function draw(data) {
       button.focus({ preventScroll: true })
       return
     }
-    areaViews[data.modules[target.module].area].reveal()
     select({ kind: 'module', index: target.module })
     const view = /** @type {ModuleView} */ (moduleViews.get(target.module))
     const place =
