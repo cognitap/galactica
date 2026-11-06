@@ -2,7 +2,7 @@ import assert from 'node:assert/strict'
 import { test, type TestContext } from 'node:test'
 import { graphOf } from '../src/graph.ts'
 import { htmlOf } from '../src/html.ts'
-import { emptyConfig } from '../src/model.ts'
+import { emptyConfig, type PackageName } from '../src/model.ts'
 import { chrome, openPage } from './browser.ts'
 import { defines, edge, modelOf, type Spec } from './models.ts'
 
@@ -191,6 +191,113 @@ test(
     assert.equal(
       await run(`return document.querySelector('#selection-summary .count-hidden').textContent`),
       '2 tests and 1 story hidden by the filter'
+    )
+  }
+)
+
+const healthHtml = htmlOf(
+  graphOf(
+    modelOf(
+      {
+        'packages/app/src/main.ts': {
+          edges: [
+            edge('packages/ui/src/cn.ts', {
+              line: 3,
+              names: ['cn'],
+              internal: {
+                specifier: '../../ui/src/cn',
+                reach: 'relative',
+                package: 'ui' as PackageName,
+                instead: 'ui'
+              }
+            })
+          ]
+        },
+        'packages/ui/src/cn.ts': {
+          symbols: [defines('cn')],
+          edges: [edge('packages/ui/src/theme.ts', { names: ['theme'], line: 2 })]
+        },
+        'packages/ui/src/theme.ts': {
+          symbols: [defines('theme')],
+          edges: [edge('packages/ui/src/cn.ts', { names: ['cn'], line: 4 })]
+        }
+      },
+      { app: 'packages/app', ui: 'packages/ui' }
+    ),
+    emptyConfig
+  ),
+  {
+    template: 'https://github.com/acme/app/blob/abc1234/{path}#L{line}',
+    prefix: '',
+    shortCommit: 'abc1234',
+    uncommitted: false,
+    unpushed: 0,
+    remote: 'origin'
+  }
+)
+
+test(
+  'the Health section opens on demand, and a finding selects its module and links to its line',
+  { skip },
+  async t => {
+    const tab = await openPage(t, chrome!)
+    await tab.load(healthHtml)
+    const run = <T>(body: string) => tab.run<T>(helpers + body)
+    assert.deepEqual(
+      await run(`const health = document.getElementById('health-toggle')
+      return {
+        tag: health.tagName,
+        expanded: health.getAttribute('aria-expanded'),
+        controls: health.getAttribute('aria-controls'),
+        label: health.textContent.replace(/\\s+/g, ' ').trim(),
+        open: visible(document.getElementById('health-body'))
+      }`),
+      {
+        tag: 'BUTTON',
+        expanded: 'false',
+        controls: 'health-body',
+        label: 'Health 1 import cycle · 0 oversized areas · 1 internal import',
+        open: false
+      }
+    )
+    assert.deepEqual(
+      await run(`document.getElementById('health-toggle').click(); await frame()
+      const groups = [...document.querySelectorAll('.health-group h3')].map(node => node.textContent)
+      const finding = [...document.querySelectorAll('.finding')].find(node =>
+        node.textContent.includes('../../ui/src/cn'))
+      return {
+        expanded: document.getElementById('health-toggle').getAttribute('aria-expanded'),
+        groups,
+        finding: finding.querySelector('.finding-details').textContent,
+        href: finding.querySelector('.source-link').href
+      }`),
+      {
+        expanded: 'true',
+        groups: ['Import cycles 1', 'Oversized areas 0', 'Imports into another package 1'],
+        finding: '../../ui/src/cn cn, relative path into ui, use ui',
+        href: 'https://github.com/acme/app/blob/abc1234/packages/app/src/main.ts#L3'
+      }
+    )
+    assert.deepEqual(
+      await run(`const finding = [...document.querySelectorAll('.finding')].find(node =>
+        node.textContent.includes('../../ui/src/cn'))
+      finding.querySelector('.finding-select').click(); await frame()
+      const row = [...box('packages/app/src').querySelectorAll('.module')]
+        .find(node => node.querySelector('.module-name').textContent === 'main.ts')
+      return {
+        hash: decodeURIComponent(location.hash),
+        selected: row.querySelector('.module-select').getAttribute('aria-pressed'),
+        focused: document.activeElement === row.querySelector('.module-select')
+      }`),
+      { hash: '#module=packages/app/src/main.ts', selected: 'true', focused: true }
+    )
+    assert.deepEqual(
+      await run(`document.getElementById('health-toggle').click(); await frame()
+      return {
+        expanded: document.getElementById('health-toggle').getAttribute('aria-expanded'),
+        open: visible(document.getElementById('health-body'))
+      }`),
+      { expanded: 'false', open: false }
     )
   }
 )

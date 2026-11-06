@@ -252,7 +252,7 @@ async function html(argv: readonly string[], cwd: string): Promise<Result> {
   const template = flag ?? repository.config.sourceUrl
   const out = resolve(cwd, values.out ?? 'galactica.html')
   const source = template === 'none' ? null : (pageSourceOf(root, template) ?? null)
-  const page = htmlOf(repository.graph, source)
+  const page = htmlOf(repository.graph, source, repository.config.health?.areaModules)
   try {
     writeFileSync(out, page)
   } catch (error) {

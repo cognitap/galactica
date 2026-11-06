@@ -27,12 +27,17 @@ const pageScript = () =>
     (_, name: string) => pageFile(name)
   )
 
-export function htmlOf(graph: Graph, source: PageSource | null = null): string {
+/** `areaModules` is the config's `health.areaModules`, undefined for the relative rule. */
+export function htmlOf(
+  graph: Graph,
+  source: PageSource | null = null,
+  areaModules?: number
+): string {
   const slots: Readonly<Record<string, string>> = {
     title: escapeHtml(`${graph.repository.name} · Galactica`),
     style: pageFile('page.css'),
     script: pageScript(),
-    data: embedded(pageData(graph, source))
+    data: embedded(pageData(graph, source, areaModules))
   }
   return pageFile('page.html').replaceAll(/\{\{(\w+)\}\}/g, (_, slot: string) => slots[slot]!)
 }
