@@ -4,7 +4,7 @@
 
 ## Unreleased
 
-- A module that links outside the repository, or that is no regular file, such as a link to a directory, is skipped with a warning that `overview --json` lists. A link to `/dev/zero` hung the analysis, and a link to a file outside the repository put that file's symbols and doc comments into the output.
+- A module that links outside the repository, a module that is no regular file, such as a link to a directory, and a module over 10 MB are skipped, each with a warning that `overview --json` lists. A link to `/dev/zero` hung the analysis, and a link to a file outside the repository put that file's symbols and doc comments into the output.
 
 ## 0.1.5
 

@@ -125,8 +125,16 @@ const fromDisk: Listing = {
 }
 
 /**
+ * The largest module Galactica reads, in bytes. The largest module in eight
+ * large clones, vscode, Next.js, TypeScript, Babel, Yarn Berry, Nx, Deno's
+ * std and fresh, is an 8.4 MB test fixture of vscode, and the largest
+ * hand-written one is a 3.2 MB copy of TypeScript's `checker.ts`.
+ */
+const maxModuleBytes = 10_000_000
+
+/**
  * Why the module at `path` is not read, or undefined when it is: when it is
- * no regular file within `root` once its links
+ * no regular file of at most `maxModuleBytes` within `root` once its links
  * are followed. A link to `/dev/zero` would never finish reading, and a link
  * out of the root would put a file from elsewhere on the machine into the
  * output. A link within the root is read from its target, as the
@@ -156,7 +164,9 @@ export function unreadable(root: string): (path: RepoPath) => string | undefined
     const inside = link.isSymbolicLink() ? within(path) : folderWithin(posix.dirname(path))
     if (!inside) return 'links outside the repository'
     const stat = link.isSymbolicLink() ? statSync(join(root, path)) : link
-    return stat.isFile() ? undefined : 'is not a regular file'
+    if (!stat.isFile()) return 'is not a regular file'
+    if (stat.size > maxModuleBytes) return `is over ${maxModuleBytes / 1_000_000} MB`
+    return undefined
   }
 }
 

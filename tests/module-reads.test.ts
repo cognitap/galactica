@@ -1,9 +1,19 @@
 import assert from 'node:assert/strict'
 import { spawnSync } from 'node:child_process'
-import { mkdirSync, mkdtempSync, renameSync, rmSync, symlinkSync, writeFileSync } from 'node:fs'
+import {
+  mkdirSync,
+  mkdtempSync,
+  renameSync,
+  rmSync,
+  symlinkSync,
+  utimesSync,
+  writeFileSync
+} from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { test, type TestContext } from 'node:test'
+import { emptyConfig } from '../src/model.ts'
+import { analyze } from '../src/model-cache.ts'
 import { git, gitRepository } from './temp-repository.ts'
 
 const analysis = new URL('../src/analysis.ts', import.meta.url).pathname
@@ -108,4 +118,40 @@ test('a module linked to a directory inside the repository is skipped as no regu
     symbols: ['b', 'a'],
     warnings: [{ path: 'src/dir.ts', message: 'is not a regular file, so it is skipped' }]
   })
+})
+
+test('a module over 10 MB is skipped with a warning, and one of 10 MB is read', t => {
+  const root = gitRepository(t, {
+    'package.json': { name: 'app' },
+    'src/large.ts': 'export const large = 1\n'.padEnd(10_000_000, '/'),
+    'src/huge.ts': 'export const huge = 1\n'.padEnd(10_000_001, '/')
+  })
+  assert.deepEqual(analyzed(root), {
+    modules: ['src/large.ts'],
+    symbols: ['large'],
+    warnings: [{ path: 'src/huge.ts', message: 'is over 10 MB, so it is skipped' }]
+  })
+})
+
+test('a module over 10 MB that shrinks is read on the next run with a cache', async t => {
+  const root = gitRepository(t, {
+    '.gitignore': 'node_modules\n',
+    'package.json': { name: 'app' },
+    'src/huge.ts': 'export const huge = 1\n'.padEnd(10_000_001, '/')
+  })
+  const cache = join(root, 'node_modules/.cache/galactica')
+  mkdirSync(cache, { recursive: true })
+  const past = new Date(Date.now() - 60_000)
+  const settled = () => {
+    for (const path of ['', '.git', 'src', 'src/huge.ts', 'package.json', '.gitignore']) {
+      utimesSync(join(root, path), past, past)
+    }
+  }
+  settled()
+  assert.deepEqual(Object.keys((await analyze(root, emptyConfig, { cache })).model.modules), [])
+  writeFileSync(join(root, 'src/huge.ts'), 'export const huge = 1\n')
+  settled()
+  const { model, summary } = await analyze(root, emptyConfig, { cache })
+  assert.deepEqual(Object.keys(model.modules), ['src/huge.ts'])
+  assert.deepEqual(summary.warnings, [])
 })
