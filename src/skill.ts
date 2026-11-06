@@ -9,8 +9,13 @@ import { existsSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { refuseLinks, writeBelow } from './safe-write.ts'
 
-/** The command the template names, so the template works as is when the skills CLI copies it. */
-export const defaultCommand = 'npx @cognitap/galactica'
+/**
+ * The command the template names, so the template works as is when the skills
+ * CLI copies it. Inside a repository, npx runs a copy of the package from the
+ * repository's `node_modules` and reads its `.npmrc`. `--prefix /` makes npm
+ * look in `/` for both, so a repository being mapped cannot plant either.
+ */
+export const defaultCommand = 'npx --prefix / @cognitap/galactica'
 
 /** Codex reads `.agents/skills`, Claude Code reads `.claude/skills`. */
 export const skillPaths = [

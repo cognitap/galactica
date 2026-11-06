@@ -65,6 +65,7 @@ if (!Number.isInteger(runs) || runs < 1) {
 }
 const root = resolve(process.env.INIT_CWD ?? process.cwd(), positionals[0] ?? '.')
 const cacheDir = cacheDirectory(root)
+if (cacheDir === undefined) throw new Error(`no user cache folder for ${root}`)
 const clearCache = () => rmSync(cacheDir, { recursive: true, force: true })
 
 const probeRun = (args: readonly string[]): Probe =>

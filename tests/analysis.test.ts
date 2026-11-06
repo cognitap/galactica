@@ -12,7 +12,7 @@ import {
 import { join, relative } from 'node:path'
 import { test, type TestContext } from 'node:test'
 import { analyzeRepository } from '../src/analysis.ts'
-import { cacheDirectory, currentStamp, readCache } from '../src/cache.ts'
+import { currentStamp, readCache } from '../src/cache.ts'
 import { loadConfig } from '../src/config.ts'
 import { graphOf } from '../src/graph.ts'
 import { emptyConfig, type RepoPath } from '../src/model.ts'
@@ -351,11 +351,10 @@ test('the analysis writes nothing but the cache file, and nothing at all without
   const before = filesUnder(root)
   analyzeRepository(root, emptyConfig)
   assert.deepEqual(filesUnder(root), before)
-  analyzeRepository(root, emptyConfig, { cache: cacheDirectory(root) })
-  assert.deepEqual(
-    filesUnder(root),
-    [...before, join('node_modules', '.cache', 'galactica', 'cache.json')].sort()
-  )
+  const cache = join(repository(t, {}), 'cache')
+  analyzeRepository(root, emptyConfig, { cache })
+  assert.deepEqual(filesUnder(root), before)
+  assert.deepEqual(filesUnder(cache), ['cache.json'])
 })
 
 test('a file TypeScript cannot parse keeps its module with no symbols or imports, and one warning', t => {

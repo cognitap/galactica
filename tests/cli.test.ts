@@ -1,19 +1,25 @@
 import assert from 'node:assert/strict'
 import { spawnSync } from 'node:child_process'
+import { createHash } from 'node:crypto'
 import {
   existsSync,
   mkdirSync,
   mkdtempSync,
   readdirSync,
   readFileSync,
+  realpathSync,
   rmSync,
+  statSync,
   symlinkSync,
   writeFileSync
 } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { dirname, join, relative } from 'node:path'
 import { after, test, type TestContext } from 'node:test'
+import { cacheDirectory, CACHE_FORMAT } from '../src/cache.ts'
+import { loadConfig } from '../src/config.ts'
 import { commands } from '../src/contract.ts'
+import { MODEL_CACHE_FORMAT } from '../src/model-cache.ts'
 import { gitlab, invalidConfigs, validConfigs } from './config-examples.ts'
 import { fixtureRepo } from './fixtures.ts'
 import { git, gitRepository, repository } from './temp-repository.ts'
@@ -21,6 +27,10 @@ import { git, gitRepository, repository } from './temp-repository.ts'
 const cli = new URL('../dist/bin.js', import.meta.url).pathname
 const program = new URL('../dist/cli.js', import.meta.url).pathname
 const { version } = JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8'))
+/** The stamp of the built CLI, which hashes its own files. */
+const { currentStamp }: typeof import('../src/cache.ts') = await import(
+  new URL('../dist/cache.js', import.meta.url).href
+)
 
 /** A home of its own, so a repository without node_modules keeps its cache out of the user's. */
 const home = mkdtempSync(join(tmpdir(), 'galactica-home-'))
@@ -542,7 +552,7 @@ test('init installs the skill with the given command, and a second run changes n
   )
   assert.match(
     readFileSync(join(root, skillPaths[0]!), 'utf8'),
-    /`npx @cognitap\/galactica overview`/
+    /`npx --prefix \/ @cognitap\/galactica overview`/
   )
 })
 
@@ -687,7 +697,10 @@ function filesUnder(root: string): readonly string[] {
     .sort()
 }
 
-test('a command keeps its cache under node_modules/.cache/galactica, and --no-cache writes none', t => {
+const cacheOf = (root: string) =>
+  cacheDirectory(root, { platform: process.platform, env, home: realpathSync(home) })!
+
+test('a command keeps its cache in the user cache folder, never in the repository, and --no-cache writes none', t => {
   const root = repository(t, {
     'package.json': { name: 'cached' },
     'src/a.ts': "import { b } from './b'\nexport const a = b",
@@ -703,13 +716,77 @@ test('a command keeps its cache under node_modules/.cache/galactica, and --no-ca
   const warm = galactica(root, 'deps', 'src/a.ts', '--json')
   assert.equal(cold.stdout, uncached.stdout)
   assert.equal(warm.stdout, uncached.stdout)
-  assert.deepEqual(
-    filesUnder(root),
-    [
-      ...before,
-      join('node_modules', '.cache', 'galactica', 'cache.json'),
-      join('node_modules', '.cache', 'galactica', 'model.json')
-    ].sort()
-  )
+  assert.deepEqual(filesUnder(root), before)
+  assert.deepEqual(filesUnder(cacheOf(root)), ['cache.json', 'model.json'])
   assert.equal(galactica(root, 'html', '--no-cache', '--out', join(home, 'map.html')).status, 0)
+})
+
+const sha256 = (text: string) => createHash('sha256').update(text).digest('hex')
+
+const stealing = {
+  'package.json': { name: 'forge' },
+  'src/a.ts':
+    "import { execSync } from 'node:child_process'\nexport function stealKeys() { return execSync('id') }",
+  'node_modules/.keep': ''
+}
+
+const shipped = (root: string, file: string, text: string) => {
+  mkdirSync(join(root, 'node_modules/.cache/galactica'), { recursive: true })
+  writeFileSync(join(root, 'node_modules/.cache/galactica', file), text)
+}
+
+const outlined = (root: string) => {
+  const { status, stdout, stderr } = galactica(root, 'outline', 'src/a.ts')
+  assert.equal(status, 0, stderr)
+  return stdout
+}
+
+const harmless = {
+  name: 'formatDate',
+  kind: 'function',
+  line: 1,
+  default: false,
+  signature: 'function formatDate()'
+}
+
+test('an extraction cache the repository ships is never read', t => {
+  const root = repository(t, stealing)
+  const { mtimeMs, size } = statSync(join(root, 'src/a.ts'))
+  const hash = sha256(readFileSync(join(root, 'src/a.ts'), 'utf8'))
+  const entry = { hash, mtimeMs, size, symbols: [harmless], imports: [] }
+  shipped(
+    root,
+    'cache.json',
+    JSON.stringify({ format: CACHE_FORMAT, ...currentStamp(), modules: { 'src/a.ts': entry } })
+  )
+  assert.match(outlined(root), /stealKeys/)
+  assert.doesNotMatch(outlined(root), /formatDate/)
+})
+
+test('a model cache the repository ships is never read', t => {
+  const root = repository(t, stealing)
+  const config = sha256(JSON.stringify(loadConfig(root)))
+  const inputs = { config, git: null, directories: [], files: [] }
+  const header = { format: MODEL_CACHE_FORMAT, ...currentStamp(), inputs }
+  const module = { path: 'src/a.ts', hash: 'f00d', symbols: [harmless], edges: [] }
+  const model = {
+    format: 3,
+    repository: { name: 'forge' },
+    packages: { forge: { dir: '.' } },
+    modules: { 'src/a.ts': module }
+  }
+  const body = { model, warnings: [], unresolved: 0, skipped: {} }
+  shipped(root, 'model.json', `${JSON.stringify(header)}\n${JSON.stringify(body)}`)
+  assert.match(outlined(root), /stealKeys/)
+  assert.doesNotMatch(outlined(root), /formatDate/)
+})
+
+test('a cache folder the repository links elsewhere is never written', t => {
+  const root = repository(t, stealing)
+  const elsewhere = repository(t, {})
+  mkdirSync(join(root, 'node_modules/.cache'))
+  symlinkSync(elsewhere, join(root, 'node_modules/.cache/galactica'))
+  outlined(root)
+  outlined(root)
+  assert.deepEqual(readdirSync(elsewhere), [])
 })
