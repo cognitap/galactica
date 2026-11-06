@@ -54,6 +54,4 @@ The Hono task shows why following imports matters. Four adapter tests reach the 
 
 All three conditions scored 100% on the other four tasks. Across all six, instructing the models to use Galactica increased average cost per run by 7% for Sonnet and 17% for Opus. The study covered 144 runs, four per task, model and condition. Grading checked edits statically and gave credit for required tests named. Extra tests carried no penalty, and the target test suites were never executed. [Full results, method and limitations](https://github.com/cognitap/galactica/blob/main/docs/benchmark.md)
 
-Galactica 0.x is experimental and published under `latest`. [Release policy](https://github.com/cognitap/galactica/blob/main/RELEASE_POLICY.md)
-
 The map was inspired by [codemap](https://github.com/peterretief/codemap). MIT licensed.

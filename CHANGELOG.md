@@ -4,6 +4,10 @@
 
 ## Unreleased
 
+## 0.2.3
+
+- Remove the outdated experimental label from the npm package README.
+
 ## 0.2.2
 
 - The npm package page shows the Immich dependency graph, one-off and global CLI commands, and measured agent benchmark results.
