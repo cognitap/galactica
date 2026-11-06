@@ -17,38 +17,41 @@
   </head>
   <body>
     <header class="masthead">
-      <p class="eyebrow">Galactica map</p>
-      <h1 id="repository"></h1>
-      <p
-        class="counts"
-        id="counts"
-        aria-live="polite"
-      ></p>
-      <p
-        class="source-note"
-        id="source-note"
-        hidden
-      ></p>
+      <div class="identity">
+        <h1 id="repository"></h1>
+        <p
+          class="counts"
+          id="counts"
+          aria-live="polite"
+        ></p>
+        <p
+          class="source-note"
+          id="source-note"
+          hidden
+        ></p>
+      </div>
       <div class="search">
-        <label for="search">Search areas, modules and symbols <kbd>/</kbd></label>
-        <div class="search-field">
-          <input
-            id="search"
-            type="search"
-            role="combobox"
-            aria-expanded="false"
-            aria-controls="search-results"
-            aria-autocomplete="list"
-            autocomplete="off"
-            spellcheck="false"
-          />
-          <ul
-            id="search-results"
-            role="listbox"
-            aria-label="Search results"
-            hidden
-          ></ul>
-        </div>
+        <input
+          id="search"
+          type="text"
+          enterkeyhint="search"
+          aria-label="Search repository"
+          placeholder="Search areas, modules or symbols"
+          role="combobox"
+          aria-expanded="false"
+          aria-controls="search-results"
+          aria-autocomplete="list"
+          autocomplete="off"
+          spellcheck="false"
+        />
+        <kbd aria-hidden="true">/</kbd>
+        <button type="button" id="clear-search" class="close-button" aria-label="Clear search" title="Clear search"></button>
+        <ul
+          id="search-results"
+          role="listbox"
+          aria-label="Search results"
+          hidden
+        ></ul>
       </div>
       <nav
         id="packages"
@@ -56,53 +59,14 @@
         hidden
       ></nav>
       <div class="kind-filter">
-        <span id="kind-filter-label">Show</span>
+        <span id="kind-filter-label">Module kinds</span>
         <div
           id="kind-filter"
           role="group"
           aria-labelledby="kind-filter-label"
         ></div>
       </div>
-      <section
-        class="legend"
-        aria-label="Legend"
-      >
-        <p class="legend-note">
-          Each package is a section, and each box in it is an area, a folder of modules. <span class="on-wide">Columns are layers, the lowest on the left: an area imports
-          only from columns to its left</span><span class="on-narrow">Rows are layers, the highest on
-          top: an area imports only from rows below it</span>, unless it is marked
-          <span class="cycle-mark">cycle</span>, which means it and other areas in its layer depend on
-          each other. Select a box to list its modules in the panel,
-          where <span class="arrows">←&#8239;3</span> counts the code that imports a module and
-          <span class="arrows">→&#8239;5</span> the modules it imports. Select a box, or the
-          circle at the end of a module's row, to mark its
-          <span class="count-uses">dependencies</span> and its
-          <span class="count-used-by">dependents</span>. The address keeps the selection, so a link
-          opens the same view.
-        </p>
-        <ul
-          class="folders"
-          id="folders"
-          aria-label="Colours by top-level folder"
-        ></ul>
-      </section>
     </header>
-    <div
-      class="selection-bar"
-      id="selection"
-      hidden
-    >
-      <p
-        id="selection-summary"
-        aria-live="polite"
-      ></p>
-      <button
-        type="button"
-        id="clear-selection"
-      >
-        Clear
-      </button>
-    </div>
     <section
       class="health"
       aria-labelledby="health-heading"
@@ -111,10 +75,11 @@
         <button
           type="button"
           id="health-toggle"
+          class="section-toggle"
           aria-expanded="false"
           aria-controls="health-body"
         >
-          Health
+          Repository health
         </button>
       </h2>
       <div
@@ -122,14 +87,51 @@
         hidden
       ></div>
     </section>
-    <div class="workspace">
-      <main id="map"></main>
-      <aside
-        class="detail"
-        id="detail"
-      ></aside>
-    </div>
+    <section aria-labelledby="layers-heading">
+      <header class="layers-heading">
+        <h2 id="layers-heading"><button id="layers-toggle" class="section-toggle" type="button" aria-expanded="true" aria-controls="layers-body">Dependency layers <span id="layer-counts" class="section-counts"></span></button></h2>
+        <button id="guide-toggle" type="button" aria-expanded="false" aria-controls="map-guide">How to read the map</button>
+      </header>
+      <div class="workspace" id="layers-body">
+        <main id="map"><p id="map-empty" class="empty" hidden></p></main>
+        <div class="map-sidebar">
+          <section class="legend" id="map-guide" aria-labelledby="guide-toggle" hidden>
+            <p class="legend-note">
+              <span class="on-wide">Columns are layers, the lowest on the left. Areas import from layers to their left.</span>
+              <span class="on-narrow">Rows are layers, the highest on top. Areas import from layers below them.</span>
+              Areas in a cycle share a layer. Select an area to see its modules and highlight its dependencies and dependents.
+              In a module row, ← counts incoming imports by module and → counts the modules it imports.
+            </p>
+            <button id="close-guide" class="close-button" type="button" aria-label="Close map guide" title="Close map guide"></button>
+          </section>
+          <aside
+            class="detail"
+            id="detail"
+            aria-labelledby="detail-heading"
+            hidden
+          >
+            <div class="detail-header">
+              <h2 id="detail-heading" class="detail-title"></h2>
+              <button
+                type="button"
+                id="clear-selection"
+                class="close-button"
+                aria-label="Close details and clear selection"
+                aria-keyshortcuts="Escape"
+                title="Close details (Esc)"
+              ></button>
+            </div>
+            <p id="detail-meta" class="area-meta"></p>
+            <p id="selection-summary" aria-live="polite"></p>
+            <ul id="detail-modules" class="modules"></ul>
+          </aside>
+        </div>
+      </div>
+    </section>
     <noscript><p class="empty">This map needs JavaScript to draw.</p></noscript>
+    <footer class="page-credit">
+      Generated with <a href="https://github.com/cognitap/galactica">Galactica</a>
+    </footer>
     <script
       type="application/json"
       id="galactica-data"

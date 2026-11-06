@@ -35,8 +35,8 @@ const helpers = `
     .map(row => row.querySelector('.module-name').textContent)
   const row = name => [...document.querySelectorAll('#detail .module')]
     .find(node => node.querySelector('.module-name').textContent === name)
-  const filter = () => [...document.querySelectorAll('#kind-filter button')]
-    .map(button => button.textContent + ' ' + button.getAttribute('aria-pressed'))
+  const filter = () => [...document.querySelectorAll('#kind-filter input')]
+    .map(input => input.labels[0].textContent + ' ' + input.checked)
   const frame = () => new Promise(resolve => requestAnimationFrame(() => setTimeout(resolve)))
   const type = async text => {
     const field = document.getElementById('search')
@@ -46,7 +46,7 @@ const helpers = `
     await frame()
   }
   const press = async key => {
-    document.getElementById('search').dispatchEvent(new KeyboardEvent('keydown', { key, bubbles: true }))
+    document.getElementById('search').dispatchEvent(new KeyboardEvent('keydown', { key, bubbles: true, cancelable: true }))
     await frame()
   }
 `
@@ -64,12 +64,29 @@ test(
   { skip },
   async t => {
     const run = await page(t)
-    assert.deepEqual(
-      await run(`return { idle: visible(document.querySelector('#detail .empty')), rows: rows() }`),
-      { idle: true, rows: [] }
+    const browserWidth = () =>
+      run<number>("return document.querySelector('.layer-browser').clientWidth")
+    const fullWidth = await browserWidth()
+    assert.equal(
+      fullWidth,
+      await run(`
+      const workspace = document.querySelector('.workspace')
+      const style = getComputedStyle(workspace)
+      return workspace.clientWidth - parseFloat(style.paddingLeft) - parseFloat(style.paddingRight)
+    `)
     )
     assert.deepEqual(
-      await run(`box('src/big').querySelector('.area-select').click(); await frame()
+      await run(`return { open: visible(document.getElementById('detail')), rows: rows() }`),
+      { open: false, rows: [] }
+    )
+    assert.deepEqual(
+      await run(`const card = box('src/big')
+      card.scrollIntoView()
+      const rect = card.getBoundingClientRect()
+      const bottom = document.elementFromPoint(rect.right - 5, rect.bottom - 5)
+      bottom.click(); await frame()
+      if (decodeURIComponent(location.hash) !== '#area=src/big') throw Error('Card padding did not select area')
+      card.querySelector('.area-title').click(); await frame()
       return {
         title: document.getElementById('detail-heading').title,
         meta: document.querySelector('#detail .area-meta').textContent,
@@ -83,11 +100,13 @@ test(
         pressed: 'true'
       }
     )
+    assert.ok((await browserWidth()) < fullWidth)
     assert.deepEqual(
       await run(`document.getElementById('clear-selection').click(); await frame()
-      return { idle: visible(document.querySelector('#detail .empty')), rows: rows() }`),
-      { idle: true, rows: [] }
+      return { open: visible(document.getElementById('detail')), rows: rows() }`),
+      { open: false, rows: [] }
     )
+    assert.equal(await browserWidth(), fullWidth)
   }
 )
 
@@ -120,7 +139,7 @@ test(
 )
 
 test(
-  'the kind filter shows source and config at first, and each button shows or hides its kind',
+  'the kind filter shows source and config at first, and each checkbox shows or hides its kind',
   { skip },
   async t => {
     const run = await page(t, '#area=src%2Fsmall')
@@ -129,6 +148,8 @@ test(
       filter: filter(),
       counts: document.getElementById('counts').textContent,
       tests: visible(box('tests')),
+      kinds: [...box('src/small').querySelectorAll('.kind-tag')].map(tag => tag.dataset.kind),
+      description: box('src/small').querySelector('.area-meta').textContent,
       small: rows()
     }`),
       {
@@ -136,23 +157,48 @@ test(
         counts:
           '1 package · 2 areas · 11 modules (+2 tests and 1 story hidden) · 2 exported symbols',
         tests: false,
+        kinds: ['source'],
+        description: '1 source',
         small: ['util.ts']
       }
     )
     assert.deepEqual(
-      await run(`[...document.querySelectorAll('#kind-filter button')][1].click(); await frame()
+      await run(`[...document.querySelectorAll('#kind-filter input')][1].click(); await frame()
       return {
         filter: filter(),
         counts: document.getElementById('counts').textContent,
         tests: visible(box('tests')),
+        kinds: [...box('src/small').querySelectorAll('.kind-tag')].map(tag => tag.dataset.kind),
+        description: box('src/small').querySelector('.area-meta').textContent,
         small: rows()
       }`),
       {
         filter: ['Source 11 true', 'Tests 2 true', 'Stories 1 false'],
         counts: '1 package · 3 areas · 13 modules (+1 story hidden) · 2 exported symbols',
         tests: true,
+        kinds: ['source', 'test'],
+        description: '1 source · 1 test',
         small: ['util.test.ts', 'util.ts']
       }
+    )
+  }
+)
+
+test(
+  'clearing all module kinds offers a way back and removes the hidden selection',
+  { skip },
+  async t => {
+    const run = await page(t, '#module=src%2Fsmall%2Futil.ts')
+    assert.deepEqual(
+      await run(`
+    const source = document.querySelector('#kind-filter input')
+    source.click()
+    const notice = document.getElementById('map-empty')
+    const empty = [visible(notice), notice.textContent, visible(document.getElementById('detail')), location.hash]
+    source.click()
+    return {empty, restored: visible(box('src/small')) && !visible(notice)}
+  `),
+      { empty: [true, 'Choose a module kind to show its areas.', false, ''], restored: true }
     )
   }
 )
@@ -182,6 +228,94 @@ test(
         selected: 'true',
         hash: '#module=tests/e2e.test.ts'
       }
+    )
+  }
+)
+
+test('Escape dismisses search, then the guide, then the selection', { skip }, async t => {
+  const run = await page(t, '#area=src%2Fsmall')
+  assert.deepEqual(
+    await run(`
+    const guide = document.getElementById('guide-toggle')
+    guide.click()
+    await type('util')
+    await press('Escape')
+    const searchClosedFirst = document.getElementById('search-results').hidden && guide.getAttribute('aria-expanded') === 'true'
+    guide.focus()
+    const escape = () => document.activeElement.dispatchEvent(new KeyboardEvent('keydown', {key: 'Escape', bubbles: true, cancelable: true}))
+    escape()
+    const guideClosed = guide.getAttribute('aria-expanded') === 'false' && document.activeElement === guide
+    const selection = decodeURIComponent(location.hash)
+    escape()
+    return [searchClosedFirst, guideClosed, selection, location.hash]
+  `),
+    [true, true, '#area=src/small', '']
+  )
+})
+
+test(
+  'refocusing a populated search restores matches and an empty search stays closed',
+  { skip },
+  async t => {
+    const run = await page(t)
+    assert.deepEqual(
+      await run(`
+    const input = document.getElementById('search')
+    const list = document.getElementById('search-results')
+    input.focus()
+    const emptyClosed = list.hidden
+    await type('util')
+    input.blur()
+    const closedOnBlur = list.hidden
+    input.focus()
+    const reopened = !list.hidden && input.getAttribute('aria-activedescendant') === list.firstElementChild.id
+    await press('Enter')
+    return [emptyClosed, closedOnBlur, reopened, decodeURIComponent(location.hash)]
+  `),
+      [true, true, true, '#module=src/small/util.ts']
+    )
+  }
+)
+
+test('pointer and keyboard share the active search result', { skip }, async t => {
+  const run = await page(t)
+  assert.deepEqual(
+    await run(`
+    await type('m0')
+    const input = document.getElementById('search')
+    const options = document.getElementById('search-results').children
+    const hover = index => options[index].dispatchEvent(new PointerEvent('pointermove', { pointerType: 'mouse' }))
+    hover(3)
+    const hovered = input.getAttribute('aria-activedescendant') === options[3].id
+    await press('ArrowDown')
+    const advanced = options[4].getAttribute('aria-selected') === 'true'
+    hover(2)
+    const target = options[2].querySelector('.result-name').textContent
+    const focused = document.activeElement === input
+    await press('Enter')
+    return [hovered, advanced, focused, decodeURIComponent(location.hash) === '#module=' + target]
+  `),
+    [true, true, true, true]
+  )
+})
+
+test(
+  'a collapsed layer browser keeps its counts and reopens for a search result',
+  { skip },
+  async t => {
+    const run = await page(t)
+    assert.deepEqual(
+      await run(`
+    const layers = document.getElementById('layers-body')
+    document.getElementById('layers-toggle').click()
+    const collapsed = layers.hidden
+    const counts = document.getElementById('layer-counts').textContent
+    await type('e2e'); await press('Enter')
+    document.getElementById('clear-search').click()
+    return [collapsed, counts, !layers.hidden, rows(), document.getElementById('search').value,
+      document.activeElement.id, visible(document.getElementById('clear-search'))]
+  `),
+      [true, '1 layer · 2 areas', true, ['e2e.test.ts'], '', 'search', false]
     )
   }
 )
@@ -244,9 +378,9 @@ const healthHtml = htmlOf(
         },
         'packages/ui/src/cn.ts': {
           symbols: [defines('cn')],
-          edges: [edge('packages/ui/src/theme.ts', { names: ['theme'], line: 2 })]
+          edges: [edge('packages/ui/themes/theme.ts', { names: ['theme'], line: 2 })]
         },
-        'packages/ui/src/theme.ts': {
+        'packages/ui/themes/theme.ts': {
           symbols: [defines('theme')],
           edges: [edge('packages/ui/src/cn.ts', { names: ['cn'], line: 4 })]
         }
@@ -285,7 +419,7 @@ test(
         tag: 'BUTTON',
         expanded: 'false',
         controls: 'health-body',
-        label: 'Health 1 import cycle · 0 oversized areas · 1 internal import',
+        label: 'Repository health 1 module cycle · 1 area cycle · 1 cross-package private import',
         open: false
       }
     )
@@ -302,7 +436,12 @@ test(
       }`),
       {
         expanded: 'true',
-        groups: ['Import cycles 1', 'Oversized areas 0', 'Imports into another package 1'],
+        groups: [
+          'Module import cycles 1',
+          'Area cycles 1',
+          'Oversized areas 0',
+          'Cross-package private imports 1'
+        ],
         finding: '../../ui/src/cn cn, relative path into ui, use ui',
         href: 'https://github.com/acme/app/blob/abc1234/packages/app/src/main.ts#L3'
       }
@@ -360,7 +499,7 @@ test(
     const tab = await openPage(t, chrome!)
     await tab.load(workspaceHtml)
     assert.equal(
-      await tab.run("return document.querySelector('.package h2').textContent"),
+      await tab.run("return document.querySelector('.package h3').textContent"),
       '@acme/server'
     )
     assert.ok(
@@ -374,7 +513,7 @@ test(
     const choice = document.querySelector('#packages select')
     choice.value = [...choice.options].find(option => option.textContent === '@acme/plugin').value
     choice.dispatchEvent(new Event('change'))
-    return document.querySelector(location.hash + ' h2').textContent
+    return document.querySelector(location.hash + ' h3').textContent
   `),
       '@acme/plugin'
     )
@@ -421,7 +560,7 @@ for (const width of [390, 1280]) {
         )
         assert.equal(
           state.background,
-          colorScheme === 'dark' ? 'rgb(19, 19, 21)' : 'rgb(248, 248, 246)'
+          colorScheme === 'dark' ? 'rgb(19, 19, 21)' : 'rgb(247, 248, 250)'
         )
         assert.equal(state.filenameLines, 1, 'keep the filename together')
         assert.ok(state.splits.length > 0)
@@ -459,7 +598,7 @@ for (let index = 0; index < 22; index += 1) {
 const layeredHtml = htmlOf(graphOf(modelOf(layered), emptyConfig))
 
 test(
-  'nine layers fit side by side at 1440px, lowest on the left, with no box overflowing',
+  'nine layers scroll side by side at 1440px, lowest on the left, with no box overflowing',
   { skip },
   async t => {
     const tab = await openPage(t, chrome!, { width: 1440 })
@@ -473,6 +612,15 @@ test(
       legend: string
     }>(`
       const columns = [...document.querySelectorAll('.column')]
+      const card = document.querySelector('.area:not([hidden])')
+      const top = card.getBoundingClientRect().top
+      document.getElementById('guide-toggle').click()
+      if (card.getBoundingClientRect().top !== top) throw Error('Opening the map guide moved the cards')
+      const viewport = document.querySelector('.layer-browser')
+      const offset = viewport.scrollLeft
+      if (!viewport.classList.contains('more-right')) throw Error('Missing right edge fade')
+      viewport.scrollBy(200, 0)
+      if (viewport.scrollLeft <= offset) throw Error('Layer browser did not scroll')
       const lefts = columns.map(column => column.getBoundingClientRect().left)
       return {
         labels: columns.map(column => column.querySelector('.column-label').textContent),
@@ -520,6 +668,9 @@ for (const width of [390, 700]) {
       }>(`
         const columns = [...document.querySelectorAll('.column')]
           .sort((a, b) => a.getBoundingClientRect().top - b.getBoundingClientRect().top)
+        const top = columns[0].getBoundingClientRect().top
+        document.getElementById('guide-toggle').click()
+        if (columns[0].getBoundingClientRect().top !== top) throw Error('Opening the map guide moved the layers')
         const tops = columns.map(column => column.getBoundingClientRect().top)
         const [first, second] = [...columns.find(column => column.querySelectorAll('.area').length > 1)
           .querySelectorAll('.area')].map(box => box.getBoundingClientRect().top)
@@ -572,7 +723,7 @@ test(
         return (Math.abs(x - rect.left) <= 1 || Math.abs(x - rect.right) <= 1) &&
           y >= rect.top && y <= rect.bottom
       }
-      const links = () => [...document.querySelectorAll('.area-links path')].map(path => {
+      const links = () => [...document.querySelectorAll('.area-links path:not(.link-hit)')].map(path => {
         const [from, to] = ends(path)
         const target = path.classList.contains('link-uses') ? 'src/layer3' : 'src/layer5'
         return {
@@ -594,9 +745,18 @@ test(
       expected
     )
     assert.deepEqual(
+      await run(`
+      const group = document.querySelector('.link-used-by').parentElement
+      group.dispatchEvent(new PointerEvent('pointerenter'))
+      return [document.querySelector('.connector-tip').textContent,
+        document.querySelector('.link-destination')?.dataset.path]
+    `),
+      ['src/layer5 depends on src/layer4', 'src/layer4']
+    )
+    assert.deepEqual(
       await run(`${links}
         const before = document.querySelector('.area-links path').getAttribute('d')
-        document.querySelector('.columns').style.width = '60%'
+        document.querySelector('.columns').style.columnGap = '3rem'
         await frame(); await frame()
         return { moved: document.querySelector('.area-links path').getAttribute('d') !== before, links: links() }`),
       { moved: true, links: expected }

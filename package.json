@@ -1,6 +1,6 @@
 {
   "name": "@cognitap/galactica",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "Maps a JavaScript or TypeScript repository for agents and humans",
   "keywords": [
     "agent-skills",

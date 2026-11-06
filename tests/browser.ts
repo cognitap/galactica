@@ -140,6 +140,7 @@ export async function openPage(
       method
     )
   await send('Page.enable')
+  await send('Emulation.setFocusEmulationEnabled', { enabled: true })
   if (options.width !== undefined) {
     await send('Emulation.setDeviceMetricsOverride', {
       width: options.width,

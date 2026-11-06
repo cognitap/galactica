@@ -64,28 +64,30 @@ export function draw(data) {
     describe()
     history.replaceState(null, '', location.href.split('#')[0] + fragmentOf(selection))
   }
-  /** @param {Selection} next */
-  const toggleSelection = next =>
-    select(selection?.kind === next.kind && selection.index === next.index ? undefined : next)
-
-  const view = mapView(data, toggleSelection)
+  const view = mapView(data, next => {
+    const openingPanel = selection === undefined
+    select(next)
+    if (openingPanel && next.kind === 'area') {
+      areaViews[next.index].box.scrollIntoView({ block: 'nearest', inline: 'nearest' })
+    }
+  })
   const { areas: areaViews, modules: moduleViews } = view
   const light = selectionView(data, view)
   byId('clear-selection').addEventListener('click', () => select(undefined))
   document.addEventListener('keydown', event => {
-    if (event.key === 'Escape' && selection !== undefined && event.target !== byId('search')) {
-      select(undefined)
-    }
+    if (event.key !== 'Escape' || event.defaultPrevented) return
+    if (!view.dismissGuide() && selection !== undefined) select(undefined)
   })
 
   /** @param {ReadonlySet<ModuleKind>} kinds */
   const show = kinds => {
     shown = kinds
-    pressed(shown)
+    syncKinds(shown)
     view.filter(shown)
   }
   /** @param {Target} target */
   const go = target => {
+    view.setLayersOpen(true)
     const missing = hiddenBy({ kinds: kindsOf(data, target) }, shown)
     if (missing.length > 0) {
       show(new Set([...shown, ...missing]))
@@ -94,27 +96,38 @@ export function draw(data) {
     if (target.kind === 'area') {
       select({ kind: 'area', index: target.area })
       const { box, select: button } = areaViews[target.area]
-      box.scrollIntoView({ block: 'nearest' })
+      box.scrollIntoView({ block: 'nearest', inline: 'center' })
       button.focus({ preventScroll: true })
       return
     }
     select({ kind: 'module', index: target.module })
-    const view = /** @type {ModuleView} */ (moduleViews.get(target.module))
+    areaViews[data.modules[target.module].area].box.scrollIntoView({
+      block: 'nearest',
+      inline: 'center'
+    })
+    const moduleView = /** @type {ModuleView} */ (moduleViews.get(target.module))
     const place =
-      target.kind === 'symbol' && view.symbolAt !== undefined
-        ? view.symbolAt(target.symbol)
-        : view.item
+      target.kind === 'symbol'
+        ? moduleView.details().querySelectorAll('.symbol')[target.symbol]
+        : moduleView.select
     place.scrollIntoView({ block: 'center' })
-    view.select.focus({ preventScroll: true })
+    moduleView.select.focus({ preventScroll: true })
   }
 
   const field = searchField(entriesOf(data), () => shown, go)
   healthSection(data, go)
-  const pressed = view.filterButtons(kind => {
+  const syncKinds = view.kindFilter(kind => {
     const next = new Set(shown)
     if (!next.delete(kind)) next.add(kind)
     show(next)
     field.refresh()
+    if (selection !== undefined) {
+      const area = selection.kind === 'area' ? selection.index : data.modules[selection.index].area
+      if (areaViews[area].box.hidden) return select(undefined)
+      if (selection.kind === 'module' && !shown.has(data.modules[selection.index].kind)) {
+        return select({ kind: 'area', index: area })
+      }
+    }
     describe()
   })
   show(shown)

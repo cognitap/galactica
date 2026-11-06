@@ -10,9 +10,9 @@ npx --prefix / @cognitap/galactica overview
 
 Keep `--prefix /`: it stops npm from running a copy of Galactica planted in the repository you map. [Security](https://github.com/cognitap/galactica/blob/main/docs/security.md) explains why. To pin a version for a team, install it as a dev dependency, for example `pnpm add -D @cognitap/galactica`, and run `pnpm exec galactica overview`.
 
-![Immich in dark mode with asset-utils.ts selected, dependencies in cyan and dependents in purple](https://raw.githubusercontent.com/cognitap/galactica/main/docs/images/immich-map.png)
+![Immich dependency layers with PeopleSearch.svelte selected and its exported component visible in the detail panel](https://raw.githubusercontent.com/cognitap/galactica/main/docs/images/immich-map.png)
 
-`asset-utils.ts` selected in [Immich](https://github.com/immich-app/immich/tree/037e5bc0554074bfe91e20b802a6a4ef4a6dd6f9): cyan dependencies, purple dependents.
+Selecting `PeopleSearch.svelte` shows its seven dependencies in cyan and three dependents in purple in [Immich](https://github.com/immich-app/immich/tree/037e5bc0554074bfe91e20b802a6a4ef4a6dd6f9).
 
 ## One analysis, two views
 

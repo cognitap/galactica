@@ -17,15 +17,18 @@ export function searchField(entries, shownKinds, go) {
   let results = []
   let active = -1
 
-  /** @param {number} index */
-  const activate = index => {
+  /**
+   * @param {number} index
+   * @param {boolean} [reveal] Scroll keyboard choices into view. Pointer choices are already visible.
+   */
+  const activate = (index, reveal = true) => {
     active = index
     ;[...list.children].forEach((option, position) =>
       option.setAttribute('aria-selected', String(position === index))
     )
     if (index < 0) return input.removeAttribute('aria-activedescendant')
     input.setAttribute('aria-activedescendant', `search-option-${index}`)
-    list.children[index].scrollIntoView({ block: 'nearest' })
+    if (reveal) list.children[index].scrollIntoView({ block: 'nearest' })
   }
   const close = () => {
     list.hidden = true
@@ -55,6 +58,9 @@ export function searchField(entries, shownKinds, go) {
     if (hidden.length > 0) {
       node.append(element('span', 'result-hidden', `${kindNames(hidden)} hidden by the filter`))
     }
+    node.addEventListener('pointermove', event => {
+      if (event.pointerType !== 'touch' && active !== index) activate(index, false)
+    })
     node.addEventListener('mousedown', event => event.preventDefault())
     node.addEventListener('click', () => choose(index))
     return node
@@ -74,6 +80,12 @@ export function searchField(entries, shownKinds, go) {
     activate(results.length > 0 ? 0 : -1)
   }
 
+  byId('clear-search').addEventListener('click', () => {
+    input.value = ''
+    close()
+    input.focus()
+  })
+  input.addEventListener('focus', refresh)
   input.addEventListener('input', refresh)
   input.addEventListener('blur', close)
   input.addEventListener('keydown', event => {
