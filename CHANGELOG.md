@@ -4,6 +4,8 @@
 
 ## Unreleased
 
+- **Breaking, ships in 0.2.0:** the skill that `init` writes, the skill template and the README run Galactica with `npx --prefix / @cognitap/galactica` instead of `npx @cognitap/galactica`. Run inside a repository, plain npx ran a `node_modules/@cognitap/galactica` that the repository holds, even one its `package.json` does not list, and read the repository's `.npmrc`, so a hostile repository could run its own code in place of Galactica. With `--prefix /`, npm ignores both. Run `init` again to update an unedited skill. Before: `npx @cognitap/galactica overview`. After: `npx --prefix / @cognitap/galactica overview`.
+
 ## 0.1.5
 
 - Add `health`, which lists concrete findings about the structure with no score: each import cycle with the imports to break, each area with at least 20 source modules and 5 times the median area of its package, and each import outside tests and stories that reaches into another workspace package by a relative path or by a subpath its `exports` does not list, with the public specifier to use instead where one exists. It always exits with code 0. On Vitest it finds 4 cycles, 2 oversized areas and 20 such imports.
