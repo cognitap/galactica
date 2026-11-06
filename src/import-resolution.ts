@@ -10,6 +10,7 @@ import { dirname, extname, isAbsolute, join, relative, sep } from 'node:path'
 import ts from 'typescript'
 import type { Warning } from './compiler-settings.ts'
 import { compilerOptionsOf, type DiscoveredModule, type Discovery } from './discovery.ts'
+import { missingFile, readRepositoryFile, UnsafeReadError } from './safe-read.ts'
 import { plainInputs, type Inputs } from './inputs.ts'
 import { toRepoPath, type RepoPath, type Target } from './model.ts'
 import {
@@ -114,11 +115,26 @@ function memoized<T>(cache: Map<string, T>, compute: (key: string) => T): (key: 
   }
 }
 
-function moduleResolutionHost(root: string, inputs: Inputs): ts.ModuleResolutionHost {
+function moduleResolutionHost(
+  root: string,
+  inputs: Inputs,
+  warnings: Warning[]
+): ts.ModuleResolutionHost {
   return {
     fileExists: memoized(new Map(), inputs.fileExists),
     directoryExists: memoized(new Map(), inputs.directoryExists),
-    readFile: inputs.readFile,
+    readFile(file) {
+      try {
+        return readRepositoryFile(root, file, inputs)
+      } catch (error) {
+        if (!missingFile(error) && isInside(root, file))
+          warnings.push({
+            path: toRepoPath(root, file),
+            message: error instanceof UnsafeReadError ? error.message : 'could not read file'
+          })
+        return undefined
+      }
+    },
     realpath: inputs.realpath,
     getDirectories: inputs.getDirectories,
     getCurrentDirectory: () => root,
@@ -183,8 +199,9 @@ export function importResolver(
   const { root } = discovery
   const modules: ReadonlySet<string> = new Set(discovery.modules.map(module => module.path))
   const workspace = workspaceResolver(discovery, inputs)
-  const importsOf = packageImports(root, inputs)
-  const host = moduleResolutionHost(root, inputs)
+  const readWarnings: Warning[] = []
+  const importsOf = packageImports(root, inputs, readWarnings)
+  const host = moduleResolutionHost(root, inputs, readWarnings)
   const caches = new Map<RepoPath | null, ts.ModuleResolutionCache>()
 
   function cacheOf(module: DiscoveredModule, options: ts.CompilerOptions) {
@@ -380,7 +397,7 @@ export function importResolver(
       const path = resolveWhole(module, specifier.slice(0, query), mode)
       return path.kind === 'unresolved' ? whole : path
     },
-    warnings: () => workspace.warnings(),
+    warnings: () => [...workspace.warnings(), ...readWarnings],
     workspace
   }
 }

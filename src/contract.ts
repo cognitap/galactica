@@ -140,6 +140,7 @@ export interface Overview extends Envelope<'overview'> {
   /**
    * Analysis problems, sorted by path, then message. Compiler deprecation and
    * output-layout migration notices and valid package.json metadata exports are omitted.
+   * Unsafe optional configuration reads add a warning; required Galactica config uses a usage failure.
    */
   readonly warnings: readonly Warning[]
 }
