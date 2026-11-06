@@ -267,3 +267,5 @@ The subject has one of three shapes: `{ "kind": "module", "path", "package" }`, 
   ]
 }
 ```
+
+A root containing `deno.json` or `deno.jsonc` is unsupported. Analysis commands return the existing failure envelope with `error.code: "usage"`, a message naming the Deno config and explaining the unsupported workspace and import-map resolution, and exit code 1. No fields or schema version change.
