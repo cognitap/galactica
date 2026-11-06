@@ -4,9 +4,8 @@ Galactica releases on its own schedule, independent of the repositories it maps.
 
 ## Versions
 
-Releases follow [SemVer](https://semver.org/). `0.x` releases are experimental
-and publish under `latest`; say so in the README and release notes. `1.0.0`
-follows once the command output, the config and the skill are stable.
+Releases follow [SemVer](https://semver.org/). `1.0.0` follows once the
+command output, the config and the skill are stable.
 
 During `0.x`, a breaking change bumps the minor version and anything else bumps
 the patch version. From `1.0.0`, use the largest applicable SemVer bump. A fix

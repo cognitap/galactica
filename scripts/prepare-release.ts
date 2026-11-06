@@ -36,7 +36,7 @@ rmSync(directory, { recursive: true, force: true })
 assert.match(
   version,
   /^0\.\d+\.\d+$/,
-  'Only experimental 0.x releases are enabled. 1.0.0 needs a reviewed change once the command output, the config and the skill are stable.'
+  'Release preparation currently accepts versions of the form 0.x.y.'
 )
 const notes = changelog.split(/^## /m).find(section => section.startsWith(`${version}\n`))
 assert.ok(notes?.slice(version.length).trim(), `Add CHANGELOG.md notes under ## ${version}.`)
