@@ -4,10 +4,14 @@
 
 ## Unreleased
 
+## 0.2.0
+
 - The HTML map shows each layer as a column of compact area boxes, with the lowest layer on the left. Narrow screens stack layers as rows, with the highest on top.
 - Selecting an area lists its modules in a panel and draws lines to the areas it depends on and the areas that depend on it.
 - Areas within a layer are ordered so that those lines cross less.
 - The data embedded in the map is a third smaller: 400 KB → 270 KB on Radiant.
+- The map's script and styles are minified, and the script is an ES module.
+- The npm package is smaller: no source maps, and Vue files are read with `@vue/compiler-sfc` alone, without the Vue runtime. The download goes from 170 KB to 115 KB and the install from 47 MB to 40 MB.
 
 ## 0.1.6
 
