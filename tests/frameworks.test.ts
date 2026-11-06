@@ -1,5 +1,4 @@
 import assert from 'node:assert/strict'
-import { spawnSync } from 'node:child_process'
 import { cpSync, existsSync, mkdirSync, realpathSync, symlinkSync } from 'node:fs'
 import { createRequire } from 'node:module'
 import { dirname, join } from 'node:path'
@@ -7,14 +6,15 @@ import { test, type TestContext } from 'node:test'
 import { fileURLToPath, pathToFileURL } from 'node:url'
 import { analyzeRepository } from '../src/analysis.ts'
 import { emptyConfig, type Model, type RepoPath } from '../src/model.ts'
+import { cliRunner } from './cli.ts'
 import { repository, type Files } from './temp-repository.ts'
 
 const galactica = fileURLToPath(new URL('..', import.meta.url))
 
+const { node } = cliRunner()
+
 function cli(script: string, root: string, ...args: string[]) {
-  const { status, stdout, stderr } = spawnSync('node', [script, ...args, '--root', root], {
-    encoding: 'utf8'
-  })
+  const { status, stdout, stderr } = node([script, ...args, '--root', root])
   assert.equal(status, 0, stderr)
   return stdout
 }

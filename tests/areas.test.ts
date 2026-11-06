@@ -2,21 +2,13 @@ import assert from 'node:assert/strict'
 import { test } from 'node:test'
 import { areasOf } from '../src/areas.ts'
 import { ConfigError } from '../src/config.ts'
-import { emptyConfig, MODEL_FORMAT, type Config, type Model, type RepoPath } from '../src/model.ts'
+import { emptyConfig, type Config, type Model } from '../src/model.ts'
 import { loaded, validConfigs } from './config-examples.ts'
 
-function modelOf(packages: Readonly<Record<string, string>>, paths: readonly string[]): Model {
-  return {
-    format: MODEL_FORMAT,
-    repository: { name: 'acme' },
-    packages: Object.fromEntries(
-      Object.entries(packages).map(([name, dir]) => [name, { dir: dir as RepoPath }])
-    ) as Model['packages'],
-    modules: Object.fromEntries(
-      paths.map(path => [path, { path: path as RepoPath, hash: 'h', symbols: [], edges: [] }])
-    )
-  }
-}
+import { modelOf as modelFrom } from './models.ts'
+
+const modelOf = (packages: Readonly<Record<string, string>>, paths: readonly string[]) =>
+  modelFrom(Object.fromEntries(paths.map(path => [path, {}])), packages)
 
 const areas = (model: Model, config: Config = emptyConfig) =>
   Object.fromEntries([...areasOf(model, config)].map(([path, { area }]) => [path, area]))

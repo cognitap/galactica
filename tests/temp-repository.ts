@@ -1,7 +1,7 @@
 import { execFileSync } from 'node:child_process'
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, readdirSync, rmSync, symlinkSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
-import { dirname, join } from 'node:path'
+import { dirname, join, relative } from 'node:path'
 import type { TestContext } from 'node:test'
 import { gitEnvironment } from '../src/repository-files.ts'
 
@@ -28,4 +28,23 @@ export function gitRepository(t: TestContext, files: Files): string {
   const root = repository(t, files)
   git(root, 'init', '--quiet')
   return root
+}
+
+/** A repository and a folder outside it holding `outside.txt`, which a link in the repository can point at. */
+export function besideOutside(t: TestContext) {
+  const root = repository(t, { 'package.json': {}, 'src/a.ts': 'export const a = 1' })
+  const outside = repository(t, { 'outside.txt': 'Not Galactica.\n' })
+  return { root, outside, untouched: () => filesUnder(outside).join() === 'outside.txt' }
+}
+
+export function link(root: string, path: string, target: string) {
+  mkdirSync(dirname(join(root, path)), { recursive: true })
+  symlinkSync(target, join(root, path))
+}
+
+export function filesUnder(root: string): readonly string[] {
+  return readdirSync(root, { recursive: true, withFileTypes: true })
+    .filter(entry => entry.isFile())
+    .map(entry => relative(root, join(entry.parentPath, entry.name)))
+    .sort()
 }

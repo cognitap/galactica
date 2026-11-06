@@ -1,5 +1,4 @@
 import assert from 'node:assert/strict'
-import { spawnSync } from 'node:child_process'
 import {
   existsSync,
   mkdirSync,
@@ -11,8 +10,10 @@ import {
 } from 'node:fs'
 import { join } from 'node:path'
 import { test } from 'node:test'
+import { cliRunner } from './cli.ts'
 import { gitRepository, repository } from './temp-repository.ts'
 
+const { node, home } = cliRunner()
 const cli = process.env.GALACTICA_TEST_CLI ?? new URL('../dist/bin.js', import.meta.url).pathname
 
 /** Fence the bad read before a baseline process can consume unbounded /dev/zero data. */
@@ -34,10 +35,9 @@ function probe(
     };
     syncBuiltinESMExports();
   `
-  return spawnSync(
-    process.execPath,
+  return node(
     ['--import', `data:text/javascript,${encodeURIComponent(preload)}`, cli, ...command],
-    { encoding: 'utf8', timeout: 5000 }
+    { timeout: 5000 }
   )
 }
 
@@ -133,20 +133,8 @@ test('repairing a refused config in place invalidates a warm model', t => {
   const root = gitRepository(t, { 'package.json': '{}', 'src/main.ts': 'export const main = 1' })
   const path = join(root, 'package.json')
   truncateSync(path, 10_000_001)
-  const home = repository(t, {})
-  const env = {
-    ...process.env,
-    HOME: home,
-    USERPROFILE: home,
-    XDG_CACHE_HOME: join(home, '.cache'),
-    LOCALAPPDATA: join(home, 'AppData', 'Local')
-  }
   const run = () => {
-    const result = spawnSync(process.execPath, [cli, 'overview', '--root', root, '--json'], {
-      encoding: 'utf8',
-      timeout: 10000,
-      env
-    })
+    const result = node([cli, 'overview', '--root', root, '--json'], { timeout: 10000 })
     assert.equal(result.status, 0, result.stderr)
     return JSON.parse(result.stdout) as { packages: { name: string }[]; warnings: unknown[] }
   }

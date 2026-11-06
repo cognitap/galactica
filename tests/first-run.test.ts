@@ -1,18 +1,12 @@
 import assert from 'node:assert/strict'
-import { spawnSync } from 'node:child_process'
 import { readFileSync, symlinkSync, writeFileSync } from 'node:fs'
 import { isAbsolute, join } from 'node:path'
 import { test } from 'node:test'
+import { cliRunner } from './cli.ts'
 import { repository, type Files } from './temp-repository.ts'
 
-const cli = new URL('../dist/bin.js', import.meta.url).pathname
-function run(root: string, ...args: string[]) {
-  return spawnSync(process.execPath, [cli, ...args, '--root', root], {
-    cwd: root,
-    encoding: 'utf8',
-    timeout: 10000
-  })
-}
+const { run: galactica } = cliRunner()
+const run = (root: string, ...args: string[]) => galactica(root, ...args, '--root', root)
 
 test('empty and non-JS overviews explain that no supported modules were found (DEV-732)', t => {
   const cases: readonly Files[] = [{}, { 'README.md': 'Hello', 'main.py': 'pass' }]
