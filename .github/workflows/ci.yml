@@ -39,6 +39,16 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
+      - name: Require Chrome for browser tests
+        run: |
+          chrome_path="$(command -v google-chrome || command -v chromium || command -v chromium-browser || true)"
+          if [ -z "$chrome_path" ] || [ ! -x "$chrome_path" ]; then
+            echo '::error::Browser tests require Chrome. Install it and set CHROME_PATH.'
+            exit 1
+          fi
+          "$chrome_path" --version
+          echo "CHROME_PATH=$chrome_path" >> "$GITHUB_ENV"
+
       - name: Format, lint, typecheck, test and run the packed package
         run: pnpm check
 
