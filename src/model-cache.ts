@@ -11,9 +11,30 @@ import { readFileSync } from 'node:fs'
 import { join, resolve } from 'node:path'
 import { performance } from 'node:perf_hooks'
 import type { Analysis, Summary } from './analysis.ts'
-import { currentStamp, isRecord, replaceFile, sameStamp, type Stamp } from './cache.ts'
+import {
+  currentStamp,
+  isForm,
+  isLine,
+  isRecord,
+  isRenames,
+  isString,
+  isStrings,
+  replaceFile,
+  sameStamp,
+  symbolOf,
+  type Stamp,
+  type Unknown
+} from './cache.ts'
 import { fingerprintOf, recordInputs, unchanged, type Fingerprint } from './inputs.ts'
-import { MODEL_FORMAT, type Config, type Model } from './model.ts'
+import {
+  MODEL_FORMAT,
+  type Config,
+  type Edge,
+  type Internal,
+  type Model,
+  type ModuleFacts,
+  type Target
+} from './model.ts'
 
 export const MODEL_CACHE_FORMAT = 2
 
@@ -51,21 +72,77 @@ const isWarning = (value: unknown): value is Summary['warnings'][number] =>
 const isCounts = (value: unknown): value is Summary['skipped'] =>
   isRecord(value) && Object.values(value).every(count => typeof count === 'number')
 
+const isPackages = (value: unknown): value is Model['packages'] =>
+  isRecord(value) && Object.values(value).every(pkg => isRecord(pkg) && isString(pkg.dir))
+
+function isTarget(value: unknown, modules: Unknown): value is Target {
+  if (!isRecord(value)) return false
+  if (value.kind === 'module') return isString(value.path) && Object.hasOwn(modules, value.path)
+  if (value.kind === 'external') return isString(value.name)
+  return value.kind === 'unresolved' && isString(value.specifier)
+}
+
+const isInternal = (value: unknown, packages: Model['packages']): value is Internal =>
+  isRecord(value) &&
+  isString(value.specifier) &&
+  (value.reach === 'relative' || value.reach === 'unlisted') &&
+  isString(value.package) &&
+  Object.hasOwn(packages, value.package) &&
+  (value.instead === undefined || isString(value.instead))
+
+const isEdge = (value: unknown, modules: Unknown, packages: Model['packages']): value is Edge =>
+  isRecord(value) &&
+  isTarget(value.to, modules) &&
+  isLine(value.line) &&
+  isForm(value.form) &&
+  isStrings(value.names) &&
+  (value.renames === undefined || isRenames(value.renames)) &&
+  typeof value.typeOnly === 'boolean' &&
+  typeof value.dynamic === 'boolean' &&
+  (value.loadTime === undefined || isStrings(value.loadTime)) &&
+  isStrings(value.via) &&
+  value.via.every(path => Object.hasOwn(modules, path)) &&
+  (value.internal === undefined || isInternal(value.internal, packages))
+
+const isModule = (
+  path: string,
+  value: unknown,
+  modules: Unknown,
+  packages: Model['packages']
+): value is ModuleFacts =>
+  isRecord(value) &&
+  value.path === path &&
+  isString(value.hash) &&
+  Array.isArray(value.symbols) &&
+  value.symbols.every(symbol => symbolOf(symbol) !== undefined) &&
+  Array.isArray(value.edges) &&
+  value.edges.every(edge => isEdge(edge, modules, packages))
+
 /**
- * The body, by its envelope. The modules are taken as this build wrote them,
- * which the stamp vouches for. Checking each would cost a share of what the
- * cache saves.
+ * The cached model, checked whole, so a damaged or hand-edited file is
+ * analyzed again instead of reaching a command. Every module an edge names is
+ * in the model, and every package an internal import names.
  */
-function bodyOf(value: unknown): Body | undefined {
-  if (!isRecord(value)) return undefined
-  const { model, warnings, unresolved, skipped } = value
-  if (!isRecord(model) || model.format !== MODEL_FORMAT) return undefined
-  if (!isRecord(model.repository) || !isRecord(model.packages) || !isRecord(model.modules)) {
+function modelOf(value: unknown): Model | undefined {
+  if (!isRecord(value) || value.format !== MODEL_FORMAT) return undefined
+  const { repository, packages, modules } = value
+  if (!isRecord(repository) || !isString(repository.name) || !isPackages(packages)) {
     return undefined
   }
+  if (!isRecord(modules)) return undefined
+  for (const [path, module] of Object.entries(modules)) {
+    if (!isModule(path, module, modules, packages)) return undefined
+  }
+  return value as unknown as Model
+}
+
+function bodyOf(value: unknown): Body | undefined {
+  if (!isRecord(value)) return undefined
+  const { warnings, unresolved, skipped } = value
   if (!Array.isArray(warnings) || !warnings.every(isWarning)) return undefined
   if (typeof unresolved !== 'number' || !isCounts(skipped)) return undefined
-  return { model: model as unknown as Model, warnings, unresolved, skipped }
+  const model = modelOf(value.model)
+  return model && { model, warnings, unresolved, skipped }
 }
 
 /** The cached analysis, when the file is this build's and every input it records is unchanged. */

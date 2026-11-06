@@ -4,6 +4,7 @@
 
 ## Unreleased
 
+- Galactica keeps its cache only in the user cache folder, never in `node_modules/.cache/galactica`, so a repository can no longer ship a cache that makes the map lie. A cached model that does not parse is analyzed again.
 - **Breaking, ships in 0.2.0:** the skill that `init` writes, the skill template and the README run Galactica with `npx --prefix / @cognitap/galactica` instead of `npx @cognitap/galactica`. Run inside a repository, plain npx ran a `node_modules/@cognitap/galactica` that the repository holds, even one its `package.json` does not list, and read the repository's `.npmrc`, so a hostile repository could run its own code in place of Galactica. With `--prefix /`, npm ignores both. Run `init` again to update an unedited skill. Before: `npx @cognitap/galactica overview`. After: `npx --prefix / @cognitap/galactica overview`.
 - A module that links outside the repository, a module that is no regular file, such as a link to a directory, and a module over 10 MB are skipped, each with a warning that `overview --json` lists. A link to `/dev/zero` hung the analysis, and a link to a file outside the repository put that file's symbols and doc comments into the output.
 - A file nested too deeply for TypeScript to parse, such as a chain of thousands of `else if`, no longer crashes every command. Its module stays, with no symbols or imports, and the analysis adds one warning that names the file.
