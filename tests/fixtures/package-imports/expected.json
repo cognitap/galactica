@@ -1,0 +1,145 @@
+{
+  "format": 3,
+  "repository": { "name": "package-imports" },
+  "packages": {
+    "package-imports": { "dir": "." }
+  },
+  "modules": {
+    "src/lib/Component.svelte": {
+      "path": "src/lib/Component.svelte",
+      "symbols": [
+        {
+          "name": "Component",
+          "kind": "component",
+          "line": 1,
+          "default": true,
+          "signature": "component Component"
+        }
+      ],
+      "edges": [
+        {
+          "to": { "kind": "module", "path": "src/lib/value.ts" },
+          "line": 2,
+          "form": "import",
+          "names": ["value"],
+          "typeOnly": false,
+          "dynamic": false,
+          "via": []
+        }
+      ]
+    },
+    "src/lib/Panel.vue": {
+      "path": "src/lib/Panel.vue",
+      "symbols": [
+        {
+          "name": "Panel",
+          "kind": "component",
+          "line": 1,
+          "default": true,
+          "signature": "component Panel"
+        }
+      ],
+      "edges": [
+        {
+          "to": { "kind": "module", "path": "src/lib/value.ts" },
+          "line": 2,
+          "form": "import",
+          "names": ["value"],
+          "typeOnly": false,
+          "dynamic": false,
+          "via": []
+        }
+      ]
+    },
+    "src/lib/View.astro": {
+      "path": "src/lib/View.astro",
+      "symbols": [
+        {
+          "name": "View",
+          "kind": "component",
+          "line": 1,
+          "default": true,
+          "signature": "component View"
+        }
+      ],
+      "edges": [
+        {
+          "to": { "kind": "module", "path": "src/lib/value.ts" },
+          "line": 2,
+          "form": "import",
+          "names": ["value"],
+          "typeOnly": false,
+          "dynamic": false,
+          "via": []
+        }
+      ]
+    },
+    "src/lib/value.ts": {
+      "path": "src/lib/value.ts",
+      "symbols": [
+        {
+          "name": "value",
+          "kind": "const",
+          "line": 1,
+          "default": false,
+          "signature": "const value = 1"
+        }
+      ],
+      "edges": []
+    },
+    "src/main.ts": {
+      "path": "src/main.ts",
+      "symbols": [
+        {
+          "name": "components",
+          "kind": "const",
+          "line": 5,
+          "default": false,
+          "signature": "const components = [...]"
+        }
+      ],
+      "edges": [
+        {
+          "to": { "kind": "module", "path": "src/lib/Component.svelte" },
+          "line": 1,
+          "form": "import",
+          "names": ["default"],
+          "typeOnly": false,
+          "dynamic": false,
+          "loadTime": ["default"],
+          "via": []
+        },
+        {
+          "to": { "kind": "module", "path": "src/lib/Panel.vue" },
+          "line": 2,
+          "form": "import",
+          "names": ["default"],
+          "typeOnly": false,
+          "dynamic": false,
+          "loadTime": ["default"],
+          "via": []
+        },
+        {
+          "to": { "kind": "module", "path": "src/lib/View.astro" },
+          "line": 3,
+          "form": "import",
+          "names": ["default"],
+          "typeOnly": false,
+          "dynamic": false,
+          "loadTime": ["default"],
+          "via": []
+        },
+        {
+          "to": { "kind": "module", "path": "src/lib/value.ts" },
+          "line": 4,
+          "form": "import",
+          "names": ["value"],
+          "typeOnly": false,
+          "dynamic": false,
+          "loadTime": ["value"],
+          "via": []
+        }
+      ]
+    }
+  }
+}

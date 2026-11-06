@@ -135,6 +135,7 @@ export interface Overview extends Envelope<'overview'> {
     }[]
   }[]
   readonly cycles: number
+  /** Imports without a mapped module, known asset/declaration or external package, including unsupported files. */
   readonly unresolved: number
   /**
    * Analysis problems, sorted by path, then message. Compiler deprecation and
@@ -206,9 +207,9 @@ export interface Deps extends Envelope<'deps'> {
   readonly modules: readonly Reached[]
   /** Workspace packages those modules belong to, excluding the subject's own. Sorted. */
   readonly packages: readonly string[]
-  /** npm package names imported inside the subject. Sorted. */
+  /** npm package names imported inside the subject, including missing paths-alias targets. Sorted. */
   readonly external: readonly string[]
-  /** Sorted by `from`, then `specifier`. */
+  /** Unmapped imports, including unsupported files and excluded source. Sorted by `from`, then `specifier`. */
   readonly unresolved: readonly { readonly from: string; readonly specifier: string }[]
   /** The cycles a module of the subject is in, ordered as `cycles` orders them. */
   readonly cycles: readonly Cycle[]
