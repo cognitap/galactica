@@ -4,7 +4,8 @@ import { test } from 'node:test'
 import { graphOf } from '../src/graph.ts'
 import { htmlOf } from '../src/html.ts'
 import { emptyConfig } from '../src/model.ts'
-import { pageData } from '../src/page-data.ts'
+import { pageData, wireDataOf } from '../src/page-data.ts'
+import { decodePage } from '../src/page/decode.js'
 import type { PageSource } from '../src/source-links.ts'
 import { defines, edge, modelOf, type Spec } from './models.ts'
 
@@ -44,7 +45,9 @@ test('the embedded data parses back to the page data, whatever the symbols conta
     /<script\s+type="application\/json"\s+id="galactica-data"\s*>([^]*?)<\/script>/
   )
   assert.ok(block, 'the data block is present')
-  assert.deepEqual(JSON.parse(block[1]!), pageData(graph))
+  const wire = JSON.parse(block[1]!)
+  assert.deepEqual(wire, JSON.parse(JSON.stringify(wireDataOf(pageData(graph)))))
+  assert.deepEqual(decodePage(wire), pageData(graph))
   assert.equal(html.match(/<script\b/g)?.length, 2)
 })
 
