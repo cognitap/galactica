@@ -1,0 +1,45 @@
+{
+  "format": 3,
+  "repository": { "name": "jsconfig-aliases" },
+  "packages": {
+    "jsconfig-aliases": { "dir": "." }
+  },
+  "modules": {
+    "lib/a.js": {
+      "path": "lib/a.js",
+      "symbols": [
+        {
+          "name": "value",
+          "kind": "const",
+          "line": 1,
+          "default": false,
+          "signature": "const value = 1"
+        }
+      ],
+      "edges": []
+    },
+    "main.js": {
+      "path": "main.js",
+      "symbols": [
+        {
+          "name": "read",
+          "kind": "function",
+          "line": 2,
+          "default": false,
+          "signature": "function read()"
+        }
+      ],
+      "edges": [
+        {
+          "to": { "kind": "module", "path": "lib/a.js" },
+          "line": 1,
+          "form": "import",
+          "names": ["value"],
+          "typeOnly": false,
+          "dynamic": false,
+          "via": []
+        }
+      ]
+    }
+  }
+}

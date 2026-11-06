@@ -177,3 +177,27 @@ test('health lists the cycles as the cycles command does', () => {
   assert.equal(health(cyclic, undefined).cycles.length, 1)
   assert.deepEqual(health(cyclic, undefined).cycles, cycles(cyclic).cycles)
 })
+
+test('fixture conventions cannot create oversized areas or source cycles', () => {
+  const specs: Record<string, { edges: ReturnType<typeof edge>[] }> = {
+    'src/core.ts': { edges: [] }
+  }
+  for (const directory of [
+    '__testfixtures__',
+    '__fixtures__',
+    'testdata',
+    'testData',
+    'fixtures',
+    '__mocks__'
+  ]) {
+    for (let index = 0; index < 25; index++) {
+      specs[`src/${directory}/${index}.ts`] = { edges: [edge('src/core.ts')] }
+    }
+    specs['src/core.ts']!.edges.push(edge(`src/${directory}/0.ts`))
+  }
+  specs['src/app.e2e-spec.ts'] = { edges: [edge('src/core.ts')] }
+  specs['src/core.ts']!.edges.push(edge('src/app.e2e-spec.ts'))
+  const graph = graphOf(modelOf(specs), emptyConfig)
+  assert.equal(health(graph, undefined).oversizedAreas.length, 0)
+  assert.equal(cycles(graph).cycles.length, 0)
+})
