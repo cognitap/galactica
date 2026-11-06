@@ -38,4 +38,6 @@ direct removal is allowed.
 
 [AGENTS.md](AGENTS.md#releases) lists the release steps. The manual **Release Galactica** workflow builds and packs one candidate. It runs the packed-package test, and on `main` it publishes that same archive through npm trusted publishing with provenance. It also checks that npm's integrity matches the candidate's receipt.
 
-If publishing fails, fix the cause and rerun the failed job; it reuses the original candidate. Never rebuild a candidate to retry. Published versions are immutable, so a fix ships as a new version.
+The publish job reads fresh npm package metadata and compares the exact version’s SHA-512 integrity with the candidate receipt. A match completes the job. An absent version allows one upload, followed by verification even if the upload returns an error. A different integrity fails the job.
+
+If verification times out, compare the version on npm with the original receipt before retrying. If the version is still absent, fix the cause and retry with the original candidate. Published versions are immutable, so a fix to a published archive ships as a new version.
