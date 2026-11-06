@@ -2,8 +2,15 @@ import assert from 'node:assert/strict'
 import { test } from 'node:test'
 import type { Deps, Failure, Uses } from '../src/contract.ts'
 import { graphOf } from '../src/graph.ts'
-import { emptyConfig, type RepoPath } from '../src/model.ts'
-import { pageData, type PageData, type PageRelations } from '../src/page-data.ts'
+import { emptyConfig, type AreaPath, type RepoPath } from '../src/model.ts'
+import {
+  pageData,
+  wireDataOf,
+  type PageData,
+  type PageRelations,
+  type PageWireData
+} from '../src/page-data.ts'
+import { decodePage } from '../src/page/decode.js'
 import { indexesOf } from '../src/page/indexes.js'
 import { deps, depsOf, uses, usesOf } from '../src/queries.ts'
 import { areaSubject, moduleSubject, type Resolved } from '../src/subjects.ts'
@@ -354,4 +361,95 @@ test('the page carries the source its links are built from, or null', () => {
   const graph = graphOf(modelOf({ 'src/a.ts': {} }), emptyConfig)
   assert.equal(pageData(graph).source, null)
   assert.deepEqual(pageData(graph, source).source, source)
+})
+
+const wireOf = (data: PageData): PageWireData => JSON.parse(JSON.stringify(wireDataOf(data)))
+
+test('HTML wire data omits labels, false defaults and empty collections, then restores the complete page model', () => {
+  for (const expected of [monorepo, appPage, pageData(graphOf(modelOf({}), emptyConfig))]) {
+    const wire = wireOf(expected)
+    for (const area of wire.areas ?? []) {
+      assert.equal('label' in area, false)
+      for (const key of ['usedBy', 'usedByTests', 'uses', 'modules'] as const)
+        assert.notDeepEqual(area[key], [], key)
+    }
+    for (const module of wire.modules ?? []) {
+      assert.equal('label' in module, false)
+      for (const key of ['usedBy', 'usedByTests', 'uses', 'symbols'] as const)
+        assert.notDeepEqual(module[key], [], key)
+      for (const symbol of module.symbols ?? []) assert.notEqual(symbol.default, false)
+    }
+    for (const pkg of wire.packages ?? []) {
+      assert.notDeepEqual(pkg.rows, [])
+      assert.notDeepEqual(pkg.areaCycles, [])
+      assert.notDeepEqual(pkg.moduleCycles, [])
+    }
+    for (const value of Object.values(wire.health)) assert.notDeepEqual(value, [])
+    assert.deepEqual(decodePage(wire), expected)
+  }
+})
+
+test('decoding derives labels relative to package and area directories, including nested and non-prefix paths', () => {
+  const graph = graphOf(
+    modelOf(
+      {
+        'root.ts': {},
+        'nested/root.ts': {},
+        'packages/ui/index.ts': {},
+        'packages/ui/src/deep/Button.tsx': {},
+        'packages/ui/src-more/Outside.ts': {}
+      },
+      { root: '.', ui: 'packages/ui' }
+    ),
+    {
+      ...emptyConfig,
+      areas: [
+        { glob: 'root.ts', area: '.' as AreaPath },
+        { glob: 'nested/**', area: '.' as AreaPath },
+        { glob: 'packages/ui/index.ts', area: 'packages/ui' as AreaPath },
+        { glob: 'packages/ui/src*/**', area: 'packages/ui/src' as AreaPath }
+      ]
+    }
+  )
+  const expected = pageData(graph)
+  const decoded = decodePage(wireOf(expected))
+  assert.deepEqual(decoded, expected)
+  assert.deepEqual(Object.fromEntries(decoded.areas.map(area => [area.path, area.label])), {
+    '.': '.',
+    'packages/ui': '.',
+    'packages/ui/src': 'src'
+  })
+  const labels = Object.fromEntries(decoded.modules.map(module => [module.path, module.label]))
+  assert.equal(labels['root.ts'], 'root.ts')
+  assert.equal(labels['nested/root.ts'], 'nested/root.ts')
+  assert.equal(labels['packages/ui/index.ts'], 'index.ts')
+  assert.equal(labels['packages/ui/src/deep/Button.tsx'], 'deep/Button.tsx')
+  assert.equal(labels['packages/ui/src-more/Outside.ts'], 'packages/ui/src-more/Outside.ts')
+})
+
+test('wire decoding preserves default exports, documentation, signatures and source-link data', () => {
+  const symbols = [
+    defines('Button', 3, {
+      kind: 'component',
+      default: true,
+      doc: '',
+      signature: 'function Button()'
+    }),
+    defines('message', 7, { signature: 'const message = "</script><!--"', doc: 'Unicode: café 😀' })
+  ]
+  const source = {
+    template: 'https://github.com/acme/ui/blob/abc/{path}#L{line}',
+    prefix: 'web',
+    shortCommit: 'abc',
+    unpushed: 0,
+    remote: 'origin',
+    uncommitted: false
+  }
+  const expected = pageData(
+    graphOf(modelOf({ 'src/Button.tsx': { symbols } }), emptyConfig),
+    source
+  )
+  const decoded = decodePage(wireOf(expected))
+  assert.deepEqual(decoded, expected)
+  assert.deepEqual(decoded.modules[0]!.symbols, symbols)
 })

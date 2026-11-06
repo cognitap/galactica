@@ -5,7 +5,7 @@
 
 import { readFileSync } from 'node:fs'
 import type { Graph } from './model.ts'
-import { pageData, type PageData } from './page-data.ts'
+import { pageData, wireDataOf, type PageWireData } from './page-data.ts'
 import type { PageSource } from './source-links.ts'
 
 // Source tests and the installed module both read the package's built browser assets.
@@ -20,7 +20,7 @@ const escapeHtml = (text: string) =>
     .replaceAll('"', '&quot;')
 
 /** Every `<` escaped, so no `</script` or `<!--` in a signature or doc can end the data block early. */
-const embedded = (data: PageData) => JSON.stringify(data).replaceAll('<', '\\u003c')
+const embedded = (data: PageWireData) => JSON.stringify(data).replaceAll('<', '\\u003c')
 
 /** `areaModules` is the config's `health.areaModules`, undefined for the relative rule. */
 export function htmlOf(
@@ -32,7 +32,7 @@ export function htmlOf(
     title: escapeHtml(`${graph.repository.name} · Galactica`),
     style: pageFile('page.css'),
     script: pageFile('page.js'),
-    data: embedded(pageData(graph, source, areaModules))
+    data: embedded(wireDataOf(pageData(graph, source, areaModules)))
   }
   return pageFile('page.html').replaceAll(/\{\{(\w+)\}\}/g, (_, slot: string) => slots[slot]!)
 }

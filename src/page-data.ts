@@ -122,6 +122,81 @@ export interface PageData {
   readonly health: PageHealth
 }
 
+/** The private HTML wire shape; the page restores PageData once before rendering. */
+export type PageWireSymbol = Omit<SymbolFacts, 'default'> & { readonly default?: true }
+
+export type PageWireModule = Omit<PageModule, 'label' | 'symbols' | keyof PageRelations> &
+  Partial<PageRelations> & { readonly symbols?: readonly PageWireSymbol[] }
+
+export type PageWireArea = Omit<PageArea, 'label' | 'modules' | keyof PageRelations> &
+  Partial<PageRelations> & { readonly modules?: readonly number[] }
+
+export type PageWirePackage = Omit<PagePackage, 'rows' | 'areaCycles' | 'moduleCycles'> &
+  Partial<Pick<PagePackage, 'rows' | 'areaCycles' | 'moduleCycles'>>
+
+export type PageWireData = Omit<
+  PageData,
+  'folders' | 'packages' | 'areas' | 'modules' | 'health'
+> & {
+  readonly folders?: PageData['folders']
+  readonly packages?: readonly PageWirePackage[]
+  readonly areas?: readonly PageWireArea[]
+  readonly modules?: readonly PageWireModule[]
+  readonly health: Omit<PageHealth, 'cycles' | 'oversized' | 'internal'> &
+    Partial<Pick<PageHealth, 'cycles' | 'oversized' | 'internal'>>
+}
+
+/** Empty collections have one meaning on the page, so the wire can leave them out. */
+const nonempty = <T extends readonly unknown[]>(values: T): T | undefined =>
+  values.length === 0 ? undefined : values
+
+const wireRelations = ({ usedBy, usedByTests, uses }: PageRelations): Partial<PageRelations> => ({
+  usedBy: nonempty(usedBy),
+  usedByTests: nonempty(usedByTests),
+  uses: nonempty(uses)
+})
+
+/** Keep the full model for callers; compact only the data embedded in HTML. */
+export function wireDataOf(data: PageData): PageWireData {
+  return {
+    ...data,
+    folders: nonempty(data.folders),
+    packages: nonempty(
+      data.packages.map(pkg => ({
+        ...pkg,
+        rows: nonempty(pkg.rows),
+        areaCycles: nonempty(pkg.areaCycles),
+        moduleCycles: nonempty(pkg.moduleCycles)
+      }))
+    ),
+    areas: nonempty(
+      data.areas.map(({ label: _label, ...area }) => ({
+        ...area,
+        modules: nonempty(area.modules),
+        ...wireRelations(area)
+      }))
+    ),
+    modules: nonempty(
+      data.modules.map(({ label: _label, symbols, ...module }) => ({
+        ...module,
+        symbols: nonempty(
+          symbols.map(({ default: isDefault, ...symbol }) => ({
+            ...symbol,
+            ...(isDefault ? { default: true as const } : {})
+          }))
+        ),
+        ...wireRelations(module)
+      }))
+    ),
+    health: {
+      ...data.health,
+      cycles: nonempty(data.health.cycles),
+      oversized: nonempty(data.health.oversized),
+      internal: nonempty(data.health.internal)
+    }
+  }
+}
+
 function relativeTo(dir: string, path: string): string {
   if (path === dir) return '.'
   if (dir === '.') return path
