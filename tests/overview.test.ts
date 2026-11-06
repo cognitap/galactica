@@ -55,6 +55,39 @@ test('overview lists packages by name and areas by layer, then path', () => {
   )
   assert.equal(result.cycles, 0)
   assert.equal(result.unresolved, 1)
+  assert.deepEqual(result.unresolvedImports, [
+    { from: 'packages/app/main.ts', line: 3, specifier: './gone', cause: 'missing' }
+  ])
+})
+
+test('likely unresolved causes cover generated, scheme, URL and unmapped specifiers', () => {
+  const cases = [
+    ['./dist/entry.js', 'build'],
+    ['./$types', 'build'],
+    ['./addon.node?raw', 'build'],
+    ['\0virtual-module', 'virtual'],
+    ['jsr:@std/path', 'virtual'],
+    ['file:///tmp/module.ts', 'url'],
+    ['blob:module', 'url'],
+    ['ftp://example.test/module', 'url'],
+    ['C:\\src\\missing.ts', 'missing'],
+    ['#missing-alias', 'missing']
+  ] as const
+  const graph = graphOf(
+    modelOf({
+      'src/main.ts': {
+        edges: cases.map(([specifier], index) =>
+          edgeTo({ kind: 'unresolved', specifier }, { line: index + 1 })
+        )
+      }
+    }),
+    emptyConfig
+  )
+  const output = overview(graph, false, [])
+  assert.deepEqual(
+    output.unresolvedImports.map(({ specifier, cause }) => [specifier, cause]),
+    cases
+  )
 })
 
 test('top ranks modules by distinct importers that are no tests or stories, barrels aside', () => {

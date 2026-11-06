@@ -43,6 +43,11 @@ const plural = (count: number, one: string, many = `${one}s`) =>
 const listOr = (values: readonly string[], none: string) =>
   values.length === 0 ? none : values.join(', ')
 
+function specifierText(specifier: string): string {
+  const text = specifier.replace(/\s+/g, ' ')
+  return text.length > 120 ? `${text.slice(0, 119)}…` : text
+}
+
 function symbolLine(path: string, symbol: SymbolRef): string {
   const kind = symbol.default ? `default ${symbol.kind}` : symbol.kind
   const doc = symbol.doc === undefined ? '' : `  // ${symbol.doc}`
@@ -80,6 +85,7 @@ function renderOverview({
   packages,
   cycles,
   unresolved,
+  unresolvedImports,
   warnings
 }: Overview): readonly string[] {
   const areas = packages.flatMap(pkg => pkg.areas)
@@ -112,6 +118,24 @@ function renderOverview({
     })
   return reportLines([
     `${plural(packages.length, 'package')}, ${plural(modules, 'module')}, ${plural(areas.length, 'area')}`,
+    ...(unresolved === 0
+      ? []
+      : [
+          `${plural(unresolved, 'unresolved import')} by likely cause: ${(
+            [
+              ['build', 'build/generated'],
+              ['virtual', 'virtual/scheme'],
+              ['url', 'URL'],
+              ['missing', 'missing/unmapped']
+            ] as const
+          )
+            .map(
+              ([cause, label]) =>
+                `${label}: ${unresolvedImports.filter(entry => entry.cause === cause).length}`
+            )
+            .join(', ')}`,
+          'overview --json lists every unresolved import with file and line'
+        ]),
     ...layered,
     'most imported:',
     ...capped(ranked),
@@ -223,7 +247,7 @@ function renderDeps({
       ? ['unresolved: none']
       : [
           'unresolved:',
-          ...capped(unresolved.map(({ from, specifier }) => `${from}  ${specifier}`))
+          ...capped(unresolved.map(({ from, specifier }) => `${from}  ${specifierText(specifier)}`))
         ]),
     ...cycleLines(cycles, subject)
   ]

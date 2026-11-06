@@ -113,6 +113,16 @@ export interface Failure {
   }
 }
 
+/** One unresolved import from any mapped module, including tests and stories. */
+export interface UnresolvedImport {
+  readonly from: string
+  readonly line: number
+  /** Complete source specifier; text output may shorten it. */
+  readonly specifier: string
+  /** Likely cause inferred from the specifier, not a diagnosis of the filesystem or build. */
+  readonly cause: 'build' | 'virtual' | 'url' | 'missing'
+}
+
 export interface Overview extends Envelope<'overview'> {
   /** Whether `--all` was given, so `top` lists every source and config module. */
   readonly all: boolean
@@ -137,6 +147,8 @@ export interface Overview extends Envelope<'overview'> {
   readonly cycles: number
   /** Imports without a mapped module, known asset/declaration or external package, including unsupported files. */
   readonly unresolved: number
+  /** Every unresolved import, sorted by from, line, then specifier. Its length equals unresolved. */
+  readonly unresolvedImports: readonly UnresolvedImport[]
   /**
    * Analysis problems, sorted by path, then message. Compiler deprecation and
    * output-layout migration notices and valid package.json metadata exports are omitted.
@@ -213,7 +225,11 @@ export interface Deps extends Envelope<'deps'> {
   readonly packages: readonly string[]
   /** npm package names imported inside the subject, including missing paths-alias targets. Sorted. */
   readonly external: readonly string[]
-  /** Unmapped imports, including unsupported files and excluded source. Sorted by `from`, then `specifier`. */
+  /**
+   * Unmapped imports from the subject's starting modules, deduplicated by from/specifier.
+   * Package and area subjects start from source/config only, not their tests or stories.
+   * Sorted by `from`, then `specifier`; overview.unresolvedImports gives the repository-wide list with lines.
+   */
   readonly unresolved: readonly { readonly from: string; readonly specifier: string }[]
   /** The cycles a module of the subject is in, ordered as `cycles` orders them. */
   readonly cycles: readonly Cycle[]
