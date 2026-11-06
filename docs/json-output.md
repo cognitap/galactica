@@ -125,7 +125,9 @@ Packages are sorted by name. Areas are sorted by layer, lowest first, then by pa
 
 `--depth` is 1 by default. `modules` lists the non-test modules that depend on the subject within `--depth`, stories included, sorted by `distance`, then path. `distance` 1 is a direct import, including an import that passes through the subject as a barrel and a barrel that re-exports from it. Farther out, an import that only passes through a barrel depends on the module that defines the name, not on everything the barrel re-exports. `names` lists what a direct dependent imports from the subject. It is empty beyond distance 1. Modules inside the subject are not listed.
 
-`tests` lists every test module that depends on the subject at any distance, whatever `--depth` is, because the question is which tests to run. It has the same order as `modules`.
+`tests` lists every test module that depends on the subject at any distance, whatever `--depth` is, because the question is which tests to run. It has the same order as `modules`, so the closest tests come first. `via` says how a test beyond distance 1 reaches the subject: the module outside the subject that imports it directly at the start of the test's path. Galactica takes the path from a shortest path of imports that load code, type-only imports aside, when the test has one, and else from a shortest path. Where shortest paths tie, it takes the module first in path order. `via` is omitted when the test imports the subject itself. `hub` is set when every path from the test to the subject passes through a hub, and names the hub nearest the subject. A hub is a module that at least 20 modules, and at least 1 in 20 of the repository's modules, import directly, not counting imports that only pass through it as a barrel. A test that reaches the subject only through a hub says little about it, since through the hub it reaches most of the repository, so the text lists the other tests and counts these per hub. A subject's own modules are never its hubs.
+
+`tests` holds only tests that import the subject, directly or through other modules. A test that loads the subject another way, such as an end-to-end, playground or fixture-driven test that starts a dev server, runs a build or reads a config file, can be missing. `testsNote` says so in one sentence, which the text prints after the tests. Galactica 0.1.5 printed no `via`, `hub` or `testsNote`.
 
 `cycles` lists the import cycles that a module of the subject is in, each as the `cycles` command gives it, in the same order. It is empty when the subject is in no cycle. `deps` has the same field. Galactica 0.1.2 printed no `cycles` in `uses` and `deps`.
 
@@ -152,9 +154,11 @@ Packages are sorted by name. Areas are sorted by layer, lowest first, then by pa
       "area": "src/components",
       "kind": "test",
       "distance": 2,
-      "names": []
+      "names": [],
+      "via": "src/components/Button.tsx"
     }
   ],
+  "testsNote": "Lists only tests that import the subject, directly or through other modules. End-to-end, playground and fixture-driven tests that load it another way, such as through a dev server, a build or a config file, can be missing, so also search for tests named after the feature.",
   "cycles": []
 }
 ```

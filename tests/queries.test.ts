@@ -262,3 +262,79 @@ test('uses and deps fail on an unknown subject, naming their command', () => {
     assert.equal(result.command, query.name)
   }
 })
+
+test('uses says how each test reaches the subject: directly, or through the importer that starts its path', () => {
+  const graph = graphOf(
+    modelOf({
+      'src/cookie.ts': {},
+      'src/helper.ts': { edges: [edge('src/cookie.ts', { names: ['parse'] })] },
+      'src/jwt.ts': {
+        edges: [
+          edge('src/cookie.ts', { names: ['Options'], typeOnly: true }),
+          edge('src/helper.ts', { line: 2, names: ['getCookie'] })
+        ]
+      },
+      'src/types.ts': { edges: [edge('src/cookie.ts', { names: ['Options'], typeOnly: true })] },
+      'tests/cookie.test.ts': { edges: [edge('src/cookie.ts', { names: ['parse'] })] },
+      'tests/jwt.test.ts': { edges: [edge('src/jwt.ts', { names: ['jwt'] })] },
+      'tests/types.test.ts': { edges: [edge('src/types.ts')] }
+    }),
+    emptyConfig
+  )
+  const result = uses(graph, 'src/cookie.ts', root, 1)
+  assert.ok(result.command === 'uses' && !('error' in result))
+  assert.deepEqual(
+    result.tests.map(({ path, distance, via }) => [path, distance, via]),
+    [
+      ['tests/cookie.test.ts', 1, undefined],
+      // jwt.ts imports only a type from the subject, but calls it through helper.ts.
+      ['tests/jwt.test.ts', 2, 'src/helper.ts'],
+      // With no path that loads code, the shortest path names the importer.
+      ['tests/types.test.ts', 2, 'src/types.ts']
+    ]
+  )
+  assert.ok(!('via' in result.tests[0]!))
+})
+
+test('uses marks the tests that reach the subject only through a module much of the repository imports', () => {
+  const fillers = Object.fromEntries(
+    Array.from({ length: 20 }, (_, index) => [
+      `src/feature${String(index).padStart(2, '0')}.ts`,
+      { edges: [edge('src/core.ts')] }
+    ])
+  )
+  const graph = graphOf(
+    modelOf({
+      ...fillers,
+      'src/sourcemap.ts': {},
+      'src/core.ts': { edges: [edge('src/css.ts')] },
+      'src/css.ts': { edges: [edge('src/sourcemap.ts')] },
+      'tests/css.test.ts': { edges: [edge('src/css.ts')] },
+      'tests/both.test.ts': { edges: [edge('src/core.ts'), edge('src/css.ts', { line: 2 })] },
+      'tests/build.test.ts': { edges: [edge('src/core.ts')] },
+      'tests/feature.test.ts': { edges: [edge('src/feature00.ts')] }
+    }),
+    emptyConfig
+  )
+  const result = uses(graph, 'src/sourcemap.ts', root, 1)
+  assert.ok(result.command === 'uses' && !('error' in result))
+  assert.deepEqual(
+    result.tests.map(({ path, via, hub }) => [path, via, hub]),
+    [
+      ['tests/both.test.ts', 'src/css.ts', undefined],
+      ['tests/css.test.ts', 'src/css.ts', undefined],
+      ['tests/build.test.ts', 'src/css.ts', 'src/core.ts'],
+      ['tests/feature.test.ts', 'src/css.ts', 'src/core.ts']
+    ]
+  )
+  const own = uses(graph, 'src/core.ts', root, 1)
+  assert.ok(own.command === 'uses' && !('error' in own))
+  assert.ok(own.tests.every(({ hub }) => hub === undefined))
+})
+
+test('uses states that its tests are only those that import the subject', () => {
+  const result = uses(app, 'src/cn.ts', root, 1)
+  assert.ok(result.command === 'uses' && !('error' in result))
+  assert.match(result.testsNote, /only tests that import/)
+  assert.match(result.testsNote, /end-to-end, playground and fixture-driven tests/i)
+})
