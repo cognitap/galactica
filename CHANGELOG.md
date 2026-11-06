@@ -4,6 +4,14 @@
 
 ## Unreleased
 
+- **Breaking:** Empty and non-JavaScript/TypeScript repositories get an explicit `overview` message. Before: `1 package, 0 modules, 0 areas`. After: `No JavaScript or TypeScript modules found under the repository root.` Exit code stays 0.
+- **Breaking:** Unknown options get a concise message and a nearby suggestion. Before: Node's raw `parseArgs` prose. After: `unknown option --jsno; did you mean --json?`.
+- **Breaking:** Missing or unknown commands point to help in one line. Before: a full usage dump. After: `unknown command overveiw; run --help for commands`.
+- **Breaking:** `health` text calls its findings `cross-package private imports` instead of `internal imports`; JSON keeps `internalImports` unchanged.
+- **Breaking:** `html` prints an explicitly absolute `--out` as an absolute path. Before: `wrote ../../tmp/map.html`. After: `wrote /tmp/map.html`.
+- **Breaking:** The default HTML write adds a hint. Before: only `wrote galactica.html`. After: also suggests `--out <file>` or adding `galactica.html` to `.gitignore`.
+- Add `html --json` and `init --json` reports for successful writes, installation statuses and failures, using schema version 1; existing analysis JSON stays unchanged.
+- **Breaking:** `outline` and `where` text name export aliases. Before: `Root` and `Slot` both looked like `const Slot`. After: the alias says `Root (alias of Slot)`; JSON preserves the exported name and original declaration signature.
 - Add `overview --json` `unresolvedImports`, the complete list with file, line, full specifier and likely cause, including tests and stories; keep the existing numeric `unresolved` count.
 - **Breaking:** `overview` text shows likely unresolved causes near the top. Before: only `9 unresolved imports`. After: counts for build/generated, virtual/scheme, URL and missing/unmapped imports, with a pointer to the complete JSON list.
 - **Breaking:** Shorten specifiers in `deps` text to at most 120 characters. Before: a long data URL printed in full. After: its first 119 characters and `…`; JSON keeps the complete specifier.

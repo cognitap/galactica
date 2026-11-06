@@ -179,7 +179,7 @@ test('health prints its findings and exits 0 whatever it finds', () => {
   const internal = fixtureRepo('internal-imports')
   const text = galactica(internal, 'health')
   assert.equal(text.status, 0)
-  assert.match(text.stdout, /^0 import cycles, 1 oversized area, 7 internal imports$/m)
+  assert.match(text.stdout, /^0 import cycles, 1 oversized area, 7 cross-package private imports$/m)
   assert.match(
     text.stdout,
     /^ {2}packages\/app\/src\/main\.ts:1 {2}\.\.\/\.\.\/core\/src\/math {2}add {2}relative path into @fx\/core {2}use @fx\/core$/m
@@ -191,7 +191,10 @@ test('health prints its findings and exits 0 whatever it finds', () => {
   assert.equal(output.internalImports.length, 7)
   const cyclic = galactica(fixtureRepo('cycle-kinds'), 'health')
   assert.equal(cyclic.status, 0)
-  assert.match(cyclic.stdout, /^3 import cycles, 0 oversized areas, 0 internal imports$/m)
+  assert.match(
+    cyclic.stdout,
+    /^3 import cycles, 0 oversized areas, 0 cross-package private imports$/m
+  )
 })
 
 test('health takes health.areaModules from galactica.config.json', t => {
@@ -311,11 +314,12 @@ test('bad flags and missing arguments are usage failures', () => {
   }
 })
 
-test('no command or an unknown one prints usage and exits with code 1', () => {
+test('no command or an unknown one points at help in one line and exits with code 1', () => {
   for (const args of [[], ['nope']]) {
     const { status, stderr } = galactica(plain, ...args)
     assert.equal(status, 1)
-    assert.match(stderr, /Usage: galactica/)
+    assert.match(stderr, /--help/)
+    assert.equal(stderr.trim().split('\n').length, 1)
   }
 })
 
@@ -324,7 +328,7 @@ test('html --out writes the page and prints its path and size', t => {
   const first = galactica(plain, 'html', '--out', out)
   assert.equal(first.status, 0)
   assert.equal(first.stderr, '')
-  const shown = relative(plain, out).replaceAll('.', '\\.')
+  const shown = out.replaceAll('.', '\\.')
   assert.match(first.stdout, new RegExp(`^wrote ${shown} \\(\\d+ KB\\)\\n$`))
   const page = readFileSync(out, 'utf8')
   assert.match(page, /^<!doctype html>/)
@@ -341,14 +345,13 @@ test('html writes galactica.html in the current directory by default, and names 
     assert.ok(existsSync(join(cwd, 'galactica.html')))
     return stdout
   })
-  assert.match(outputs[0]!, /^wrote galactica\.html \(\d+ KB\)\n$/)
+  assert.match(outputs[0]!, /^wrote galactica\.html \(\d+ KB\)\nUse --out/)
   assert.equal(outputs[1], outputs[0])
 })
 
 test('html takes no argument and no flag of another command, and other commands take no html flag', () => {
   for (const args of [
     ['html', 'src'],
-    ['html', '--json'],
     ['html', '--depth', '2'],
     ['html', '--root', 'nowhere'],
     ['overview', '--out', 'map.html'],
@@ -678,7 +681,6 @@ test('html refuses a linked folder inside the repository, and writes through one
 test('init takes no argument, no flag of another command and no empty --command', () => {
   for (const args of [
     ['init', 'src'],
-    ['init', '--json'],
     ['init', '--out', 'x'],
     ['init', '--command', ' '],
     ['init', '--root', 'nowhere']
