@@ -4,6 +4,9 @@
 
 ## Unreleased
 
+- Lead the README with a real Immich map, a CLI excerpt, agent/human views, a glossary, tool comparisons and the measured benchmark's limits; move reference details below the pitch.
+- **Breaking:** `--json` help links to its reference on GitHub. Before: `docs/json-output.md`, absent from the npm package. After: `https://github.com/cognitap/galactica/blob/main/docs/json-output.md`.
+- Add repository topics and a homepage pointing to the README; verify that published releases have their version-specific notes.
 - **Breaking:** Empty and non-JavaScript/TypeScript repositories get an explicit `overview` message. Before: `1 package, 0 modules, 0 areas`. After: `No JavaScript or TypeScript modules found under the repository root.` Exit code stays 0.
 - **Breaking:** Unknown options get a concise message and a nearby suggestion. Before: Node's raw `parseArgs` prose. After: `unknown option --jsno; did you mean --json?`.
 - **Breaking:** Missing or unknown commands point to help in one line. Before: a full usage dump. After: `unknown command overveiw; run --help for commands`.

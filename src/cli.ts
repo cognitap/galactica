@@ -89,7 +89,10 @@ function usage(): string {
   ]
   const optionRows: readonly Row[] = [
     ['--root <dir>', 'Repository to map (default: current directory)'],
-    ['--json', 'Print the JSON object documented in docs/json-output.md'],
+    [
+      '--json',
+      'Print the JSON object documented at https://github.com/cognitap/galactica/blob/main/docs/json-output.md'
+    ],
     ['--no-cache', 'Analyze every file, without reading or writing the cache'],
     ...flags.map((option): Row => [
       `--${option}${optionValue(option)}`,
