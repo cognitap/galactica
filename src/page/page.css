@@ -86,7 +86,7 @@ code,
 
 .masthead,
 .health,
-main {
+.workspace {
   max-width: 96rem;
   margin: 0 auto;
   padding: 0 clamp(1rem, 4vw, 3rem);
@@ -385,27 +385,6 @@ kbd {
   font-weight: 600;
 }
 
-.area-toggle {
-  font: inherit;
-  color: var(--accent);
-  background: none;
-  border: 0;
-  padding: 0;
-  cursor: pointer;
-}
-
-.area-toggle::before {
-  content: '▸ ';
-}
-
-.area-toggle[aria-expanded='true']::before {
-  content: '▾ ';
-}
-
-.area-toggle:hover {
-  text-decoration: underline;
-}
-
 .cycle-mark {
   color: var(--warn);
   font-size: 0.78rem;
@@ -422,6 +401,44 @@ main {
   padding-bottom: 5rem;
   display: grid;
   gap: 4rem;
+}
+
+.workspace {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 22rem;
+  gap: 2rem;
+  align-items: start;
+}
+
+main {
+  min-width: 0;
+}
+
+.detail {
+  position: sticky;
+  top: 3.5rem;
+  max-height: calc(100vh - 4.5rem);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  margin-top: 2rem;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 0.8rem 0.95rem;
+  display: grid;
+  gap: 0.35rem;
+}
+
+.detail-title {
+  margin: 0;
+  font-family: var(--mono);
+  font-size: 0.88rem;
+  font-weight: 600;
+  line-height: 1.35;
+}
+
+.detail .modules {
+  margin-top: 0.25rem;
 }
 
 .area,
@@ -618,9 +635,7 @@ main {
   opacity: 0.35;
 }
 
-.has-selection[data-selection='module']
-  :is(.has-selected, .is-uses, .is-used-by)
-  .module:not(.is-selected, .is-uses, .is-used-by) {
+.has-selection[data-selection='module'] .detail .module:not(.is-selected, .is-uses, .is-used-by) {
   opacity: 0.55;
 }
 
@@ -706,7 +721,6 @@ main {
 .area-head {
   display: grid;
   gap: 0.1rem;
-  margin-bottom: 0.5rem;
 }
 
 .area-head h3 {
@@ -905,6 +919,32 @@ main {
   color: var(--muted);
   font-family: var(--mono);
   font-size: 0.78rem;
+}
+
+@media (max-width: 64rem) {
+  .workspace {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .detail:not(.is-open) {
+    display: none;
+  }
+
+  .detail {
+    position: fixed;
+    z-index: 2;
+    inset: auto 0 0;
+    top: auto;
+    max-height: 45vh;
+    margin: 0;
+    border-radius: 12px 12px 0 0;
+    border-bottom: 0;
+    box-shadow: 0 -8px 24px rgb(0 0 0 / 0.14);
+  }
+
+  main {
+    padding-bottom: 50vh;
+  }
 }
 
 @media (max-width: 40rem) {

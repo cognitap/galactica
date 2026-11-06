@@ -14,11 +14,9 @@ import { noteOf } from './links.js'
 /**
  * @param {PageData} data
  * @param {(selection: Selection) => void} onSelection
- * @param {() => void} onExpand
  */
-export function mapView(data, onSelection, onExpand) {
+export function mapView(data, onSelection) {
   const PALETTE = 8
-  const COLLAPSE_PAST = 8
   /** @param {number} folder */
   const folderKey = folder => (folder < PALETTE ? String(folder) : 'other')
   /**
@@ -141,82 +139,115 @@ export function mapView(data, onSelection, onExpand) {
     )
 
   /**
-   * @param {number} index
-   * @param {(view: ModuleView) => void} onRowDrawn
-   * @param {() => void} onExpand
+   * The modules of `area` that are of a kind in `kinds`, with their exported symbols.
+   * @param {PageArea} area
+   * @param {ReadonlySet<ModuleKind>} kinds
    */
-  function areaBox(index, onRowDrawn, onExpand) {
+  function listedIn(area, kinds) {
+    const modules = area.modules.filter(module => kinds.has(data.modules[module].kind))
+    const exported = modules.reduce((sum, module) => sum + data.modules[module].symbols.length, 0)
+    return { modules, exported }
+  }
+
+  /** @param {number} index */
+  function areaBox(index) {
     const area = data.areas[index]
     const box = element('article', 'area')
     box.dataset.folder = folderKey(area.folder)
     const head = element('header', 'area-head')
     const title = element('h3')
     const select = selectButton('area-select', `Select ${area.path}`)
+    select.setAttribute('aria-controls', 'detail')
     select.append(...areaTitle(area.label))
     title.append(select)
     const tag = relationTag()
-    const list = element('ul', 'modules')
-    list.id = `area-${index}-modules`
-    const toggle = element('button', 'area-toggle')
-    toggle.setAttribute('type', 'button')
-    toggle.setAttribute('aria-controls', list.id)
     const count = element('span')
     const symbols = element('span')
     const meta = element('p', 'area-meta')
-    meta.append(toggle, count, symbols)
+    meta.append(count, symbols)
     if (area.cycle) meta.append(element('span', 'cycle-mark', 'cycle'))
     head.append(title, tag, meta)
-    box.append(head, list)
+    box.append(head)
 
-    const usualKind = usualKindOf(area.kinds)
-    /** @type {Map<number, ModuleView>} */
-    const views = new Map()
-    /** @param {number} module */
-    const viewOf = module => {
-      let view = views.get(module)
-      if (view === undefined) {
-        view = { index: module, ...moduleItem(data.modules[module], usualKind) }
-        views.set(module, view)
-        onRowDrawn(view)
-      }
-      return view
+    /** @param {ReadonlySet<ModuleKind>} kinds */
+    const filter = kinds => {
+      const { modules, exported } = listedIn(area, kinds)
+      count.textContent = plural(modules.length, 'module')
+      symbols.textContent = plural(exported, 'symbol')
+      box.hidden = modules.length === 0
+      box.style.setProperty('--weight', String(Math.sqrt(exported)))
+      return { shown: modules.length, exported }
     }
+    return { index, box, select, tag, filter }
+  }
+
+  /**
+   * The panel that lists the modules of one area, the selected one or the one
+   * holding the selected module. Rows are drawn the first time their area opens
+   * and kept, so the selection highlight can mark them by class.
+   * @param {(view: ModuleView) => void} onRowDrawn
+   */
+  function detailPanel(onRowDrawn) {
+    const panel = byId('detail')
+    const heading = element('h2', 'detail-title')
+    heading.id = 'detail-heading'
+    heading.tabIndex = -1
+    const meta = element('p', 'area-meta')
+    const list = element('ul', 'modules')
+    const idle = element('p', 'empty', 'Select an area to list its modules.')
+    panel.setAttribute('aria-labelledby', heading.id)
+    panel.append(heading, meta, list, idle)
+
+    /** @type {number | undefined} */
+    let open
     /** @type {ReadonlySet<ModuleKind>} */
     let kinds = new Set()
-    let opened = false
-    const listed = () => area.modules.filter(module => kinds.has(data.modules[module].kind))
     const update = () => {
-      const shown = listed()
-      const exported = shown.reduce((sum, module) => sum + data.modules[module].symbols.length, 0)
-      const collapsible = shown.length > COLLAPSE_PAST
-      const open = !collapsible || opened
-      toggle.hidden = !collapsible
-      count.hidden = collapsible
-      toggle.setAttribute('aria-expanded', String(open))
-      toggle.textContent = plural(shown.length, 'module')
-      count.textContent = toggle.textContent
-      symbols.textContent = plural(exported, 'symbol')
-      list.replaceChildren(...(open ? shown.map(module => viewOf(module).item) : []))
-      list.hidden = !open
-      box.hidden = shown.length === 0
-      box.style.setProperty('--weight', String(Math.sqrt(exported)))
-      return { shown: shown.length, exported }
+      panel.classList.toggle('is-open', open !== undefined)
+      heading.hidden = meta.hidden = list.hidden = open === undefined
+      idle.hidden = open !== undefined
+      if (open === undefined) {
+        list.replaceChildren()
+        return
+      }
+      const area = data.areas[open]
+      heading.replaceChildren(...areaTitle(area.label))
+      heading.title = area.path
+      const { modules, exported } = listedIn(area, kinds)
+      meta.replaceChildren(
+        element('span', '', plural(modules.length, 'module')),
+        element('span', '', plural(exported, 'symbol'))
+      )
+      if (area.cycle) meta.append(element('span', 'cycle-mark', 'cycle'))
+      const usualKind = usualKindOf(area.kinds)
+      list.replaceChildren(
+        ...modules.map(module => {
+          let view = moduleViews.get(module)
+          if (view === undefined) {
+            view = { index: module, ...moduleItem(data.modules[module], usualKind) }
+            onRowDrawn(view)
+          }
+          return view.item
+        })
+      )
     }
-    toggle.addEventListener('click', () => {
-      opened = toggle.getAttribute('aria-expanded') !== 'true'
-      update()
-      if (opened) onExpand()
-    })
-    /** @param {ReadonlySet<ModuleKind>} shown */
-    const filter = shown => {
-      kinds = shown
-      return update()
+    return {
+      /** @param {number | undefined} area */
+      show(area) {
+        if (area === open) return
+        // Focus inside rows about to leave the page would fall back to the body.
+        const left = open
+        const focused = left !== undefined && panel.contains(document.activeElement)
+        open = area
+        update()
+        if (focused && left !== undefined) areaViews[left].select.focus()
+      },
+      /** @param {ReadonlySet<ModuleKind>} shown */
+      filter(shown) {
+        kinds = shown
+        update()
+      }
     }
-    const reveal = () => {
-      opened = true
-      update()
-    }
-    return { index, box, select, tag, filter, reveal }
   }
 
   /**
@@ -388,13 +419,14 @@ export function mapView(data, onSelection, onExpand) {
   }
   /** @param {number} index */
   const boxOf = index => {
-    const view = areaBox(index, onRowDrawn, onExpand)
+    const view = areaBox(index)
     view.select.addEventListener('click', () => onSelection({ kind: 'area', index }))
     areaViews[index] = view
     return view
   }
   const sections = packageOrder.map(({ pkg, index }) => packageSection(pkg, index, boxOf))
   byId('map').append(...sections.map(({ section }) => section))
+  const detail = detailPanel(onRowDrawn)
 
   /** @param {ReadonlySet<ModuleKind>} shown */
   const filter = shown => {
@@ -407,6 +439,7 @@ export function mapView(data, onSelection, onExpand) {
       modules += listed
       symbols += exported
     }
+    detail.filter(shown)
     for (const { lines, empty } of sections) {
       for (const { line, boxes } of lines) line.hidden = boxes.every(({ box }) => box.hidden)
       empty.hidden = lines.some(({ line }) => !line.hidden)
@@ -425,5 +458,11 @@ export function mapView(data, onSelection, onExpand) {
     ].join(' · ')
   }
 
-  return { areas: areaViews, modules: moduleViews, filter, filterButtons: kindFilter }
+  return {
+    areas: areaViews,
+    modules: moduleViews,
+    filter,
+    filterButtons: kindFilter,
+    showArea: detail.show
+  }
 }

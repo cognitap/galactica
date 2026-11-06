@@ -71,9 +71,10 @@
           Each package is a section, and each box in it is an area, a folder of modules. Rows are
           layers, the highest on top: an area imports only from rows below it, unless it is marked
           <span class="cycle-mark">cycle</span>, which means it and other areas in its row import
-          each other. A wider box exports more symbols. <span class="arrows">←&#8239;3</span> counts the code that
-          imports a module, <span class="arrows">→&#8239;5</span> the modules it imports. Select a box
-          title, or the circle at the end of a module's row, to mark its
+          each other. A wider box exports more symbols. Select a box title to list its modules in the panel,
+          where <span class="arrows">←&#8239;3</span> counts the code that imports a module and
+          <span class="arrows">→&#8239;5</span> the modules it imports. Select a box title, or the
+          circle at the end of a module's row, to mark its
           <span class="count-uses">dependencies</span> and its
           <span class="count-used-by">dependents</span>. The address keeps the selection, so a link
           opens the same view.
@@ -120,7 +121,13 @@
         hidden
       ></div>
     </section>
-    <main id="map"></main>
+    <div class="workspace">
+      <main id="map"></main>
+      <aside
+        class="detail"
+        id="detail"
+      ></aside>
+    </div>
     <noscript><p class="empty">This map needs JavaScript to draw.</p></noscript>
     <script
       type="application/json"

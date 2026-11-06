@@ -31,9 +31,10 @@ const helpers = `
   const box = path => [...document.querySelectorAll('.area')].find(
     node => node.querySelector('.area-select').getAttribute('aria-label') === 'Select ' + path
   )
-  const rows = path => [...box(path).querySelectorAll('.module')].filter(visible)
+  const rows = () => [...document.querySelectorAll('#detail .module')].filter(visible)
     .map(row => row.querySelector('.module-name').textContent)
-  const toggle = path => box(path).querySelector('.area-toggle')
+  const row = name => [...document.querySelectorAll('#detail .module')]
+    .find(node => node.querySelector('.module-name').textContent === name)
   const filter = () => [...document.querySelectorAll('#kind-filter button')]
     .map(button => button.textContent + ' ' + button.getAttribute('aria-pressed'))
   const frame = () => new Promise(resolve => requestAnimationFrame(() => setTimeout(resolve)))
@@ -59,32 +60,61 @@ async function page(t: TestContext, fragment = '') {
 const skip = chrome === undefined ? 'no Chrome to drive' : false
 
 test(
-  'an area past eight modules starts collapsed and lists its modules on demand',
+  'selecting an area lists its modules in the detail panel, and clearing the selection closes it',
   { skip },
   async t => {
     const run = await page(t)
     assert.deepEqual(
-      await run(`return {
-      expanded: toggle('src/big').getAttribute('aria-expanded'),
-      label: toggle('src/big').textContent,
-      big: rows('src/big'),
-      small: rows('src/small'),
-      smallToggle: visible(toggle('src/small'))
-    }`),
-      { expanded: 'false', label: '10 modules', big: [], small: ['util.ts'], smallToggle: false }
+      await run(`return { idle: visible(document.querySelector('#detail .empty')), rows: rows() }`),
+      { idle: true, rows: [] }
     )
     assert.deepEqual(
-      await run(`toggle('src/big').click(); await frame()
-      return { expanded: toggle('src/big').getAttribute('aria-expanded'), big: rows('src/big') }`),
+      await run(`box('src/big').querySelector('.area-select').click(); await frame()
+      return {
+        title: document.getElementById('detail-heading').title,
+        meta: document.querySelector('#detail .area-meta').textContent,
+        rows: rows(),
+        pressed: box('src/big').querySelector('.area-select').getAttribute('aria-pressed')
+      }`),
       {
-        expanded: 'true',
-        big: Object.keys(big).map(path => path.slice('src/big/'.length))
+        title: 'src/big',
+        meta: '10 modules1 symbol',
+        rows: Object.keys(big).map(path => path.slice('src/big/'.length)),
+        pressed: 'true'
       }
     )
     assert.deepEqual(
-      await run(`toggle('src/big').click(); await frame()
-      return { expanded: toggle('src/big').getAttribute('aria-expanded'), big: rows('src/big') }`),
-      { expanded: 'false', big: [] }
+      await run(`document.getElementById('clear-selection').click(); await frame()
+      return { idle: visible(document.querySelector('#detail .empty')), rows: rows() }`),
+      { idle: true, rows: [] }
+    )
+  }
+)
+
+test(
+  'the detail panel works from the keyboard and hands focus back when it closes',
+  { skip },
+  async t => {
+    const run = await page(t, '#area=src%2Fsmall')
+    assert.deepEqual(
+      await run(`const select = document.querySelector('#detail .module-select')
+      select.focus()
+      select.click(); await frame()
+      const chosen = { hash: decodeURIComponent(location.hash), pressed: select.getAttribute('aria-pressed') }
+      document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true })); await frame()
+      return {
+        ...chosen,
+        cleared: location.hash,
+        rows: rows(),
+        focused: document.activeElement === box('src/small').querySelector('.area-select')
+      }`),
+      {
+        hash: '#module=src/small/util.ts',
+        pressed: 'true',
+        cleared: '',
+        rows: [],
+        focused: true
+      }
     )
   }
 )
@@ -93,13 +123,13 @@ test(
   'the kind filter shows source and config at first, and each button shows or hides its kind',
   { skip },
   async t => {
-    const run = await page(t)
+    const run = await page(t, '#area=src%2Fsmall')
     assert.deepEqual(
       await run(`return {
       filter: filter(),
       counts: document.getElementById('counts').textContent,
       tests: visible(box('tests')),
-      small: rows('src/small')
+      small: rows()
     }`),
       {
         filter: ['Source 11 true', 'Tests 2 false', 'Stories 1 false'],
@@ -114,13 +144,13 @@ test(
       return {
         filter: filter(),
         counts: document.getElementById('counts').textContent,
-        tests: rows('tests'),
-        small: rows('src/small')
+        tests: visible(box('tests')),
+        small: rows()
       }`),
       {
         filter: ['Source 11 true', 'Tests 2 true', 'Stories 1 false'],
         counts: '1 package · 3 areas · 13 modules (+1 story hidden) · 2 exported symbols',
-        tests: ['e2e.test.ts'],
+        tests: true,
         small: ['util.test.ts', 'util.ts']
       }
     )
@@ -142,8 +172,8 @@ test(
       await run(`await press('Enter')
       return {
         filter: filter(),
-        tests: rows('tests'),
-        selected: box('tests').querySelector('.module-select').getAttribute('aria-pressed'),
+        tests: rows(),
+        selected: row('e2e.test.ts').querySelector('.module-select').getAttribute('aria-pressed'),
         hash: decodeURIComponent(location.hash)
       }`),
       {
@@ -157,20 +187,18 @@ test(
 )
 
 test(
-  'an address naming a module in a collapsed area expands the area and selects the module',
+  'an address naming a module opens its area in the detail panel and selects the module',
   { skip },
   async t => {
     const run = await page(t, '#module=src%2Fbig%2Fm07.ts')
     assert.deepEqual(
-      await run(`const row = [...box('src/big').querySelectorAll('.module')]
-        .find(node => node.querySelector('.module-name').textContent === 'm07.ts')
-      return {
-        expanded: toggle('src/big').getAttribute('aria-expanded'),
-        shown: rows('src/big').length,
-        selected: row.querySelector('.module-select').getAttribute('aria-pressed'),
-        focused: document.activeElement === row.querySelector('.module-select')
+      await run(`return {
+        title: document.getElementById('detail-heading').title,
+        shown: rows().length,
+        selected: row('m07.ts').querySelector('.module-select').getAttribute('aria-pressed'),
+        focused: document.activeElement === row('m07.ts').querySelector('.module-select')
       }`),
-      { expanded: 'true', shown: 10, selected: 'true', focused: true }
+      { title: 'src/big', shown: 10, selected: 'true', focused: true }
     )
   }
 )
@@ -283,12 +311,10 @@ test(
       await run(`const finding = [...document.querySelectorAll('.finding')].find(node =>
         node.textContent.includes('../../ui/src/cn'))
       finding.querySelector('.finding-select').click(); await frame()
-      const row = [...box('packages/app/src').querySelectorAll('.module')]
-        .find(node => node.querySelector('.module-name').textContent === 'main.ts')
       return {
         hash: decodeURIComponent(location.hash),
-        selected: row.querySelector('.module-select').getAttribute('aria-pressed'),
-        focused: document.activeElement === row.querySelector('.module-select')
+        selected: row('main.ts').querySelector('.module-select').getAttribute('aria-pressed'),
+        focused: document.activeElement === row('main.ts').querySelector('.module-select')
       }`),
       { hash: '#module=packages/app/src/main.ts', selected: 'true', focused: true }
     )
@@ -362,7 +388,7 @@ for (const width of [390, 1280]) {
       { skip },
       async t => {
         const tab = await openPage(t, chrome!, { width, colorScheme })
-        await tab.load(workspaceHtml)
+        await tab.load(workspaceHtml, `#module=${encodeURIComponent(longModule)}`)
         const state = await tab.run<{
           width: number
           scrollWidth: number
