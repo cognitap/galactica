@@ -240,6 +240,10 @@ Galactica never runs code from the repository it maps, so it is safe to run on a
 
 Galactica itself loads no module from the repository's `node_modules`. It runs git with `core.fsmonitor`, optional index writes and the filter drivers of the repository's own config turned off, so a `.git` folder that came with a download cannot make git run a program. A tool that acts on a file in the repository before Galactica starts, such as a version manager that reads `.nvmrc` or `.tool-versions` and switches Node.js or npm, is outside this guarantee.
 
+## Agent benchmark
+
+We ran Claude Code (Sonnet and Opus) 144 times on six tasks in hono, vite and nest: an impact question, two renames, and three edits where the agent names the tests to run. Each task ran without the skill, with it, and with it plus a one-line instruction to use it. Galactica helped on test selection when tests reach the file through a package name or a dev server. With the instruction, accuracy on those two tasks rose from 47% to 78% with Sonnet and from 82% to 100% with Opus. On the other four tasks grep alone scored 100%, and the skill changed the cost per run by between 37% less and about 50% more. Without the instruction, Sonnet rarely loaded the skill. [docs/benchmark.md](docs/benchmark.md) has the method, every number and the caveats, and `pnpm bench:agents` reruns it.
+
 ## Performance
 
 The targets are a first run under 10 seconds on a repository of about 3,000 modules, and any command with a warm cache under half a second. `pnpm bench` measures both:

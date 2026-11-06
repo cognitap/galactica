@@ -1,0 +1,5017 @@
+[
+  {
+    "id": "hono-rename-opus-instructed-r1",
+    "task": "hono-rename",
+    "kind": "rename",
+    "repository": "hono",
+    "model": "opus",
+    "modelId": "claude-opus-5-5",
+    "condition": "instructed",
+    "rep": 1,
+    "accuracy": 1,
+    "grade": {
+      "accuracy": 1,
+      "rename": {
+        "files": 9,
+        "correct": 9,
+        "leftovers": [],
+        "unparsable": [],
+        "extra": []
+      }
+    },
+    "costUsd": 0.3035612,
+    "turns": 29,
+    "toolCalls": 27,
+    "galacticaCalls": 1,
+    "skillAvailable": true,
+    "skillLoaded": true,
+    "denials": 2,
+    "durationMs": 53833
+  },
+  {
+    "id": "hono-rename-opus-instructed-r2",
+    "task": "hono-rename",
+    "kind": "rename",
+    "repository": "hono",
+    "model": "opus",
+    "modelId": "claude-opus-5-5",
+    "condition": "instructed",
+    "rep": 2,
+    "accuracy": 1,
+    "grade": {
+      "accuracy": 1,
+      "rename": {
+        "files": 9,
+        "correct": 9,
+        "leftovers": [],
+        "unparsable": [],
+        "extra": []
+      }
+    },
+    "costUsd": 0.3089892,
+    "turns": 28,
+    "toolCalls": 26,
+    "galacticaCalls": 1,
+    "skillAvailable": true,
+    "skillLoaded": true,
+    "denials": 2,
+    "durationMs": 49808
+  },
+  {
+    "id": "hono-rename-opus-instructed-r3",
+    "task": "hono-rename",
+    "kind": "rename",
+    "repository": "hono",
+    "model": "opus",
+    "modelId": "claude-opus-5-5",
+    "condition": "instructed",
+    "rep": 3,
+    "accuracy": 1,
+    "grade": {
+      "accuracy": 1,
+      "rename": {
+        "files": 9,
+        "correct": 9,
+        "leftovers": [],
+        "unparsable": [],
+        "extra": []
+      }
+    },
+    "costUsd": 0.31600500000000004,
+    "turns": 29,
+    "toolCalls": 27,
+    "galacticaCalls": 1,
+    "skillAvailable": true,
+    "skillLoaded": true,
+    "denials": 2,
+    "durationMs": 55007
+  },
+  {
+    "id": "hono-rename-opus-instructed-r4",
+    "task": "hono-rename",
+    "kind": "rename",
+    "repository": "hono",
+    "model": "opus",
+    "modelId": "claude-opus-5-5",
+    "condition": "instructed",
+    "rep": 4,
+    "accuracy": 1,
+    "grade": {
+      "accuracy": 1,
+      "rename": {
+        "files": 9,
+        "correct": 9,
+        "leftovers": [],
+        "unparsable": [],
+        "extra": []
+      }
+    },
+    "costUsd": 0.3196812,
+    "turns": 30,
+    "toolCalls": 28,
+    "galacticaCalls": 1,
+    "skillAvailable": true,
+    "skillLoaded": true,
+    "denials": 2,
+    "durationMs": 54681
+  },
+  {
+    "id": "hono-rename-opus-skill-r1",
+    "task": "hono-rename",
+    "kind": "rename",
+    "repository": "hono",
+    "model": "opus",
+    "modelId": "claude-opus-5-5",
+    "condition": "skill",
+    "rep": 1,
+    "accuracy": 1,
+    "grade": {
+      "accuracy": 1,
+      "rename": {
+        "files": 9,
+        "correct": 9,
+        "leftovers": [],
+        "unparsable": [],
+        "extra": []
+      }
+    },
+    "costUsd": 0.3346606,
+    "turns": 32,
+    "toolCalls": 30,
+    "galacticaCalls": 1,
+    "skillAvailable": true,
+    "skillLoaded": true,
+    "denials": 2,
+    "durationMs": 56069
+  },
+  {
+    "id": "hono-rename-opus-skill-r2",
+    "task": "hono-rename",
+    "kind": "rename",
+    "repository": "hono",
+    "model": "opus",
+    "modelId": "claude-opus-5-5",
+    "condition": "skill",
+    "rep": 2,
+    "accuracy": 1,
+    "grade": {
+      "accuracy": 1,
+      "rename": {
+        "files": 9,
+        "correct": 9,
+        "leftovers": [],
+        "unparsable": [],
+        "extra": []
+      }
+    },
+    "costUsd": 0.2894346,
+    "turns": 28,
+    "toolCalls": 27,
+    "galacticaCalls": 0,
+    "skillAvailable": true,
+    "skillLoaded": false,
+    "denials": 1,
+    "durationMs": 57236
+  },
+  {
+    "id": "hono-rename-opus-skill-r3",
+    "task": "hono-rename",
+    "kind": "rename",
+    "repository": "hono",
+    "model": "opus",
+    "modelId": "claude-opus-5-5",
+    "condition": "skill",
+    "rep": 3,
+    "accuracy": 1,
+    "grade": {
+      "accuracy": 1,
+      "rename": {
+        "files": 9,
+        "correct": 9,
+        "leftovers": [],
+        "unparsable": [],
+        "extra": []
+      }
+    },
+    "costUsd": 0.3117322,
+    "turns": 30,
+    "toolCalls": 28,
+    "galacticaCalls": 1,
+    "skillAvailable": true,
+    "skillLoaded": true,
+    "denials": 2,
+    "durationMs": 56612
+  },
+  {
+    "id": "hono-rename-opus-skill-r4",
+    "task": "hono-rename",
+    "kind": "rename",
+    "repository": "hono",
+    "model": "opus",
+    "modelId": "claude-opus-5-5",
+    "condition": "skill",
+    "rep": 4,
+    "accuracy": 1,
+    "grade": {
+      "accuracy": 1,
+      "rename": {
+        "files": 9,
+        "correct": 9,
+        "leftovers": [],
+        "unparsable": [],
+        "extra": []
+      }
+    },
+    "costUsd": 0.31207880000000005,
+    "turns": 29,
+    "toolCalls": 27,
+    "galacticaCalls": 1,
+    "skillAvailable": true,
+    "skillLoaded": true,
+    "denials": 2,
+    "durationMs": 54446
+  },
+  {
+    "id": "hono-rename-opus-without-r1",
+    "task": "hono-rename",
+    "kind": "rename",
+    "repository": "hono",
+    "model": "opus",
+    "modelId": "claude-opus-5-5",
+    "condition": "without",
+    "rep": 1,
+    "accuracy": 1,
+    "grade": {
+      "accuracy": 1,
+      "rename": {
+        "files": 9,
+        "correct": 9,
+        "leftovers": [],
+        "unparsable": [],
+        "extra": []
+      }
+    },
+    "costUsd": 0.3323964,
+    "turns": 33,
+    "toolCalls": 32,
+    "galacticaCalls": 0,
+    "skillAvailable": false,
+    "skillLoaded": false,
+    "denials": 2,
+    "durationMs": 63333
+  },
+  {
+    "id": "hono-rename-opus-without-r2",
+    "task": "hono-rename",
+    "kind": "rename",
+    "repository": "hono",
+    "model": "opus",
+    "modelId": "claude-opus-5-5",
+    "condition": "without",
+    "rep": 2,
+    "accuracy": 1,
+    "grade": {
+      "accuracy": 1,
+      "rename": {
+        "files": 9,
+        "correct": 9,
+        "leftovers": [],
+        "unparsable": [],
+        "extra": []
+      }
+    },
+    "costUsd": 0.2629942,
+    "turns": 27,
+    "toolCalls": 26,
+    "galacticaCalls": 0,
+    "skillAvailable": false,
+    "skillLoaded": false,
+    "denials": 2,
+    "durationMs": 49359
+  },
+  {
+    "id": "hono-rename-opus-without-r3",
+    "task": "hono-rename",
+    "kind": "rename",
+    "repository": "hono",
+    "model": "opus",
+    "modelId": "claude-opus-5-5",
+    "condition": "without",
+    "rep": 3,
+    "accuracy": 1,
+    "grade": {
+      "accuracy": 1,
+      "rename": {
+        "files": 9,
+        "correct": 9,
+        "leftovers": [],
+        "unparsable": [],
+        "extra": []
+      }
+    },
+    "costUsd": 0.27349759999999995,
+    "turns": 27,
+    "toolCalls": 26,
+    "galacticaCalls": 0,
+    "skillAvailable": false,
+    "skillLoaded": false,
+    "denials": 3,
+    "durationMs": 48711
+  },
+  {
+    "id": "hono-rename-opus-without-r4",
+    "task": "hono-rename",
+    "kind": "rename",
+    "repository": "hono",
+    "model": "opus",
+    "modelId": "claude-opus-5-5",
+    "condition": "without",
+    "rep": 4,
+    "accuracy": 1,
+    "grade": {
+      "accuracy": 1,
+      "rename": {
+        "files": 9,
+        "correct": 9,
+        "leftovers": [],
+        "unparsable": [],
+        "extra": []
+      }
+    },
+    "costUsd": 0.2276088,
+    "turns": 32,
+    "toolCalls": 31,
+    "galacticaCalls": 0,
+    "skillAvailable": false,
+    "skillLoaded": false,
+    "denials": 1,
+    "durationMs": 41773
+  },
+  {
+    "id": "hono-rename-sonnet-instructed-r1",
+    "task": "hono-rename",
+    "kind": "rename",
+    "repository": "hono",
+    "model": "sonnet",
+    "modelId": "claude-sonnet-5-5",
+    "condition": "instructed",
+    "rep": 1,
+    "accuracy": 1,
+    "grade": {
+      "accuracy": 1,
+      "rename": {
+        "files": 9,
+        "correct": 9,
+        "leftovers": [],
+        "unparsable": [],
+        "extra": []
+      }
+    },
+    "costUsd": 0.1596409,
+    "turns": 41,
+    "toolCalls": 39,
+    "galacticaCalls": 1,
+    "skillAvailable": true,
+    "skillLoaded": true,
+    "denials": 2,
+    "durationMs": 65583
+  },
+  {
+    "id": "hono-rename-sonnet-instructed-r2",
+    "task": "hono-rename",
+    "kind": "rename",
+    "repository": "hono",
+    "model": "sonnet",
+    "modelId": "claude-sonnet-5-5",
+    "condition": "instructed",
+    "rep": 2,
+    "accuracy": 1,
+    "grade": {
+      "accuracy": 1,
+      "rename": {
+        "files": 9,
+        "correct": 9,
+        "leftovers": [],
+        "unparsable": [],
+        "extra": []
+      }
+    },
+    "costUsd": 0.1540463,
+    "turns": 31,
+    "toolCalls": 29,
+    "galacticaCalls": 1,
+    "skillAvailable": true,
+    "skillLoaded": true,
+    "denials": 3,
+    "durationMs": 48334
+  },
+  {
+    "id": "hono-rename-sonnet-instructed-r3",
+    "task": "hono-rename",
+    "kind": "rename",
+    "repository": "hono",
+    "model": "sonnet",
+    "modelId": "claude-sonnet-5-5",
+    "condition": "instructed",
+    "rep": 3,
+    "accuracy": 1,
+    "grade": {
+      "accuracy": 1,
+      "rename": {
+        "files": 9,
+        "correct": 9,
+        "leftovers": [],
+        "unparsable": [],
+        "extra": []
+      }
+    },
+    "costUsd": 0.19806269999999998,
+    "turns": 41,
+    "toolCalls": 39,
+    "galacticaCalls": 1,
+    "skillAvailable": true,
+    "skillLoaded": true,
+    "denials": 2,
+    "durationMs": 59939
+  },
+  {
+    "id": "hono-rename-sonnet-instructed-r4",
+    "task": "hono-rename",
+    "kind": "rename",
+    "repository": "hono",
+    "model": "sonnet",
+    "modelId": "claude-sonnet-5-5",
+    "condition": "instructed",
+    "rep": 4,
+    "accuracy": 1,
+    "grade": {
+      "accuracy": 1,
+      "rename": {
+        "files": 9,
+        "correct": 9,
+        "leftovers": [],
+        "unparsable": [],
+        "extra": []
+      }
+    },
+    "costUsd": 0.1565458,
+    "turns": 35,
+    "toolCalls": 33,
+    "galacticaCalls": 1,
+    "skillAvailable": true,
+    "skillLoaded": true,
+    "denials": 2,
+    "durationMs": 49418
+  },
+  {
+    "id": "hono-rename-sonnet-skill-r1",
+    "task": "hono-rename",
+    "kind": "rename",
+    "repository": "hono",
+    "model": "sonnet",
+    "modelId": "claude-sonnet-5-5",
+    "condition": "skill",
+    "rep": 1,
+    "accuracy": 1,
+    "grade": {
+      "accuracy": 1,
+      "rename": {
+        "files": 9,
+        "correct": 9,
+        "leftovers": [],
+        "unparsable": [],
+        "extra": []
+      }
+    },
+    "costUsd": 0.1691446,
+    "turns": 36,
+    "toolCalls": 35,
+    "galacticaCalls": 0,
+    "skillAvailable": true,
+    "skillLoaded": false,
+    "denials": 1,
+    "durationMs": 53059
+  },
+  {
+    "id": "hono-rename-sonnet-skill-r2",
+    "task": "hono-rename",
+    "kind": "rename",
+    "repository": "hono",
+    "model": "sonnet",
+    "modelId": "claude-sonnet-5-5",
+    "condition": "skill",
+    "rep": 2,
+    "accuracy": 1,
+    "grade": {
+      "accuracy": 1,
+      "rename": {
+        "files": 9,
+        "correct": 9,
+        "leftovers": [],
+        "unparsable": [],
+        "extra": []
+      }
+    },
+    "costUsd": 0.17061510000000002,
+    "turns": 37,
+    "toolCalls": 36,
+    "galacticaCalls": 0,
+    "skillAvailable": true,
+    "skillLoaded": false,
+    "denials": 2,
+    "durationMs": 51289
+  },
+  {
+    "id": "hono-rename-sonnet-skill-r3",
+    "task": "hono-rename",
+    "kind": "rename",
+    "repository": "hono",
+    "model": "sonnet",
+    "modelId": "claude-sonnet-5-5",
+    "condition": "skill",
+    "rep": 3,
+    "accuracy": 1,
+    "grade": {
+      "accuracy": 1,
+      "rename": {
+        "files": 9,
+        "correct": 9,
+        "leftovers": [],
+        "unparsable": [],
+        "extra": []
+      }
+    },
+    "costUsd": 0.16991429999999996,
+    "turns": 34,
+    "toolCalls": 33,
+    "galacticaCalls": 0,
+    "skillAvailable": true,
+    "skillLoaded": false,
+    "denials": 2,
+    "durationMs": 48613
+  },
+  {
+    "id": "hono-rename-sonnet-skill-r4",
+    "task": "hono-rename",
+    "kind": "rename",
+    "repository": "hono",
+    "model": "sonnet",
+    "modelId": "claude-sonnet-5-5",
+    "condition": "skill",
+    "rep": 4,
+    "accuracy": 1,
+    "grade": {
+      "accuracy": 1,
+      "rename": {
+        "files": 9,
+        "correct": 9,
+        "leftovers": [],
+        "unparsable": [],
+        "extra": []
+      }
+    },
+    "costUsd": 0.1630189,
+    "turns": 36,
+    "toolCalls": 35,
+    "galacticaCalls": 0,
+    "skillAvailable": true,
+    "skillLoaded": false,
+    "denials": 1,
+    "durationMs": 48633
+  },
+  {
+    "id": "hono-rename-sonnet-without-r1",
+    "task": "hono-rename",
+    "kind": "rename",
+    "repository": "hono",
+    "model": "sonnet",
+    "modelId": "claude-sonnet-5-5",
+    "condition": "without",
+    "rep": 1,
+    "accuracy": 1,
+    "grade": {
+      "accuracy": 1,
+      "rename": {
+        "files": 9,
+        "correct": 9,
+        "leftovers": [],
+        "unparsable": [],
+        "extra": []
+      }
+    },
+    "costUsd": 0.1552986,
+    "turns": 37,
+    "toolCalls": 36,
+    "galacticaCalls": 0,
+    "skillAvailable": false,
+    "skillLoaded": false,
+    "denials": 2,
+    "durationMs": 51048
+  },
+  {
+    "id": "hono-rename-sonnet-without-r2",
+    "task": "hono-rename",
+    "kind": "rename",
+    "repository": "hono",
+    "model": "sonnet",
+    "modelId": "claude-sonnet-5-5",
+    "condition": "without",
+    "rep": 2,
+    "accuracy": 1,
+    "grade": {
+      "accuracy": 1,
+      "rename": {
+        "files": 9,
+        "correct": 9,
+        "leftovers": [],
+        "unparsable": [],
+        "extra": []
+      }
+    },
+    "costUsd": 0.17794649999999995,
+    "turns": 39,
+    "toolCalls": 38,
+    "galacticaCalls": 0,
+    "skillAvailable": false,
+    "skillLoaded": false,
+    "denials": 2,
+    "durationMs": 55939
+  },
+  {
+    "id": "hono-rename-sonnet-without-r3",
+    "task": "hono-rename",
+    "kind": "rename",
+    "repository": "hono",
+    "model": "sonnet",
+    "modelId": "claude-sonnet-5-5",
+    "condition": "without",
+    "rep": 3,
+    "accuracy": 1,
+    "grade": {
+      "accuracy": 1,
+      "rename": {
+        "files": 9,
+        "correct": 9,
+        "leftovers": [],
+        "unparsable": [],
+        "extra": []
+      }
+    },
+    "costUsd": 0.1681555,
+    "turns": 36,
+    "toolCalls": 35,
+    "galacticaCalls": 0,
+    "skillAvailable": false,
+    "skillLoaded": false,
+    "denials": 1,
+    "durationMs": 47762
+  },
+  {
+    "id": "hono-rename-sonnet-without-r4",
+    "task": "hono-rename",
+    "kind": "rename",
+    "repository": "hono",
+    "model": "sonnet",
+    "modelId": "claude-sonnet-5-5",
+    "condition": "without",
+    "rep": 4,
+    "accuracy": 1,
+    "grade": {
+      "accuracy": 1,
+      "rename": {
+        "files": 9,
+        "correct": 9,
+        "leftovers": [],
+        "unparsable": [],
+        "extra": []
+      }
+    },
+    "costUsd": 0.1711934,
+    "turns": 40,
+    "toolCalls": 39,
+    "galacticaCalls": 0,
+    "skillAvailable": false,
+    "skillLoaded": false,
+    "denials": 3,
+    "durationMs": 55745
+  },
+  {
+    "id": "hono-tests-opus-instructed-r1",
+    "task": "hono-tests",
+    "kind": "edit-and-name-tests",
+    "repository": "hono",
+    "model": "opus",
+    "modelId": "claude-opus-5-5",
+    "condition": "instructed",
+    "rep": 1,
+    "accuracy": 1,
+    "grade": {
+      "accuracy": 1,
+      "lists": [
+        {
+          "heading": "TESTS",
+          "required": 12,
+          "missed": [],
+          "listed": 17,
+          "unknown": []
+        }
+      ],
+      "edit": {
+        "changed": true,
+        "parses": true,
+        "others": []
+      }
+    },
+    "costUsd": 0.1278346,
+    "turns": 8,
+    "toolCalls": 6,
+    "galacticaCalls": 1,
+    "skillAvailable": true,
+    "skillLoaded": true,
+    "denials": 0,
+    "durationMs": 26276
+  },
+  {
+    "id": "hono-tests-opus-instructed-r2",
+    "task": "hono-tests",
+    "kind": "edit-and-name-tests",
+    "repository": "hono",
+    "model": "opus",
+    "modelId": "claude-opus-5-5",
+    "condition": "instructed",
+    "rep": 2,
+    "accuracy": 1,
+    "grade": {
+      "accuracy": 1,
+      "lists": [
+        {
+          "heading": "TESTS",
+          "required": 12,
+          "missed": [],
+          "listed": 12,
+          "unknown": []
+        }
+      ],
+      "edit": {
+        "changed": true,
+        "parses": true,
+        "others": []
+      }
+    },
+    "costUsd": 0.11599780000000001,
+    "turns": 8,
+    "toolCalls": 6,
+    "galacticaCalls": 1,
+    "skillAvailable": true,
+    "skillLoaded": true,
+    "denials": 0,
+    "durationMs": 19932
+  },
+  {
+    "id": "hono-tests-opus-instructed-r3",
+    "task": "hono-tests",
+    "kind": "edit-and-name-tests",
+    "repository": "hono",
+    "model": "opus",
+    "modelId": "claude-opus-5-5",
+    "condition": "instructed",
+    "rep": 3,
+    "accuracy": 1,
+    "grade": {
+      "accuracy": 1,
+      "lists": [
+        {
+          "heading": "TESTS",
+          "required": 12,
+          "missed": [],
+          "listed": 17,
+          "unknown": []
+        }
+      ],
+      "edit": {
+        "changed": true,
+        "parses": true,
+        "others": []
+      }
+    },
+    "costUsd": 0.1239276,
+    "turns": 7,
+    "toolCalls": 5,
+    "galacticaCalls": 1,
+    "skillAvailable": true,
+    "skillLoaded": true,
+    "denials": 0,
+    "durationMs": 19178
+  },
+  {
+    "id": "hono-tests-opus-instructed-r4",
+    "task": "hono-tests",
+    "kind": "edit-and-name-tests",
+    "repository": "hono",
+    "model": "opus",
+    "modelId": "claude-opus-5-5",
+    "condition": "instructed",
+    "rep": 4,
+    "accuracy": 1,
+    "grade": {
+      "accuracy": 1,
+      "lists": [
+        {
+          "heading": "TESTS",
+          "required": 12,
+          "missed": [],
+          "listed": 12,
+          "unknown": []
+        }
+      ],
+      "edit": {
+        "changed": true,
+        "parses": true,
+        "others": []
+      }
+    },
+    "costUsd": 0.1171158,
+    "turns": 8,
+    "toolCalls": 6,
+    "galacticaCalls": 1,
+    "skillAvailable": true,
+    "skillLoaded": true,
+    "denials": 0,
+    "durationMs": 23079
+  },
+  {
+    "id": "hono-tests-opus-skill-r1",
+    "task": "hono-tests",
+    "kind": "edit-and-name-tests",
+    "repository": "hono",
+    "model": "opus",
+    "modelId": "claude-opus-5-5",
+    "condition": "skill",
+    "rep": 1,
+    "accuracy": 1,
+    "grade": {
+      "accuracy": 1,
+      "lists": [
+        {
+          "heading": "TESTS",
+          "required": 12,
+          "missed": [],
+          "listed": 12,
+          "unknown": []
+        }
+      ],
+      "edit": {
+        "changed": true,
+        "parses": true,
+        "others": []
+      }
+    },
+    "costUsd": 0.1244156,
+    "turns": 8,
+    "toolCalls": 6,
+    "galacticaCalls": 1,
+    "skillAvailable": true,
+    "skillLoaded": true,
+    "denials": 0,
+    "durationMs": 27050
+  },
+  {
+    "id": "hono-tests-opus-skill-r2",
+    "task": "hono-tests",
+    "kind": "edit-and-name-tests",
+    "repository": "hono",
+    "model": "opus",
+    "modelId": "claude-opus-5-5",
+    "condition": "skill",
+    "rep": 2,
+    "accuracy": 0.8333333333333334,
+    "grade": {
+      "accuracy": 0.8333333333333334,
+      "lists": [
+        {
+          "heading": "TESTS",
+          "required": 12,
+          "missed": [
+            "adapters/aws-lambda/test/index.test.ts",
+            "adapters/lambda-edge/test/index.test.ts"
+          ],
+          "listed": 11,
+          "unknown": []
+        }
+      ],
+      "edit": {
+        "changed": true,
+        "parses": true,
+        "others": []
+      }
+    },
+    "costUsd": 0.119805,
+    "turns": 8,
+    "toolCalls": 6,
+    "galacticaCalls": 1,
+    "skillAvailable": true,
+    "skillLoaded": true,
+    "denials": 0,
+    "durationMs": 20058
+  },
+  {
+    "id": "hono-tests-opus-skill-r3",
+    "task": "hono-tests",
+    "kind": "edit-and-name-tests",
+    "repository": "hono",
+    "model": "opus",
+    "modelId": "claude-opus-5-5",
+    "condition": "skill",
+    "rep": 3,
+    "accuracy": 1,
+    "grade": {
+      "accuracy": 1,
+      "lists": [
+        {
+          "heading": "TESTS",
+          "required": 12,
+          "missed": [],
+          "listed": 14,
+          "unknown": []
+        }
+      ],
+      "edit": {
+        "changed": true,
+        "parses": true,
+        "others": []
+      }
+    },
+    "costUsd": 0.1282822,
+    "turns": 8,
+    "toolCalls": 6,
+    "galacticaCalls": 1,
+    "skillAvailable": true,
+    "skillLoaded": true,
+    "denials": 0,
+    "durationMs": 23235
+  },
+  {
+    "id": "hono-tests-opus-skill-r4",
+    "task": "hono-tests",
+    "kind": "edit-and-name-tests",
+    "repository": "hono",
+    "model": "opus",
+    "modelId": "claude-opus-5-5",
+    "condition": "skill",
+    "rep": 4,
+    "accuracy": 0.8333333333333334,
+    "grade": {
+      "accuracy": 0.8333333333333334,
+      "lists": [
+        {
+          "heading": "TESTS",
+          "required": 12,
+          "missed": [
+            "adapters/aws-lambda/test/index.test.ts",
+            "adapters/lambda-edge/test/index.test.ts"
+          ],
+          "listed": 11,
+          "unknown": []
+        }
+      ],
+      "edit": {
+        "changed": true,
+        "parses": true,
+        "others": []
+      }
+    },
+    "costUsd": 0.1144062,
+    "turns": 8,
+    "toolCalls": 6,
+    "galacticaCalls": 1,
+    "skillAvailable": true,
+    "skillLoaded": true,
+    "denials": 0,
+    "durationMs": 25523
+  },
+  {
+    "id": "hono-tests-opus-without-r1",
+    "task": "hono-tests",
+    "kind": "edit-and-name-tests",
+    "repository": "hono",
+    "model": "opus",
+    "modelId": "claude-opus-5-5",
+    "condition": "without",
+    "rep": 1,
+    "accuracy": 0.6666666666666666,
+    "grade": {
+      "accuracy": 0.6666666666666666,
+      "lists": [
+        {
+          "heading": "TESTS",
+          "required": 12,
+          "missed": [
+            "adapters/aws-lambda/src/handler.test.ts",
+            "adapters/lambda-edge/src/handler.test.ts",
+            "adapters/aws-lambda/test/index.test.ts",
+            "adapters/lambda-edge/test/index.test.ts"
+          ],
+          "listed": 9,
+          "unknown": []
+        }
+      ],
+      "edit": {
+        "changed": true,
+        "parses": true,
+        "others": []
+      }
+    },
+    "costUsd": 0.1098118,
+    "turns": 7,
+    "toolCalls": 6,
+    "galacticaCalls": 0,
+    "skillAvailable": false,
+    "skillLoaded": false,
+    "denials": 0,
+    "durationMs": 20423
+  },
+  {
+    "id": "hono-tests-opus-without-r2",
+    "task": "hono-tests",
+    "kind": "edit-and-name-tests",
+    "repository": "hono",
+    "model": "opus",
+    "modelId": "claude-opus-5-5",
+    "condition": "without",
+    "rep": 2,
+    "accuracy": 0.5833333333333334,
+    "grade": {
+      "accuracy": 0.5833333333333334,
+      "lists": [
+        {
+          "heading": "TESTS",
+          "required": 12,
+          "missed": [
+            "src/middleware/jwk/index.test.ts",
+            "adapters/aws-lambda/src/handler.test.ts",
+            "adapters/lambda-edge/src/handler.test.ts",
+            "adapters/aws-lambda/test/index.test.ts",
+            "adapters/lambda-edge/test/index.test.ts"
+          ],
+          "listed": 8,
+          "unknown": []
+        }
+      ],
+      "edit": {
+        "changed": true,
+        "parses": true,
+        "others": []
+      }
+    },
+    "costUsd": 0.1132428,
+    "turns": 7,
+    "toolCalls": 6,
+    "galacticaCalls": 0,
+    "skillAvailable": false,
+    "skillLoaded": false,
+    "denials": 0,
+    "durationMs": 19689
+  },
+  {
+    "id": "hono-tests-opus-without-r3",
+    "task": "hono-tests",
+    "kind": "edit-and-name-tests",
+    "repository": "hono",
+    "model": "opus",
+    "modelId": "claude-opus-5-5",
+    "condition": "without",
+    "rep": 3,
+    "accuracy": 0.6666666666666666,
+    "grade": {
+      "accuracy": 0.6666666666666666,
+      "lists": [
+        {
+          "heading": "TESTS",
+          "required": 12,
+          "missed": [
+            "adapters/aws-lambda/src/handler.test.ts",
+            "adapters/lambda-edge/src/handler.test.ts",
+            "adapters/aws-lambda/test/index.test.ts",
+            "adapters/lambda-edge/test/index.test.ts"
+          ],
+          "listed": 10,
+          "unknown": []
+        }
+      ],
+      "edit": {
+        "changed": true,
+        "parses": true,
+        "others": []
+      }
+    },
+    "costUsd": 0.11197659999999998,
+    "turns": 6,
+    "toolCalls": 5,
+    "galacticaCalls": 0,
+    "skillAvailable": false,
+    "skillLoaded": false,
+    "denials": 0,
+    "durationMs": 18687
+  },
+  {
+    "id": "hono-tests-opus-without-r4",
+    "task": "hono-tests",
+    "kind": "edit-and-name-tests",
+    "repository": "hono",
+    "model": "opus",
+    "modelId": "claude-opus-5-5",
+    "condition": "without",
+    "rep": 4,
+    "accuracy": 0.6666666666666666,
+    "grade": {
+      "accuracy": 0.6666666666666666,
+      "lists": [
+        {
+          "heading": "TESTS",
+          "required": 12,
+          "missed": [
+            "adapters/aws-lambda/src/handler.test.ts",
+            "adapters/lambda-edge/src/handler.test.ts",
+            "adapters/aws-lambda/test/index.test.ts",
+            "adapters/lambda-edge/test/index.test.ts"
+          ],
+          "listed": 9,
+          "unknown": []
+        }
+      ],
+      "edit": {
+        "changed": true,
+        "parses": true,
+        "others": []
+      }
+    },
+    "costUsd": 0.1237232,
+    "turns": 7,
+    "toolCalls": 6,
+    "galacticaCalls": 0,
+    "skillAvailable": false,
+    "skillLoaded": false,
+    "denials": 0,
+    "durationMs": 27297
+  },
+  {
+    "id": "hono-tests-sonnet-instructed-r1",
+    "task": "hono-tests",
+    "kind": "edit-and-name-tests",
+    "repository": "hono",
+    "model": "sonnet",
+    "modelId": "claude-sonnet-5-5",
+    "condition": "instructed",
+    "rep": 1,
+    "accuracy": 0.8333333333333334,
+    "grade": {
+      "accuracy": 0.8333333333333334,
+      "lists": [
+        {
+          "heading": "TESTS",
+          "required": 12,
+          "missed": [
+            "adapters/aws-lambda/test/index.test.ts",
+            "adapters/lambda-edge/test/index.test.ts"
+          ],
+          "listed": 11,
+          "unknown": []
+        }
+      ],
+      "edit": {
+        "changed": true,
+        "parses": true,
+        "others": []
+      }
+    },
+    "costUsd": 0.023557500000000002,
+    "turns": 6,
+    "toolCalls": 4,
+    "galacticaCalls": 1,
+    "skillAvailable": true,
+    "skillLoaded": true,
+    "denials": 0,
+    "durationMs": 21671
+  },
+  {
+    "id": "hono-tests-sonnet-instructed-r2",
+    "task": "hono-tests",
+    "kind": "edit-and-name-tests",
+    "repository": "hono",
+    "model": "sonnet",
+    "modelId": "claude-sonnet-5-5",
+    "condition": "instructed",
+    "rep": 2,
+    "accuracy": 0.75,
+    "grade": {
+      "accuracy": 0.75,
+      "lists": [
+        {
+          "heading": "TESTS",
+          "required": 12,
+          "missed": [
+            "src/middleware/jwk/index.test.ts",
+            "adapters/aws-lambda/test/index.test.ts",
+            "adapters/lambda-edge/test/index.test.ts"
+          ],
+          "listed": 9,
+          "unknown": []
+        }
+      ],
+      "edit": {
+        "changed": true,
+        "parses": true,
+        "others": []
+      }
+    },
+    "costUsd": 0.0479807,
+    "turns": 7,
+    "toolCalls": 5,
+    "galacticaCalls": 1,
+    "skillAvailable": true,
+    "skillLoaded": true,
+    "denials": 0,
+    "durationMs": 12711
+  },
+  {
+    "id": "hono-tests-sonnet-instructed-r3",
+    "task": "hono-tests",
+    "kind": "edit-and-name-tests",
+    "repository": "hono",
+    "model": "sonnet",
+    "modelId": "claude-sonnet-5-5",
+    "condition": "instructed",
+    "rep": 3,
+    "accuracy": 0.8333333333333334,
+    "grade": {
+      "accuracy": 0.8333333333333334,
+      "lists": [
+        {
+          "heading": "TESTS",
+          "required": 12,
+          "missed": [
+            "adapters/aws-lambda/test/index.test.ts",
+            "adapters/lambda-edge/test/index.test.ts"
+          ],
+          "listed": 10,
+          "unknown": []
+        }
+      ],
+      "edit": {
+        "changed": true,
+        "parses": true,
+        "others": []
+      }
+    },
+    "costUsd": 0.047548099999999996,
+    "turns": 6,
+    "toolCalls": 4,
+    "galacticaCalls": 1,
+    "skillAvailable": true,
+    "skillLoaded": true,
+    "denials": 0,
+    "durationMs": 12288
+  },
+  {
+    "id": "hono-tests-sonnet-instructed-r4",
+    "task": "hono-tests",
+    "kind": "edit-and-name-tests",
+    "repository": "hono",
+    "model": "sonnet",
+    "modelId": "claude-sonnet-5-5",
+    "condition": "instructed",
+    "rep": 4,
+    "accuracy": 0.8333333333333334,
+    "grade": {
+      "accuracy": 0.8333333333333334,
+      "lists": [
+        {
+          "heading": "TESTS",
+          "required": 12,
+          "missed": [
+            "adapters/aws-lambda/test/index.test.ts",
+            "adapters/lambda-edge/test/index.test.ts"
+          ],
+          "listed": 10,
+          "unknown": []
+        }
+      ],
+      "edit": {
+        "changed": true,
+        "parses": true,
+        "others": []
+      }
+    },
+    "costUsd": 0.03212,
+    "turns": 6,
+    "toolCalls": 4,
+    "galacticaCalls": 1,
+    "skillAvailable": true,
+    "skillLoaded": true,
+    "denials": 0,
+    "durationMs": 11655
+  },
+  {
+    "id": "hono-tests-sonnet-skill-r1",
+    "task": "hono-tests",
+    "kind": "edit-and-name-tests",
+    "repository": "hono",
+    "model": "sonnet",
+    "modelId": "claude-sonnet-5-5",
+    "condition": "skill",
+    "rep": 1,
+    "accuracy": 0.5833333333333334,
+    "grade": {
+      "accuracy": 0.5833333333333334,
+      "lists": [
+        {
+          "heading": "TESTS",
+          "required": 12,
+          "missed": [
+            "src/middleware/jwk/index.test.ts",
+            "src/adapter/aws-lambda/handler.test.ts",
+            "adapters/aws-lambda/src/handler.test.ts",
+            "adapters/aws-lambda/test/index.test.ts",
+            "adapters/lambda-edge/test/index.test.ts"
+          ],
+          "listed": 7,
+          "unknown": []
+        }
+      ],
+      "edit": {
+        "changed": true,
+        "parses": true,
+        "others": []
+      }
+    },
+    "costUsd": 0.0425718,
+    "turns": 5,
+    "toolCalls": 4,
+    "galacticaCalls": 0,
+    "skillAvailable": true,
+    "skillLoaded": false,
+    "denials": 0,
+    "durationMs": 20233
+  },
+  {
+    "id": "hono-tests-sonnet-skill-r2",
+    "task": "hono-tests",
+    "kind": "edit-and-name-tests",
+    "repository": "hono",
+    "model": "sonnet",
+    "modelId": "claude-sonnet-5-5",
+    "condition": "skill",
+    "rep": 2,
+    "accuracy": 0.5833333333333334,
+    "grade": {
+      "accuracy": 0.5833333333333334,
+      "lists": [
+        {
+          "heading": "TESTS",
+          "required": 12,
+          "missed": [
+            "src/middleware/jwk/index.test.ts",
+            "src/adapter/aws-lambda/handler.test.ts",
+            "adapters/aws-lambda/src/handler.test.ts",
+            "adapters/aws-lambda/test/index.test.ts",
+            "adapters/lambda-edge/test/index.test.ts"
+          ],
+          "listed": 8,
+          "unknown": ["src/utils/jwt/jws.test.ts"]
+        }
+      ],
+      "edit": {
+        "changed": true,
+        "parses": true,
+        "others": []
+      }
+    },
+    "costUsd": 0.036804500000000004,
+    "turns": 5,
+    "toolCalls": 4,
+    "galacticaCalls": 0,
+    "skillAvailable": true,
+    "skillLoaded": false,
+    "denials": 0,
+    "durationMs": 10537
+  },
+  {
+    "id": "hono-tests-sonnet-skill-r3",
+    "task": "hono-tests",
+    "kind": "edit-and-name-tests",
+    "repository": "hono",
+    "model": "sonnet",
+    "modelId": "claude-sonnet-5-5",
+    "condition": "skill",
+    "rep": 3,
+    "accuracy": 0.5833333333333334,
+    "grade": {
+      "accuracy": 0.5833333333333334,
+      "lists": [
+        {
+          "heading": "TESTS",
+          "required": 12,
+          "missed": [
+            "src/middleware/jwk/index.test.ts",
+            "adapters/aws-lambda/src/handler.test.ts",
+            "adapters/lambda-edge/src/handler.test.ts",
+            "adapters/aws-lambda/test/index.test.ts",
+            "adapters/lambda-edge/test/index.test.ts"
+          ],
+          "listed": 7,
+          "unknown": []
+        }
+      ],
+      "edit": {
+        "changed": true,
+        "parses": true,
+        "others": []
+      }
+    },
+    "costUsd": 0.04608290000000001,
+    "turns": 6,
+    "toolCalls": 5,
+    "galacticaCalls": 0,
+    "skillAvailable": true,
+    "skillLoaded": false,
+    "denials": 0,
+    "durationMs": 14796
+  },
+  {
+    "id": "hono-tests-sonnet-skill-r4",
+    "task": "hono-tests",
+    "kind": "edit-and-name-tests",
+    "repository": "hono",
+    "model": "sonnet",
+    "modelId": "claude-sonnet-5-5",
+    "condition": "skill",
+    "rep": 4,
+    "accuracy": 0.5833333333333334,
+    "grade": {
+      "accuracy": 0.5833333333333334,
+      "lists": [
+        {
+          "heading": "TESTS",
+          "required": 12,
+          "missed": [
+            "src/middleware/jwk/index.test.ts",
+            "src/adapter/aws-lambda/handler.test.ts",
+            "adapters/aws-lambda/src/handler.test.ts",
+            "adapters/aws-lambda/test/index.test.ts",
+            "adapters/lambda-edge/test/index.test.ts"
+          ],
+          "listed": 8,
+          "unknown": ["src/utils/jwt/jws.test.ts"]
+        }
+      ],
+      "edit": {
+        "changed": true,
+        "parses": true,
+        "others": []
+      }
+    },
+    "costUsd": 0.0401848,
+    "turns": 5,
+    "toolCalls": 4,
+    "galacticaCalls": 0,
+    "skillAvailable": true,
+    "skillLoaded": false,
+    "denials": 0,
+    "durationMs": 12436
+  },
+  {
+    "id": "hono-tests-sonnet-without-r1",
+    "task": "hono-tests",
+    "kind": "edit-and-name-tests",
+    "repository": "hono",
+    "model": "sonnet",
+    "modelId": "claude-sonnet-5-5",
+    "condition": "without",
+    "rep": 1,
+    "accuracy": 0.4166666666666667,
+    "grade": {
+      "accuracy": 0.4166666666666667,
+      "lists": [
+        {
+          "heading": "TESTS",
+          "required": 12,
+          "missed": [
+            "src/utils/basic-auth.test.ts",
+            "src/middleware/jwt/index.test.ts",
+            "src/middleware/jwk/index.test.ts",
+            "adapters/aws-lambda/src/handler.test.ts",
+            "adapters/lambda-edge/src/handler.test.ts",
+            "adapters/aws-lambda/test/index.test.ts",
+            "adapters/lambda-edge/test/index.test.ts"
+          ],
+          "listed": 5,
+          "unknown": []
+        }
+      ],
+      "edit": {
+        "changed": true,
+        "parses": true,
+        "others": []
+      }
+    },
+    "costUsd": 0.0377763,
+    "turns": 5,
+    "toolCalls": 4,
+    "galacticaCalls": 0,
+    "skillAvailable": false,
+    "skillLoaded": false,
+    "denials": 0,
+    "durationMs": 11319
+  },
+  {
+    "id": "hono-tests-sonnet-without-r2",
+    "task": "hono-tests",
+    "kind": "edit-and-name-tests",
+    "repository": "hono",
+    "model": "sonnet",
+    "modelId": "claude-sonnet-5-5",
+    "condition": "without",
+    "rep": 2,
+    "accuracy": 0.5,
+    "grade": {
+      "accuracy": 0.5,
+      "lists": [
+        {
+          "heading": "TESTS",
+          "required": 12,
+          "missed": [
+            "src/middleware/jwt/index.test.ts",
+            "src/middleware/jwk/index.test.ts",
+            "src/adapter/aws-lambda/handler.test.ts",
+            "adapters/aws-lambda/src/handler.test.ts",
+            "adapters/aws-lambda/test/index.test.ts",
+            "adapters/lambda-edge/test/index.test.ts"
+          ],
+          "listed": 7,
+          "unknown": ["src/utils/jwt/jws.test.ts"]
+        }
+      ],
+      "edit": {
+        "changed": true,
+        "parses": true,
+        "others": []
+      }
+    },
+    "costUsd": 0.0350369,
+    "turns": 5,
+    "toolCalls": 4,
+    "galacticaCalls": 0,
+    "skillAvailable": false,
+    "skillLoaded": false,
+    "denials": 0,
+    "durationMs": 11381
+  },
+  {
+    "id": "hono-tests-sonnet-without-r3",
+    "task": "hono-tests",
+    "kind": "edit-and-name-tests",
+    "repository": "hono",
+    "model": "sonnet",
+    "modelId": "claude-sonnet-5-5",
+    "condition": "without",
+    "rep": 3,
+    "accuracy": 0.5833333333333334,
+    "grade": {
+      "accuracy": 0.5833333333333334,
+      "lists": [
+        {
+          "heading": "TESTS",
+          "required": 12,
+          "missed": [
+            "src/middleware/jwk/index.test.ts",
+            "adapters/aws-lambda/src/handler.test.ts",
+            "adapters/lambda-edge/src/handler.test.ts",
+            "adapters/aws-lambda/test/index.test.ts",
+            "adapters/lambda-edge/test/index.test.ts"
+          ],
+          "listed": 7,
+          "unknown": []
+        }
+      ],
+      "edit": {
+        "changed": true,
+        "parses": true,
+        "others": []
+      }
+    },
+    "costUsd": 0.041511799999999995,
+    "turns": 7,
+    "toolCalls": 6,
+    "galacticaCalls": 0,
+    "skillAvailable": false,
+    "skillLoaded": false,
+    "denials": 0,
+    "durationMs": 13964
+  },
+  {
+    "id": "hono-tests-sonnet-without-r4",
+    "task": "hono-tests",
+    "kind": "edit-and-name-tests",
+    "repository": "hono",
+    "model": "sonnet",
+    "modelId": "claude-sonnet-5-5",
+    "condition": "without",
+    "rep": 4,
+    "accuracy": 0.25,
+    "grade": {
+      "accuracy": 0.25,
+      "lists": [
+        {
+          "heading": "TESTS",
+          "required": 12,
+          "missed": [
+            "src/middleware/basic-auth/index.test.ts",
+            "src/utils/jwt/jwt.test.ts",
+            "src/middleware/jwt/index.test.ts",
+            "src/middleware/jwk/index.test.ts",
+            "src/adapter/aws-lambda/handler.test.ts",
+            "adapters/aws-lambda/src/handler.test.ts",
+            "adapters/lambda-edge/src/handler.test.ts",
+            "adapters/aws-lambda/test/index.test.ts",
+            "adapters/lambda-edge/test/index.test.ts"
+          ],
+          "listed": 4,
+          "unknown": ["src/utils/jwt/jws.test.ts"]
+        }
+      ],
+      "edit": {
+        "changed": true,
+        "parses": true,
+        "others": []
+      }
+    },
+    "costUsd": 0.0497197,
+    "turns": 8,
+    "toolCalls": 7,
+    "galacticaCalls": 0,
+    "skillAvailable": false,
+    "skillLoaded": false,
+    "denials": 0,
+    "durationMs": 17536
+  },
+  {
+    "id": "nest-impact-opus-instructed-r1",
+    "task": "nest-impact",
+    "kind": "impact",
+    "repository": "nest",
+    "model": "opus",
+    "modelId": "claude-opus-5-5",
+    "condition": "instructed",
+    "rep": 1,
+    "accuracy": 1,
+    "grade": {
+      "accuracy": 1,
+      "lists": [
+        {
+          "heading": "FILES",
+          "required": 8,
+          "missed": [],
+          "listed": 9,
+          "unknown": []
+        },
+        {
+          "heading": "TESTS",
+          "required": 6,
+          "missed": [],
+          "listed": 14,
+          "unknown": []
+        }
+      ]
+    },
+    "costUsd": 0.1440458,
+    "turns": 8,
+    "toolCalls": 6,
+    "galacticaCalls": 1,
+    "skillAvailable": true,
+    "skillLoaded": true,
+    "denials": 0,
+    "durationMs": 27533
+  },
+  {
+    "id": "nest-impact-opus-instructed-r2",
+    "task": "nest-impact",
+    "kind": "impact",
+    "repository": "nest",
+    "model": "opus",
+    "modelId": "claude-opus-5-5",
+    "condition": "instructed",
+    "rep": 2,
+    "accuracy": 1,
+    "grade": {
+      "accuracy": 1,
+      "lists": [
+        {
+          "heading": "FILES",
+          "required": 8,
+          "missed": [],
+          "listed": 9,
+          "unknown": []
+        },
+        {
+          "heading": "TESTS",
+          "required": 6,
+          "missed": [],
+          "listed": 11,
+          "unknown": []
+        }
+      ]
+    },
+    "costUsd": 0.1318632,
+    "turns": 8,
+    "toolCalls": 6,
+    "galacticaCalls": 1,
+    "skillAvailable": true,
+    "skillLoaded": true,
+    "denials": 0,
+    "durationMs": 25785
+  },
+  {
+    "id": "nest-impact-opus-instructed-r3",
+    "task": "nest-impact",
+    "kind": "impact",
+    "repository": "nest",
+    "model": "opus",
+    "modelId": "claude-opus-5-5",
+    "condition": "instructed",
+    "rep": 3,
+    "accuracy": 1,
+    "grade": {
+      "accuracy": 1,
+      "lists": [
+        {
+          "heading": "FILES",
+          "required": 8,
+          "missed": [],
+          "listed": 9,
+          "unknown": []
+        },
+        {
+          "heading": "TESTS",
+          "required": 6,
+          "missed": [],
+          "listed": 10,
+          "unknown": []
+        }
+      ]
+    },
+    "costUsd": 0.1375098,
+    "turns": 7,
+    "toolCalls": 5,
+    "galacticaCalls": 1,
+    "skillAvailable": true,
+    "skillLoaded": true,
+    "denials": 0,
+    "durationMs": 26892
+  },
+  {
+    "id": "nest-impact-opus-instructed-r4",
+    "task": "nest-impact",
+    "kind": "impact",
+    "repository": "nest",
+    "model": "opus",
+    "modelId": "claude-opus-5-5",
+    "condition": "instructed",
+    "rep": 4,
+    "accuracy": 1,
+    "grade": {
+      "accuracy": 1,
+      "lists": [
+        {
+          "heading": "FILES",
+          "required": 8,
+          "missed": [],
+          "listed": 9,
+          "unknown": []
+        },
+        {
+          "heading": "TESTS",
+          "required": 6,
+          "missed": [],
+          "listed": 10,
+          "unknown": []
+        }
+      ]
+    },
+    "costUsd": 0.155084,
+    "turns": 7,
+    "toolCalls": 5,
+    "galacticaCalls": 1,
+    "skillAvailable": true,
+    "skillLoaded": true,
+    "denials": 0,
+    "durationMs": 23987
+  },
+  {
+    "id": "nest-impact-opus-skill-r1",
+    "task": "nest-impact",
+    "kind": "impact",
+    "repository": "nest",
+    "model": "opus",
+    "modelId": "claude-opus-5-5",
+    "condition": "skill",
+    "rep": 1,
+    "accuracy": 1,
+    "grade": {
+      "accuracy": 1,
+      "lists": [
+        {
+          "heading": "FILES",
+          "required": 8,
+          "missed": [],
+          "listed": 9,
+          "unknown": []
+        },
+        {
+          "heading": "TESTS",
+          "required": 6,
+          "missed": [],
+          "listed": 12,
+          "unknown": []
+        }
+      ]
+    },
+    "costUsd": 0.15310620000000003,
+    "turns": 8,
+    "toolCalls": 6,
+    "galacticaCalls": 1,
+    "skillAvailable": true,
+    "skillLoaded": true,
+    "denials": 0,
+    "durationMs": 28271
+  },
+  {
+    "id": "nest-impact-opus-skill-r2",
+    "task": "nest-impact",
+    "kind": "impact",
+    "repository": "nest",
+    "model": "opus",
+    "modelId": "claude-opus-5-5",
+    "condition": "skill",
+    "rep": 2,
+    "accuracy": 1,
+    "grade": {
+      "accuracy": 1,
+      "lists": [
+        {
+          "heading": "FILES",
+          "required": 8,
+          "missed": [],
+          "listed": 9,
+          "unknown": []
+        },
+        {
+          "heading": "TESTS",
+          "required": 6,
+          "missed": [],
+          "listed": 11,
+          "unknown": []
+        }
+      ]
+    },
+    "costUsd": 0.119935,
+    "turns": 7,
+    "toolCalls": 5,
+    "galacticaCalls": 1,
+    "skillAvailable": true,
+    "skillLoaded": true,
+    "denials": 0,
+    "durationMs": 24884
+  },
+  {
+    "id": "nest-impact-opus-skill-r3",
+    "task": "nest-impact",
+    "kind": "impact",
+    "repository": "nest",
+    "model": "opus",
+    "modelId": "claude-opus-5-5",
+    "condition": "skill",
+    "rep": 3,
+    "accuracy": 1,
+    "grade": {
+      "accuracy": 1,
+      "lists": [
+        {
+          "heading": "FILES",
+          "required": 8,
+          "missed": [],
+          "listed": 9,
+          "unknown": []
+        },
+        {
+          "heading": "TESTS",
+          "required": 6,
+          "missed": [],
+          "listed": 11,
+          "unknown": []
+        }
+      ]
+    },
+    "costUsd": 0.1447858,
+    "turns": 8,
+    "toolCalls": 6,
+    "galacticaCalls": 1,
+    "skillAvailable": true,
+    "skillLoaded": true,
+    "denials": 0,
+    "durationMs": 27964
+  },
+  {
+    "id": "nest-impact-opus-skill-r4",
+    "task": "nest-impact",
+    "kind": "impact",
+    "repository": "nest",
+    "model": "opus",
+    "modelId": "claude-opus-5-5",
+    "condition": "skill",
+    "rep": 4,
+    "accuracy": 1,
+    "grade": {
+      "accuracy": 1,
+      "lists": [
+        {
+          "heading": "FILES",
+          "required": 8,
+          "missed": [],
+          "listed": 9,
+          "unknown": []
+        },
+        {
+          "heading": "TESTS",
+          "required": 6,
+          "missed": [],
+          "listed": 11,
+          "unknown": []
+        }
+      ]
+    },
+    "costUsd": 0.12246280000000001,
+    "turns": 7,
+    "toolCalls": 5,
+    "galacticaCalls": 1,
+    "skillAvailable": true,
+    "skillLoaded": true,
+    "denials": 0,
+    "durationMs": 23672
+  },
+  {
+    "id": "nest-impact-opus-without-r1",
+    "task": "nest-impact",
+    "kind": "impact",
+    "repository": "nest",
+    "model": "opus",
+    "modelId": "claude-opus-5-5",
+    "condition": "without",
+    "rep": 1,
+    "accuracy": 1,
+    "grade": {
+      "accuracy": 1,
+      "lists": [
+        {
+          "heading": "FILES",
+          "required": 8,
+          "missed": [],
+          "listed": 10,
+          "unknown": []
+        },
+        {
+          "heading": "TESTS",
+          "required": 6,
+          "missed": [],
+          "listed": 14,
+          "unknown": []
+        }
+      ]
+    },
+    "costUsd": 0.184065,
+    "turns": 7,
+    "toolCalls": 6,
+    "galacticaCalls": 0,
+    "skillAvailable": false,
+    "skillLoaded": false,
+    "denials": 0,
+    "durationMs": 31245
+  },
+  {
+    "id": "nest-impact-opus-without-r2",
+    "task": "nest-impact",
+    "kind": "impact",
+    "repository": "nest",
+    "model": "opus",
+    "modelId": "claude-opus-5-5",
+    "condition": "without",
+    "rep": 2,
+    "accuracy": 1,
+    "grade": {
+      "accuracy": 1,
+      "lists": [
+        {
+          "heading": "FILES",
+          "required": 8,
+          "missed": [],
+          "listed": 10,
+          "unknown": []
+        },
+        {
+          "heading": "TESTS",
+          "required": 6,
+          "missed": [],
+          "listed": 11,
+          "unknown": []
+        }
+      ]
+    },
+    "costUsd": 0.1427926,
+    "turns": 6,
+    "toolCalls": 5,
+    "galacticaCalls": 0,
+    "skillAvailable": false,
+    "skillLoaded": false,
+    "denials": 0,
+    "durationMs": 30373
+  },
+  {
+    "id": "nest-impact-opus-without-r3",
+    "task": "nest-impact",
+    "kind": "impact",
+    "repository": "nest",
+    "model": "opus",
+    "modelId": "claude-opus-5-5",
+    "condition": "without",
+    "rep": 3,
+    "accuracy": 1,
+    "grade": {
+      "accuracy": 1,
+      "lists": [
+        {
+          "heading": "FILES",
+          "required": 8,
+          "missed": [],
+          "listed": 9,
+          "unknown": []
+        },
+        {
+          "heading": "TESTS",
+          "required": 6,
+          "missed": [],
+          "listed": 12,
+          "unknown": []
+        }
+      ]
+    },
+    "costUsd": 0.2106522,
+    "turns": 10,
+    "toolCalls": 9,
+    "galacticaCalls": 0,
+    "skillAvailable": false,
+    "skillLoaded": false,
+    "denials": 0,
+    "durationMs": 39293
+  },
+  {
+    "id": "nest-impact-opus-without-r4",
+    "task": "nest-impact",
+    "kind": "impact",
+    "repository": "nest",
+    "model": "opus",
+    "modelId": "claude-opus-5-5",
+    "condition": "without",
+    "rep": 4,
+    "accuracy": 1,
+    "grade": {
+      "accuracy": 1,
+      "lists": [
+        {
+          "heading": "FILES",
+          "required": 8,
+          "missed": [],
+          "listed": 10,
+          "unknown": []
+        },
+        {
+          "heading": "TESTS",
+          "required": 6,
+          "missed": [],
+          "listed": 15,
+          "unknown": []
+        }
+      ]
+    },
+    "costUsd": 0.1322768,
+    "turns": 5,
+    "toolCalls": 4,
+    "galacticaCalls": 0,
+    "skillAvailable": false,
+    "skillLoaded": false,
+    "denials": 0,
+    "durationMs": 26009
+  },
+  {
+    "id": "nest-impact-sonnet-instructed-r1",
+    "task": "nest-impact",
+    "kind": "impact",
+    "repository": "nest",
+    "model": "sonnet",
+    "modelId": "claude-sonnet-5-5",
+    "condition": "instructed",
+    "rep": 1,
+    "accuracy": 1,
+    "grade": {
+      "accuracy": 1,
+      "lists": [
+        {
+          "heading": "FILES",
+          "required": 8,
+          "missed": [],
+          "listed": 9,
+          "unknown": []
+        },
+        {
+          "heading": "TESTS",
+          "required": 6,
+          "missed": [],
+          "listed": 10,
+          "unknown": []
+        }
+      ]
+    },
+    "costUsd": 0.025629000000000002,
+    "turns": 4,
+    "toolCalls": 2,
+    "galacticaCalls": 1,
+    "skillAvailable": true,
+    "skillLoaded": true,
+    "denials": 0,
+    "durationMs": 19645
+  },
+  {
+    "id": "nest-impact-sonnet-instructed-r2",
+    "task": "nest-impact",
+    "kind": "impact",
+    "repository": "nest",
+    "model": "sonnet",
+    "modelId": "claude-sonnet-5-5",
+    "condition": "instructed",
+    "rep": 2,
+    "accuracy": 1,
+    "grade": {
+      "accuracy": 1,
+      "lists": [
+        {
+          "heading": "FILES",
+          "required": 8,
+          "missed": [],
+          "listed": 9,
+          "unknown": []
+        },
+        {
+          "heading": "TESTS",
+          "required": 6,
+          "missed": [],
+          "listed": 9,
+          "unknown": []
+        }
+      ]
+    },
+    "costUsd": 0.049117400000000005,
+    "turns": 5,
+    "toolCalls": 3,
+    "galacticaCalls": 1,
+    "skillAvailable": true,
+    "skillLoaded": true,
+    "denials": 0,
+    "durationMs": 14492
+  },
+  {
+    "id": "nest-impact-sonnet-instructed-r3",
+    "task": "nest-impact",
+    "kind": "impact",
+    "repository": "nest",
+    "model": "sonnet",
+    "modelId": "claude-sonnet-5-5",
+    "condition": "instructed",
+    "rep": 3,
+    "accuracy": 1,
+    "grade": {
+      "accuracy": 1,
+      "lists": [
+        {
+          "heading": "FILES",
+          "required": 8,
+          "missed": [],
+          "listed": 9,
+          "unknown": []
+        },
+        {
+          "heading": "TESTS",
+          "required": 6,
+          "missed": [],
+          "listed": 11,
+          "unknown": []
+        }
+      ]
+    },
+    "costUsd": 0.0520609,
+    "turns": 5,
+    "toolCalls": 3,
+    "galacticaCalls": 1,
+    "skillAvailable": true,
+    "skillLoaded": true,
+    "denials": 0,
+    "durationMs": 16535
+  },
+  {
+    "id": "nest-impact-sonnet-instructed-r4",
+    "task": "nest-impact",
+    "kind": "impact",
+    "repository": "nest",
+    "model": "sonnet",
+    "modelId": "claude-sonnet-5-5",
+    "condition": "instructed",
+    "rep": 4,
+    "accuracy": 1,
+    "grade": {
+      "accuracy": 1,
+      "lists": [
+        {
+          "heading": "FILES",
+          "required": 8,
+          "missed": [],
+          "listed": 9,
+          "unknown": []
+        },
+        {
+          "heading": "TESTS",
+          "required": 6,
+          "missed": [],
+          "listed": 8,
+          "unknown": []
+        }
+      ]
+    },
+    "costUsd": 0.0481894,
+    "turns": 5,
+    "toolCalls": 3,
+    "galacticaCalls": 1,
+    "skillAvailable": true,
+    "skillLoaded": true,
+    "denials": 0,
+    "durationMs": 14352
+  },
+  {
+    "id": "nest-impact-sonnet-skill-r1",
+    "task": "nest-impact",
+    "kind": "impact",
+    "repository": "nest",
+    "model": "sonnet",
+    "modelId": "claude-sonnet-5-5",
+    "condition": "skill",
+    "rep": 1,
+    "accuracy": 1,
+    "grade": {
+      "accuracy": 1,
+      "lists": [
+        {
+          "heading": "FILES",
+          "required": 8,
+          "missed": [],
+          "listed": 9,
+          "unknown": []
+        },
+        {
+          "heading": "TESTS",
+          "required": 6,
+          "missed": [],
+          "listed": 10,
+          "unknown": []
+        }
+      ]
+    },
+    "costUsd": 0.0479857,
+    "turns": 4,
+    "toolCalls": 2,
+    "galacticaCalls": 1,
+    "skillAvailable": true,
+    "skillLoaded": true,
+    "denials": 0,
+    "durationMs": 21033
+  },
+  {
+    "id": "nest-impact-sonnet-skill-r2",
+    "task": "nest-impact",
+    "kind": "impact",
+    "repository": "nest",
+    "model": "sonnet",
+    "modelId": "claude-sonnet-5-5",
+    "condition": "skill",
+    "rep": 2,
+    "accuracy": 1,
+    "grade": {
+      "accuracy": 1,
+      "lists": [
+        {
+          "heading": "FILES",
+          "required": 8,
+          "missed": [],
+          "listed": 9,
+          "unknown": []
+        },
+        {
+          "heading": "TESTS",
+          "required": 6,
+          "missed": [],
+          "listed": 10,
+          "unknown": []
+        }
+      ]
+    },
+    "costUsd": 0.0535403,
+    "turns": 6,
+    "toolCalls": 4,
+    "galacticaCalls": 1,
+    "skillAvailable": true,
+    "skillLoaded": true,
+    "denials": 0,
+    "durationMs": 18808
+  },
+  {
+    "id": "nest-impact-sonnet-skill-r3",
+    "task": "nest-impact",
+    "kind": "impact",
+    "repository": "nest",
+    "model": "sonnet",
+    "modelId": "claude-sonnet-5-5",
+    "condition": "skill",
+    "rep": 3,
+    "accuracy": 1,
+    "grade": {
+      "accuracy": 1,
+      "lists": [
+        {
+          "heading": "FILES",
+          "required": 8,
+          "missed": [],
+          "listed": 10,
+          "unknown": []
+        },
+        {
+          "heading": "TESTS",
+          "required": 6,
+          "missed": [],
+          "listed": 9,
+          "unknown": []
+        }
+      ]
+    },
+    "costUsd": 0.052090500000000005,
+    "turns": 6,
+    "toolCalls": 4,
+    "galacticaCalls": 1,
+    "skillAvailable": true,
+    "skillLoaded": true,
+    "denials": 0,
+    "durationMs": 18179
+  },
+  {
+    "id": "nest-impact-sonnet-skill-r4",
+    "task": "nest-impact",
+    "kind": "impact",
+    "repository": "nest",
+    "model": "sonnet",
+    "modelId": "claude-sonnet-5-5",
+    "condition": "skill",
+    "rep": 4,
+    "accuracy": 1,
+    "grade": {
+      "accuracy": 1,
+      "lists": [
+        {
+          "heading": "FILES",
+          "required": 8,
+          "missed": [],
+          "listed": 9,
+          "unknown": []
+        },
+        {
+          "heading": "TESTS",
+          "required": 6,
+          "missed": [],
+          "listed": 10,
+          "unknown": []
+        }
+      ]
+    },
+    "costUsd": 0.05190380000000001,
+    "turns": 6,
+    "toolCalls": 4,
+    "galacticaCalls": 1,
+    "skillAvailable": true,
+    "skillLoaded": true,
+    "denials": 0,
+    "durationMs": 16971
+  },
+  {
+    "id": "nest-impact-sonnet-without-r1",
+    "task": "nest-impact",
+    "kind": "impact",
+    "repository": "nest",
+    "model": "sonnet",
+    "modelId": "claude-sonnet-5-5",
+    "condition": "without",
+    "rep": 1,
+    "accuracy": 1,
+    "grade": {
+      "accuracy": 1,
+      "lists": [
+        {
+          "heading": "FILES",
+          "required": 8,
+          "missed": [],
+          "listed": 9,
+          "unknown": []
+        },
+        {
+          "heading": "TESTS",
+          "required": 6,
+          "missed": [],
+          "listed": 8,
+          "unknown": []
+        }
+      ]
+    },
+    "costUsd": 0.0680804,
+    "turns": 6,
+    "toolCalls": 5,
+    "galacticaCalls": 0,
+    "skillAvailable": false,
+    "skillLoaded": false,
+    "denials": 0,
+    "durationMs": 24171
+  },
+  {
+    "id": "nest-impact-sonnet-without-r2",
+    "task": "nest-impact",
+    "kind": "impact",
+    "repository": "nest",
+    "model": "sonnet",
+    "modelId": "claude-sonnet-5-5",
+    "condition": "without",
+    "rep": 2,
+    "accuracy": 1,
+    "grade": {
+      "accuracy": 1,
+      "lists": [
+        {
+          "heading": "FILES",
+          "required": 8,
+          "missed": [],
+          "listed": 9,
+          "unknown": []
+        },
+        {
+          "heading": "TESTS",
+          "required": 6,
+          "missed": [],
+          "listed": 10,
+          "unknown": ["packages/core/test/repl/repl.spec.ts"]
+        }
+      ]
+    },
+    "costUsd": 0.05022650000000001,
+    "turns": 6,
+    "toolCalls": 5,
+    "galacticaCalls": 0,
+    "skillAvailable": false,
+    "skillLoaded": false,
+    "denials": 0,
+    "durationMs": 20693
+  },
+  {
+    "id": "nest-impact-sonnet-without-r3",
+    "task": "nest-impact",
+    "kind": "impact",
+    "repository": "nest",
+    "model": "sonnet",
+    "modelId": "claude-sonnet-5-5",
+    "condition": "without",
+    "rep": 3,
+    "accuracy": 1,
+    "grade": {
+      "accuracy": 1,
+      "lists": [
+        {
+          "heading": "FILES",
+          "required": 8,
+          "missed": [],
+          "listed": 10,
+          "unknown": []
+        },
+        {
+          "heading": "TESTS",
+          "required": 6,
+          "missed": [],
+          "listed": 8,
+          "unknown": []
+        }
+      ]
+    },
+    "costUsd": 0.07642679999999999,
+    "turns": 9,
+    "toolCalls": 8,
+    "galacticaCalls": 0,
+    "skillAvailable": false,
+    "skillLoaded": false,
+    "denials": 0,
+    "durationMs": 23083
+  },
+  {
+    "id": "nest-impact-sonnet-without-r4",
+    "task": "nest-impact",
+    "kind": "impact",
+    "repository": "nest",
+    "model": "sonnet",
+    "modelId": "claude-sonnet-5-5",
+    "condition": "without",
+    "rep": 4,
+    "accuracy": 1,
+    "grade": {
+      "accuracy": 1,
+      "lists": [
+        {
+          "heading": "FILES",
+          "required": 8,
+          "missed": [],
+          "listed": 9,
+          "unknown": []
+        },
+        {
+          "heading": "TESTS",
+          "required": 6,
+          "missed": [],
+          "listed": 8,
+          "unknown": []
+        }
+      ]
+    },
+    "costUsd": 0.08567280000000001,
+    "turns": 7,
+    "toolCalls": 6,
+    "galacticaCalls": 0,
+    "skillAvailable": false,
+    "skillLoaded": false,
+    "denials": 0,
+    "durationMs": 23527
+  },
+  {
+    "id": "nest-rename-opus-instructed-r1",
+    "task": "nest-rename",
+    "kind": "rename",
+    "repository": "nest",
+    "model": "opus",
+    "modelId": "claude-opus-5-5",
+    "condition": "instructed",
+    "rep": 1,
+    "accuracy": 1,
+    "grade": {
+      "accuracy": 1,
+      "rename": {
+        "files": 12,
+        "correct": 12,
+        "leftovers": [],
+        "unparsable": [],
+        "extra": []
+      }
+    },
+    "costUsd": 0.33805680000000005,
+    "turns": 33,
+    "toolCalls": 31,
+    "galacticaCalls": 1,
+    "skillAvailable": true,
+    "skillLoaded": true,
+    "denials": 2,
+    "durationMs": 64582
+  },
+  {
+    "id": "nest-rename-opus-instructed-r2",
+    "task": "nest-rename",
+    "kind": "rename",
+    "repository": "nest",
+    "model": "opus",
+    "modelId": "claude-opus-5-5",
+    "condition": "instructed",
+    "rep": 2,
+    "accuracy": 1,
+    "grade": {
+      "accuracy": 1,
+      "rename": {
+        "files": 12,
+        "correct": 12,
+        "leftovers": [],
+        "unparsable": [],
+        "extra": []
+      }
+    },
+    "costUsd": 0.36672520000000003,
+    "turns": 35,
+    "toolCalls": 33,
+    "galacticaCalls": 1,
+    "skillAvailable": true,
+    "skillLoaded": true,
+    "denials": 3,
+    "durationMs": 63575
+  },
+  {
+    "id": "nest-rename-opus-instructed-r3",
+    "task": "nest-rename",
+    "kind": "rename",
+    "repository": "nest",
+    "model": "opus",
+    "modelId": "claude-opus-5-5",
+    "condition": "instructed",
+    "rep": 3,
+    "accuracy": 1,
+    "grade": {
+      "accuracy": 1,
+      "rename": {
+        "files": 12,
+        "correct": 12,
+        "leftovers": [],
+        "unparsable": [],
+        "extra": []
+      }
+    },
+    "costUsd": 0.33882080000000003,
+    "turns": 33,
+    "toolCalls": 31,
+    "galacticaCalls": 1,
+    "skillAvailable": true,
+    "skillLoaded": true,
+    "denials": 2,
+    "durationMs": 57799
+  },
+  {
+    "id": "nest-rename-opus-instructed-r4",
+    "task": "nest-rename",
+    "kind": "rename",
+    "repository": "nest",
+    "model": "opus",
+    "modelId": "claude-opus-5-5",
+    "condition": "instructed",
+    "rep": 4,
+    "accuracy": 1,
+    "grade": {
+      "accuracy": 1,
+      "rename": {
+        "files": 12,
+        "correct": 12,
+        "leftovers": [],
+        "unparsable": [],
+        "extra": []
+      }
+    },
+    "costUsd": 0.34670080000000003,
+    "turns": 33,
+    "toolCalls": 31,
+    "galacticaCalls": 1,
+    "skillAvailable": true,
+    "skillLoaded": true,
+    "denials": 2,
+    "durationMs": 61515
+  },
+  {
+    "id": "nest-rename-opus-skill-r1",
+    "task": "nest-rename",
+    "kind": "rename",
+    "repository": "nest",
+    "model": "opus",
+    "modelId": "claude-opus-5-5",
+    "condition": "skill",
+    "rep": 1,
+    "accuracy": 1,
+    "grade": {
+      "accuracy": 1,
+      "rename": {
+        "files": 12,
+        "correct": 12,
+        "leftovers": [],
+        "unparsable": [],
+        "extra": []
+      }
+    },
+    "costUsd": 0.31703119999999996,
+    "turns": 33,
+    "toolCalls": 32,
+    "galacticaCalls": 0,
+    "skillAvailable": true,
+    "skillLoaded": false,
+    "denials": 3,
+    "durationMs": 59470
+  },
+  {
+    "id": "nest-rename-opus-skill-r2",
+    "task": "nest-rename",
+    "kind": "rename",
+    "repository": "nest",
+    "model": "opus",
+    "modelId": "claude-opus-5-5",
+    "condition": "skill",
+    "rep": 2,
+    "accuracy": 1,
+    "grade": {
+      "accuracy": 1,
+      "rename": {
+        "files": 12,
+        "correct": 12,
+        "leftovers": [],
+        "unparsable": [],
+        "extra": []
+      }
+    },
+    "costUsd": 0.32859219999999995,
+    "turns": 33,
+    "toolCalls": 32,
+    "galacticaCalls": 0,
+    "skillAvailable": true,
+    "skillLoaded": false,
+    "denials": 3,
+    "durationMs": 62687
+  },
+  {
+    "id": "nest-rename-opus-skill-r3",
+    "task": "nest-rename",
+    "kind": "rename",
+    "repository": "nest",
+    "model": "opus",
+    "modelId": "claude-opus-5-5",
+    "condition": "skill",
+    "rep": 3,
+    "accuracy": 1,
+    "grade": {
+      "accuracy": 1,
+      "rename": {
+        "files": 12,
+        "correct": 12,
+        "leftovers": [],
+        "unparsable": [],
+        "extra": []
+      }
+    },
+    "costUsd": 0.34792979999999996,
+    "turns": 29,
+    "toolCalls": 28,
+    "galacticaCalls": 0,
+    "skillAvailable": true,
+    "skillLoaded": false,
+    "denials": 2,
+    "durationMs": 53672
+  },
+  {
+    "id": "nest-rename-opus-skill-r4",
+    "task": "nest-rename",
+    "kind": "rename",
+    "repository": "nest",
+    "model": "opus",
+    "modelId": "claude-opus-5-5",
+    "condition": "skill",
+    "rep": 4,
+    "accuracy": 1,
+    "grade": {
+      "accuracy": 1,
+      "rename": {
+        "files": 12,
+        "correct": 12,
+        "leftovers": [],
+        "unparsable": [],
+        "extra": []
+      }
+    },
+    "costUsd": 0.3094842,
+    "turns": 32,
+    "toolCalls": 31,
+    "galacticaCalls": 0,
+    "skillAvailable": true,
+    "skillLoaded": false,
+    "denials": 2,
+    "durationMs": 58542
+  },
+  {
+    "id": "nest-rename-opus-without-r1",
+    "task": "nest-rename",
+    "kind": "rename",
+    "repository": "nest",
+    "model": "opus",
+    "modelId": "claude-opus-5-5",
+    "condition": "without",
+    "rep": 1,
+    "accuracy": 1,
+    "grade": {
+      "accuracy": 1,
+      "rename": {
+        "files": 12,
+        "correct": 12,
+        "leftovers": [],
+        "unparsable": [],
+        "extra": []
+      }
+    },
+    "costUsd": 0.3035822,
+    "turns": 30,
+    "toolCalls": 29,
+    "galacticaCalls": 0,
+    "skillAvailable": false,
+    "skillLoaded": false,
+    "denials": 2,
+    "durationMs": 53810
+  },
+  {
+    "id": "nest-rename-opus-without-r2",
+    "task": "nest-rename",
+    "kind": "rename",
+    "repository": "nest",
+    "model": "opus",
+    "modelId": "claude-opus-5-5",
+    "condition": "without",
+    "rep": 2,
+    "accuracy": 1,
+    "grade": {
+      "accuracy": 1,
+      "rename": {
+        "files": 12,
+        "correct": 12,
+        "leftovers": [],
+        "unparsable": [],
+        "extra": []
+      }
+    },
+    "costUsd": 0.2836902,
+    "turns": 30,
+    "toolCalls": 29,
+    "galacticaCalls": 0,
+    "skillAvailable": false,
+    "skillLoaded": false,
+    "denials": 2,
+    "durationMs": 55531
+  },
+  {
+    "id": "nest-rename-opus-without-r3",
+    "task": "nest-rename",
+    "kind": "rename",
+    "repository": "nest",
+    "model": "opus",
+    "modelId": "claude-opus-5-5",
+    "condition": "without",
+    "rep": 3,
+    "accuracy": 1,
+    "grade": {
+      "accuracy": 1,
+      "rename": {
+        "files": 12,
+        "correct": 12,
+        "leftovers": [],
+        "unparsable": [],
+        "extra": []
+      }
+    },
+    "costUsd": 0.289337,
+    "turns": 31,
+    "toolCalls": 30,
+    "galacticaCalls": 0,
+    "skillAvailable": false,
+    "skillLoaded": false,
+    "denials": 3,
+    "durationMs": 54021
+  },
+  {
+    "id": "nest-rename-opus-without-r4",
+    "task": "nest-rename",
+    "kind": "rename",
+    "repository": "nest",
+    "model": "opus",
+    "modelId": "claude-opus-5-5",
+    "condition": "without",
+    "rep": 4,
+    "accuracy": 1,
+    "grade": {
+      "accuracy": 1,
+      "rename": {
+        "files": 12,
+        "correct": 12,
+        "leftovers": [],
+        "unparsable": [],
+        "extra": []
+      }
+    },
+    "costUsd": 0.2630364,
+    "turns": 30,
+    "toolCalls": 29,
+    "galacticaCalls": 0,
+    "skillAvailable": false,
+    "skillLoaded": false,
+    "denials": 2,
+    "durationMs": 51448
+  },
+  {
+    "id": "nest-rename-sonnet-instructed-r1",
+    "task": "nest-rename",
+    "kind": "rename",
+    "repository": "nest",
+    "model": "sonnet",
+    "modelId": "claude-sonnet-5-5",
+    "condition": "instructed",
+    "rep": 1,
+    "accuracy": 1,
+    "grade": {
+      "accuracy": 1,
+      "rename": {
+        "files": 12,
+        "correct": 12,
+        "leftovers": [],
+        "unparsable": [],
+        "extra": []
+      }
+    },
+    "costUsd": 0.1503452,
+    "turns": 35,
+    "toolCalls": 33,
+    "galacticaCalls": 1,
+    "skillAvailable": true,
+    "skillLoaded": true,
+    "denials": 3,
+    "durationMs": 54829
+  },
+  {
+    "id": "nest-rename-sonnet-instructed-r2",
+    "task": "nest-rename",
+    "kind": "rename",
+    "repository": "nest",
+    "model": "sonnet",
+    "modelId": "claude-sonnet-5-5",
+    "condition": "instructed",
+    "rep": 2,
+    "accuracy": 1,
+    "grade": {
+      "accuracy": 1,
+      "rename": {
+        "files": 12,
+        "correct": 12,
+        "leftovers": [],
+        "unparsable": [],
+        "extra": []
+      }
+    },
+    "costUsd": 0.15498620000000002,
+    "turns": 32,
+    "toolCalls": 30,
+    "galacticaCalls": 1,
+    "skillAvailable": true,
+    "skillLoaded": true,
+    "denials": 2,
+    "durationMs": 52633
+  },
+  {
+    "id": "nest-rename-sonnet-instructed-r3",
+    "task": "nest-rename",
+    "kind": "rename",
+    "repository": "nest",
+    "model": "sonnet",
+    "modelId": "claude-sonnet-5-5",
+    "condition": "instructed",
+    "rep": 3,
+    "accuracy": 1,
+    "grade": {
+      "accuracy": 1,
+      "rename": {
+        "files": 12,
+        "correct": 12,
+        "leftovers": [],
+        "unparsable": [],
+        "extra": []
+      }
+    },
+    "costUsd": 0.1648821,
+    "turns": 34,
+    "toolCalls": 32,
+    "galacticaCalls": 1,
+    "skillAvailable": true,
+    "skillLoaded": true,
+    "denials": 3,
+    "durationMs": 50254
+  },
+  {
+    "id": "nest-rename-sonnet-instructed-r4",
+    "task": "nest-rename",
+    "kind": "rename",
+    "repository": "nest",
+    "model": "sonnet",
+    "modelId": "claude-sonnet-5-5",
+    "condition": "instructed",
+    "rep": 4,
+    "accuracy": 1,
+    "grade": {
+      "accuracy": 1,
+      "rename": {
+        "files": 12,
+        "correct": 12,
+        "leftovers": [],
+        "unparsable": [],
+        "extra": []
+      }
+    },
+    "costUsd": 0.1832996,
+    "turns": 35,
+    "toolCalls": 33,
+    "galacticaCalls": 1,
+    "skillAvailable": true,
+    "skillLoaded": true,
+    "denials": 2,
+    "durationMs": 57286
+  },
+  {
+    "id": "nest-rename-sonnet-skill-r1",
+    "task": "nest-rename",
+    "kind": "rename",
+    "repository": "nest",
+    "model": "sonnet",
+    "modelId": "claude-sonnet-5-5",
+    "condition": "skill",
+    "rep": 1,
+    "accuracy": 1,
+    "grade": {
+      "accuracy": 1,
+      "rename": {
+        "files": 12,
+        "correct": 12,
+        "leftovers": [],
+        "unparsable": [],
+        "extra": []
+      }
+    },
+    "costUsd": 0.1282395,
+    "turns": 30,
+    "toolCalls": 29,
+    "galacticaCalls": 0,
+    "skillAvailable": true,
+    "skillLoaded": false,
+    "denials": 2,
+    "durationMs": 39774
+  },
+  {
+    "id": "nest-rename-sonnet-skill-r2",
+    "task": "nest-rename",
+    "kind": "rename",
+    "repository": "nest",
+    "model": "sonnet",
+    "modelId": "claude-sonnet-5-5",
+    "condition": "skill",
+    "rep": 2,
+    "accuracy": 1,
+    "grade": {
+      "accuracy": 1,
+      "rename": {
+        "files": 12,
+        "correct": 12,
+        "leftovers": [],
+        "unparsable": [],
+        "extra": []
+      }
+    },
+    "costUsd": 0.1253124,
+    "turns": 30,
+    "toolCalls": 29,
+    "galacticaCalls": 0,
+    "skillAvailable": true,
+    "skillLoaded": false,
+    "denials": 2,
+    "durationMs": 40208
+  },
+  {
+    "id": "nest-rename-sonnet-skill-r3",
+    "task": "nest-rename",
+    "kind": "rename",
+    "repository": "nest",
+    "model": "sonnet",
+    "modelId": "claude-sonnet-5-5",
+    "condition": "skill",
+    "rep": 3,
+    "accuracy": 1,
+    "grade": {
+      "accuracy": 1,
+      "rename": {
+        "files": 12,
+        "correct": 12,
+        "leftovers": [],
+        "unparsable": [],
+        "extra": []
+      }
+    },
+    "costUsd": 0.12568210000000002,
+    "turns": 30,
+    "toolCalls": 29,
+    "galacticaCalls": 0,
+    "skillAvailable": true,
+    "skillLoaded": false,
+    "denials": 2,
+    "durationMs": 38938
+  },
+  {
+    "id": "nest-rename-sonnet-skill-r4",
+    "task": "nest-rename",
+    "kind": "rename",
+    "repository": "nest",
+    "model": "sonnet",
+    "modelId": "claude-sonnet-5-5",
+    "condition": "skill",
+    "rep": 4,
+    "accuracy": 1,
+    "grade": {
+      "accuracy": 1,
+      "rename": {
+        "files": 12,
+        "correct": 12,
+        "leftovers": [],
+        "unparsable": [],
+        "extra": []
+      }
+    },
+    "costUsd": 0.15014929999999999,
+    "turns": 32,
+    "toolCalls": 31,
+    "galacticaCalls": 0,
+    "skillAvailable": true,
+    "skillLoaded": false,
+    "denials": 3,
+    "durationMs": 47368
+  },
+  {
+    "id": "nest-rename-sonnet-without-r1",
+    "task": "nest-rename",
+    "kind": "rename",
+    "repository": "nest",
+    "model": "sonnet",
+    "modelId": "claude-sonnet-5-5",
+    "condition": "without",
+    "rep": 1,
+    "accuracy": 1,
+    "grade": {
+      "accuracy": 1,
+      "rename": {
+        "files": 12,
+        "correct": 12,
+        "leftovers": [],
+        "unparsable": [],
+        "extra": []
+      }
+    },
+    "costUsd": 0.13251130000000003,
+    "turns": 31,
+    "toolCalls": 30,
+    "galacticaCalls": 0,
+    "skillAvailable": false,
+    "skillLoaded": false,
+    "denials": 2,
+    "durationMs": 43300
+  },
+  {
+    "id": "nest-rename-sonnet-without-r2",
+    "task": "nest-rename",
+    "kind": "rename",
+    "repository": "nest",
+    "model": "sonnet",
+    "modelId": "claude-sonnet-5-5",
+    "condition": "without",
+    "rep": 2,
+    "accuracy": 1,
+    "grade": {
+      "accuracy": 1,
+      "rename": {
+        "files": 12,
+        "correct": 12,
+        "leftovers": [],
+        "unparsable": [],
+        "extra": []
+      }
+    },
+    "costUsd": 0.1226802,
+    "turns": 30,
+    "toolCalls": 29,
+    "galacticaCalls": 0,
+    "skillAvailable": false,
+    "skillLoaded": false,
+    "denials": 2,
+    "durationMs": 42743
+  },
+  {
+    "id": "nest-rename-sonnet-without-r3",
+    "task": "nest-rename",
+    "kind": "rename",
+    "repository": "nest",
+    "model": "sonnet",
+    "modelId": "claude-sonnet-5-5",
+    "condition": "without",
+    "rep": 3,
+    "accuracy": 1,
+    "grade": {
+      "accuracy": 1,
+      "rename": {
+        "files": 12,
+        "correct": 12,
+        "leftovers": [],
+        "unparsable": [],
+        "extra": []
+      }
+    },
+    "costUsd": 0.142785,
+    "turns": 32,
+    "toolCalls": 31,
+    "galacticaCalls": 0,
+    "skillAvailable": false,
+    "skillLoaded": false,
+    "denials": 3,
+    "durationMs": 43447
+  },
+  {
+    "id": "nest-rename-sonnet-without-r4",
+    "task": "nest-rename",
+    "kind": "rename",
+    "repository": "nest",
+    "model": "sonnet",
+    "modelId": "claude-sonnet-5-5",
+    "condition": "without",
+    "rep": 4,
+    "accuracy": 1,
+    "grade": {
+      "accuracy": 1,
+      "rename": {
+        "files": 12,
+        "correct": 12,
+        "leftovers": [],
+        "unparsable": [],
+        "extra": []
+      }
+    },
+    "costUsd": 0.1247353,
+    "turns": 30,
+    "toolCalls": 29,
+    "galacticaCalls": 0,
+    "skillAvailable": false,
+    "skillLoaded": false,
+    "denials": 2,
+    "durationMs": 39942
+  },
+  {
+    "id": "nest-tests-opus-instructed-r1",
+    "task": "nest-tests",
+    "kind": "edit-and-name-tests",
+    "repository": "nest",
+    "model": "opus",
+    "modelId": "claude-opus-5-5",
+    "condition": "instructed",
+    "rep": 1,
+    "accuracy": 1,
+    "grade": {
+      "accuracy": 1,
+      "lists": [
+        {
+          "heading": "TESTS",
+          "required": 5,
+          "missed": [],
+          "listed": 18,
+          "unknown": []
+        }
+      ],
+      "edit": {
+        "changed": true,
+        "parses": true,
+        "others": []
+      }
+    },
+    "costUsd": 0.1409996,
+    "turns": 7,
+    "toolCalls": 5,
+    "galacticaCalls": 1,
+    "skillAvailable": true,
+    "skillLoaded": true,
+    "denials": 0,
+    "durationMs": 26393
+  },
+  {
+    "id": "nest-tests-opus-instructed-r2",
+    "task": "nest-tests",
+    "kind": "edit-and-name-tests",
+    "repository": "nest",
+    "model": "opus",
+    "modelId": "claude-opus-5-5",
+    "condition": "instructed",
+    "rep": 2,
+    "accuracy": 1,
+    "grade": {
+      "accuracy": 1,
+      "lists": [
+        {
+          "heading": "TESTS",
+          "required": 5,
+          "missed": [],
+          "listed": 21,
+          "unknown": []
+        }
+      ],
+      "edit": {
+        "changed": true,
+        "parses": true,
+        "others": []
+      }
+    },
+    "costUsd": 0.15838380000000002,
+    "turns": 8,
+    "toolCalls": 6,
+    "galacticaCalls": 1,
+    "skillAvailable": true,
+    "skillLoaded": true,
+    "denials": 0,
+    "durationMs": 33377
+  },
+  {
+    "id": "nest-tests-opus-instructed-r3",
+    "task": "nest-tests",
+    "kind": "edit-and-name-tests",
+    "repository": "nest",
+    "model": "opus",
+    "modelId": "claude-opus-5-5",
+    "condition": "instructed",
+    "rep": 3,
+    "accuracy": 1,
+    "grade": {
+      "accuracy": 1,
+      "lists": [
+        {
+          "heading": "TESTS",
+          "required": 5,
+          "missed": [],
+          "listed": 14,
+          "unknown": []
+        }
+      ],
+      "edit": {
+        "changed": true,
+        "parses": true,
+        "others": []
+      }
+    },
+    "costUsd": 0.1629564,
+    "turns": 8,
+    "toolCalls": 6,
+    "galacticaCalls": 1,
+    "skillAvailable": true,
+    "skillLoaded": true,
+    "denials": 0,
+    "durationMs": 28592
+  },
+  {
+    "id": "nest-tests-opus-instructed-r4",
+    "task": "nest-tests",
+    "kind": "edit-and-name-tests",
+    "repository": "nest",
+    "model": "opus",
+    "modelId": "claude-opus-5-5",
+    "condition": "instructed",
+    "rep": 4,
+    "accuracy": 1,
+    "grade": {
+      "accuracy": 1,
+      "lists": [
+        {
+          "heading": "TESTS",
+          "required": 5,
+          "missed": [],
+          "listed": 20,
+          "unknown": []
+        }
+      ],
+      "edit": {
+        "changed": true,
+        "parses": true,
+        "others": []
+      }
+    },
+    "costUsd": 0.1519166,
+    "turns": 7,
+    "toolCalls": 5,
+    "galacticaCalls": 1,
+    "skillAvailable": true,
+    "skillLoaded": true,
+    "denials": 0,
+    "durationMs": 27484
+  },
+  {
+    "id": "nest-tests-opus-skill-r1",
+    "task": "nest-tests",
+    "kind": "edit-and-name-tests",
+    "repository": "nest",
+    "model": "opus",
+    "modelId": "claude-opus-5-5",
+    "condition": "skill",
+    "rep": 1,
+    "accuracy": 1,
+    "grade": {
+      "accuracy": 1,
+      "lists": [
+        {
+          "heading": "TESTS",
+          "required": 5,
+          "missed": [],
+          "listed": 17,
+          "unknown": []
+        }
+      ],
+      "edit": {
+        "changed": true,
+        "parses": true,
+        "others": []
+      }
+    },
+    "costUsd": 0.16292900000000002,
+    "turns": 8,
+    "toolCalls": 6,
+    "galacticaCalls": 1,
+    "skillAvailable": true,
+    "skillLoaded": true,
+    "denials": 0,
+    "durationMs": 31548
+  },
+  {
+    "id": "nest-tests-opus-skill-r2",
+    "task": "nest-tests",
+    "kind": "edit-and-name-tests",
+    "repository": "nest",
+    "model": "opus",
+    "modelId": "claude-opus-5-5",
+    "condition": "skill",
+    "rep": 2,
+    "accuracy": 1,
+    "grade": {
+      "accuracy": 1,
+      "lists": [
+        {
+          "heading": "TESTS",
+          "required": 5,
+          "missed": [],
+          "listed": 5,
+          "unknown": []
+        }
+      ],
+      "edit": {
+        "changed": true,
+        "parses": true,
+        "others": []
+      }
+    },
+    "costUsd": 0.152977,
+    "turns": 8,
+    "toolCalls": 6,
+    "galacticaCalls": 1,
+    "skillAvailable": true,
+    "skillLoaded": true,
+    "denials": 0,
+    "durationMs": 29816
+  },
+  {
+    "id": "nest-tests-opus-skill-r3",
+    "task": "nest-tests",
+    "kind": "edit-and-name-tests",
+    "repository": "nest",
+    "model": "opus",
+    "modelId": "claude-opus-5-5",
+    "condition": "skill",
+    "rep": 3,
+    "accuracy": 1,
+    "grade": {
+      "accuracy": 1,
+      "lists": [
+        {
+          "heading": "TESTS",
+          "required": 5,
+          "missed": [],
+          "listed": 18,
+          "unknown": []
+        }
+      ],
+      "edit": {
+        "changed": true,
+        "parses": true,
+        "others": []
+      }
+    },
+    "costUsd": 0.1686156,
+    "turns": 9,
+    "toolCalls": 7,
+    "galacticaCalls": 1,
+    "skillAvailable": true,
+    "skillLoaded": true,
+    "denials": 0,
+    "durationMs": 34700
+  },
+  {
+    "id": "nest-tests-opus-skill-r4",
+    "task": "nest-tests",
+    "kind": "edit-and-name-tests",
+    "repository": "nest",
+    "model": "opus",
+    "modelId": "claude-opus-5-5",
+    "condition": "skill",
+    "rep": 4,
+    "accuracy": 1,
+    "grade": {
+      "accuracy": 1,
+      "lists": [
+        {
+          "heading": "TESTS",
+          "required": 5,
+          "missed": [],
+          "listed": 24,
+          "unknown": []
+        }
+      ],
+      "edit": {
+        "changed": true,
+        "parses": true,
+        "others": []
+      }
+    },
+    "costUsd": 0.1536604,
+    "turns": 9,
+    "toolCalls": 7,
+    "galacticaCalls": 1,
+    "skillAvailable": true,
+    "skillLoaded": true,
+    "denials": 0,
+    "durationMs": 29183
+  },
+  {
+    "id": "nest-tests-opus-without-r1",
+    "task": "nest-tests",
+    "kind": "edit-and-name-tests",
+    "repository": "nest",
+    "model": "opus",
+    "modelId": "claude-opus-5-5",
+    "condition": "without",
+    "rep": 1,
+    "accuracy": 1,
+    "grade": {
+      "accuracy": 1,
+      "lists": [
+        {
+          "heading": "TESTS",
+          "required": 5,
+          "missed": [],
+          "listed": 5,
+          "unknown": []
+        }
+      ],
+      "edit": {
+        "changed": true,
+        "parses": true,
+        "others": []
+      }
+    },
+    "costUsd": 0.11633700000000001,
+    "turns": 6,
+    "toolCalls": 5,
+    "galacticaCalls": 0,
+    "skillAvailable": false,
+    "skillLoaded": false,
+    "denials": 0,
+    "durationMs": 22362
+  },
+  {
+    "id": "nest-tests-opus-without-r2",
+    "task": "nest-tests",
+    "kind": "edit-and-name-tests",
+    "repository": "nest",
+    "model": "opus",
+    "modelId": "claude-opus-5-5",
+    "condition": "without",
+    "rep": 2,
+    "accuracy": 1,
+    "grade": {
+      "accuracy": 1,
+      "lists": [
+        {
+          "heading": "TESTS",
+          "required": 5,
+          "missed": [],
+          "listed": 7,
+          "unknown": []
+        }
+      ],
+      "edit": {
+        "changed": true,
+        "parses": true,
+        "others": []
+      }
+    },
+    "costUsd": 0.1061328,
+    "turns": 6,
+    "toolCalls": 5,
+    "galacticaCalls": 0,
+    "skillAvailable": false,
+    "skillLoaded": false,
+    "denials": 0,
+    "durationMs": 25888
+  },
+  {
+    "id": "nest-tests-opus-without-r3",
+    "task": "nest-tests",
+    "kind": "edit-and-name-tests",
+    "repository": "nest",
+    "model": "opus",
+    "modelId": "claude-opus-5-5",
+    "condition": "without",
+    "rep": 3,
+    "accuracy": 1,
+    "grade": {
+      "accuracy": 1,
+      "lists": [
+        {
+          "heading": "TESTS",
+          "required": 5,
+          "missed": [],
+          "listed": 5,
+          "unknown": []
+        }
+      ],
+      "edit": {
+        "changed": true,
+        "parses": true,
+        "others": []
+      }
+    },
+    "costUsd": 0.0911128,
+    "turns": 5,
+    "toolCalls": 4,
+    "galacticaCalls": 0,
+    "skillAvailable": false,
+    "skillLoaded": false,
+    "denials": 0,
+    "durationMs": 21144
+  },
+  {
+    "id": "nest-tests-opus-without-r4",
+    "task": "nest-tests",
+    "kind": "edit-and-name-tests",
+    "repository": "nest",
+    "model": "opus",
+    "modelId": "claude-opus-5-5",
+    "condition": "without",
+    "rep": 4,
+    "accuracy": 1,
+    "grade": {
+      "accuracy": 1,
+      "lists": [
+        {
+          "heading": "TESTS",
+          "required": 5,
+          "missed": [],
+          "listed": 5,
+          "unknown": []
+        }
+      ],
+      "edit": {
+        "changed": true,
+        "parses": true,
+        "others": []
+      }
+    },
+    "costUsd": 0.1024388,
+    "turns": 6,
+    "toolCalls": 5,
+    "galacticaCalls": 0,
+    "skillAvailable": false,
+    "skillLoaded": false,
+    "denials": 0,
+    "durationMs": 20068
+  },
+  {
+    "id": "nest-tests-sonnet-instructed-r1",
+    "task": "nest-tests",
+    "kind": "edit-and-name-tests",
+    "repository": "nest",
+    "model": "sonnet",
+    "modelId": "claude-sonnet-5-5",
+    "condition": "instructed",
+    "rep": 1,
+    "accuracy": 1,
+    "grade": {
+      "accuracy": 1,
+      "lists": [
+        {
+          "heading": "TESTS",
+          "required": 5,
+          "missed": [],
+          "listed": 7,
+          "unknown": []
+        }
+      ],
+      "edit": {
+        "changed": true,
+        "parses": true,
+        "others": []
+      }
+    },
+    "costUsd": 0.0314756,
+    "turns": 6,
+    "toolCalls": 4,
+    "galacticaCalls": 1,
+    "skillAvailable": true,
+    "skillLoaded": true,
+    "denials": 0,
+    "durationMs": 13104
+  },
+  {
+    "id": "nest-tests-sonnet-instructed-r2",
+    "task": "nest-tests",
+    "kind": "edit-and-name-tests",
+    "repository": "nest",
+    "model": "sonnet",
+    "modelId": "claude-sonnet-5-5",
+    "condition": "instructed",
+    "rep": 2,
+    "accuracy": 1,
+    "grade": {
+      "accuracy": 1,
+      "lists": [
+        {
+          "heading": "TESTS",
+          "required": 5,
+          "missed": [],
+          "listed": 9,
+          "unknown": []
+        }
+      ],
+      "edit": {
+        "changed": true,
+        "parses": true,
+        "others": []
+      }
+    },
+    "costUsd": 0.059641799999999995,
+    "turns": 6,
+    "toolCalls": 4,
+    "galacticaCalls": 1,
+    "skillAvailable": true,
+    "skillLoaded": true,
+    "denials": 0,
+    "durationMs": 17233
+  },
+  {
+    "id": "nest-tests-sonnet-instructed-r3",
+    "task": "nest-tests",
+    "kind": "edit-and-name-tests",
+    "repository": "nest",
+    "model": "sonnet",
+    "modelId": "claude-sonnet-5-5",
+    "condition": "instructed",
+    "rep": 3,
+    "accuracy": 1,
+    "grade": {
+      "accuracy": 1,
+      "lists": [
+        {
+          "heading": "TESTS",
+          "required": 5,
+          "missed": [],
+          "listed": 9,
+          "unknown": []
+        }
+      ],
+      "edit": {
+        "changed": true,
+        "parses": true,
+        "others": []
+      }
+    },
+    "costUsd": 0.0551819,
+    "turns": 6,
+    "toolCalls": 4,
+    "galacticaCalls": 1,
+    "skillAvailable": true,
+    "skillLoaded": true,
+    "denials": 0,
+    "durationMs": 13282
+  },
+  {
+    "id": "nest-tests-sonnet-instructed-r4",
+    "task": "nest-tests",
+    "kind": "edit-and-name-tests",
+    "repository": "nest",
+    "model": "sonnet",
+    "modelId": "claude-sonnet-5-5",
+    "condition": "instructed",
+    "rep": 4,
+    "accuracy": 1,
+    "grade": {
+      "accuracy": 1,
+      "lists": [
+        {
+          "heading": "TESTS",
+          "required": 5,
+          "missed": [],
+          "listed": 6,
+          "unknown": []
+        }
+      ],
+      "edit": {
+        "changed": true,
+        "parses": true,
+        "others": []
+      }
+    },
+    "costUsd": 0.0564638,
+    "turns": 6,
+    "toolCalls": 4,
+    "galacticaCalls": 1,
+    "skillAvailable": true,
+    "skillLoaded": true,
+    "denials": 0,
+    "durationMs": 16359
+  },
+  {
+    "id": "nest-tests-sonnet-skill-r1",
+    "task": "nest-tests",
+    "kind": "edit-and-name-tests",
+    "repository": "nest",
+    "model": "sonnet",
+    "modelId": "claude-sonnet-5-5",
+    "condition": "skill",
+    "rep": 1,
+    "accuracy": 1,
+    "grade": {
+      "accuracy": 1,
+      "lists": [
+        {
+          "heading": "TESTS",
+          "required": 5,
+          "missed": [],
+          "listed": 5,
+          "unknown": []
+        }
+      ],
+      "edit": {
+        "changed": true,
+        "parses": true,
+        "others": []
+      }
+    },
+    "costUsd": 0.038976899999999995,
+    "turns": 5,
+    "toolCalls": 4,
+    "galacticaCalls": 0,
+    "skillAvailable": true,
+    "skillLoaded": false,
+    "denials": 0,
+    "durationMs": 11627
+  },
+  {
+    "id": "nest-tests-sonnet-skill-r2",
+    "task": "nest-tests",
+    "kind": "edit-and-name-tests",
+    "repository": "nest",
+    "model": "sonnet",
+    "modelId": "claude-sonnet-5-5",
+    "condition": "skill",
+    "rep": 2,
+    "accuracy": 1,
+    "grade": {
+      "accuracy": 1,
+      "lists": [
+        {
+          "heading": "TESTS",
+          "required": 5,
+          "missed": [],
+          "listed": 5,
+          "unknown": []
+        }
+      ],
+      "edit": {
+        "changed": true,
+        "parses": true,
+        "others": []
+      }
+    },
+    "costUsd": 0.0351399,
+    "turns": 5,
+    "toolCalls": 4,
+    "galacticaCalls": 0,
+    "skillAvailable": true,
+    "skillLoaded": false,
+    "denials": 0,
+    "durationMs": 12162
+  },
+  {
+    "id": "nest-tests-sonnet-skill-r3",
+    "task": "nest-tests",
+    "kind": "edit-and-name-tests",
+    "repository": "nest",
+    "model": "sonnet",
+    "modelId": "claude-sonnet-5-5",
+    "condition": "skill",
+    "rep": 3,
+    "accuracy": 1,
+    "grade": {
+      "accuracy": 1,
+      "lists": [
+        {
+          "heading": "TESTS",
+          "required": 5,
+          "missed": [],
+          "listed": 5,
+          "unknown": []
+        }
+      ],
+      "edit": {
+        "changed": true,
+        "parses": true,
+        "others": []
+      }
+    },
+    "costUsd": 0.034537899999999996,
+    "turns": 4,
+    "toolCalls": 3,
+    "galacticaCalls": 0,
+    "skillAvailable": true,
+    "skillLoaded": false,
+    "denials": 0,
+    "durationMs": 11606
+  },
+  {
+    "id": "nest-tests-sonnet-skill-r4",
+    "task": "nest-tests",
+    "kind": "edit-and-name-tests",
+    "repository": "nest",
+    "model": "sonnet",
+    "modelId": "claude-sonnet-5-5",
+    "condition": "skill",
+    "rep": 4,
+    "accuracy": 1,
+    "grade": {
+      "accuracy": 1,
+      "lists": [
+        {
+          "heading": "TESTS",
+          "required": 5,
+          "missed": [],
+          "listed": 5,
+          "unknown": []
+        }
+      ],
+      "edit": {
+        "changed": true,
+        "parses": true,
+        "others": []
+      }
+    },
+    "costUsd": 0.0367279,
+    "turns": 4,
+    "toolCalls": 3,
+    "galacticaCalls": 0,
+    "skillAvailable": true,
+    "skillLoaded": false,
+    "denials": 0,
+    "durationMs": 12601
+  },
+  {
+    "id": "nest-tests-sonnet-without-r1",
+    "task": "nest-tests",
+    "kind": "edit-and-name-tests",
+    "repository": "nest",
+    "model": "sonnet",
+    "modelId": "claude-sonnet-5-5",
+    "condition": "without",
+    "rep": 1,
+    "accuracy": 1,
+    "grade": {
+      "accuracy": 1,
+      "lists": [
+        {
+          "heading": "TESTS",
+          "required": 5,
+          "missed": [],
+          "listed": 5,
+          "unknown": []
+        }
+      ],
+      "edit": {
+        "changed": true,
+        "parses": true,
+        "others": []
+      }
+    },
+    "costUsd": 0.038313,
+    "turns": 4,
+    "toolCalls": 3,
+    "galacticaCalls": 0,
+    "skillAvailable": false,
+    "skillLoaded": false,
+    "denials": 0,
+    "durationMs": 13657
+  },
+  {
+    "id": "nest-tests-sonnet-without-r2",
+    "task": "nest-tests",
+    "kind": "edit-and-name-tests",
+    "repository": "nest",
+    "model": "sonnet",
+    "modelId": "claude-sonnet-5-5",
+    "condition": "without",
+    "rep": 2,
+    "accuracy": 1,
+    "grade": {
+      "accuracy": 1,
+      "lists": [
+        {
+          "heading": "TESTS",
+          "required": 5,
+          "missed": [],
+          "listed": 5,
+          "unknown": []
+        }
+      ],
+      "edit": {
+        "changed": true,
+        "parses": true,
+        "others": []
+      }
+    },
+    "costUsd": 0.0393273,
+    "turns": 4,
+    "toolCalls": 3,
+    "galacticaCalls": 0,
+    "skillAvailable": false,
+    "skillLoaded": false,
+    "denials": 0,
+    "durationMs": 14620
+  },
+  {
+    "id": "nest-tests-sonnet-without-r3",
+    "task": "nest-tests",
+    "kind": "edit-and-name-tests",
+    "repository": "nest",
+    "model": "sonnet",
+    "modelId": "claude-sonnet-5-5",
+    "condition": "without",
+    "rep": 3,
+    "accuracy": 1,
+    "grade": {
+      "accuracy": 1,
+      "lists": [
+        {
+          "heading": "TESTS",
+          "required": 5,
+          "missed": [],
+          "listed": 5,
+          "unknown": []
+        }
+      ],
+      "edit": {
+        "changed": true,
+        "parses": true,
+        "others": []
+      }
+    },
+    "costUsd": 0.0347013,
+    "turns": 4,
+    "toolCalls": 3,
+    "galacticaCalls": 0,
+    "skillAvailable": false,
+    "skillLoaded": false,
+    "denials": 0,
+    "durationMs": 11515
+  },
+  {
+    "id": "nest-tests-sonnet-without-r4",
+    "task": "nest-tests",
+    "kind": "edit-and-name-tests",
+    "repository": "nest",
+    "model": "sonnet",
+    "modelId": "claude-sonnet-5-5",
+    "condition": "without",
+    "rep": 4,
+    "accuracy": 1,
+    "grade": {
+      "accuracy": 1,
+      "lists": [
+        {
+          "heading": "TESTS",
+          "required": 5,
+          "missed": [],
+          "listed": 5,
+          "unknown": []
+        }
+      ],
+      "edit": {
+        "changed": true,
+        "parses": true,
+        "others": []
+      }
+    },
+    "costUsd": 0.038008,
+    "turns": 4,
+    "toolCalls": 3,
+    "galacticaCalls": 0,
+    "skillAvailable": false,
+    "skillLoaded": false,
+    "denials": 0,
+    "durationMs": 12449
+  },
+  {
+    "id": "vite-tests-opus-instructed-r1",
+    "task": "vite-tests",
+    "kind": "edit-and-name-tests",
+    "repository": "vite",
+    "model": "opus",
+    "modelId": "claude-opus-5-5",
+    "condition": "instructed",
+    "rep": 1,
+    "accuracy": 1,
+    "grade": {
+      "accuracy": 1,
+      "lists": [
+        {
+          "heading": "TESTS",
+          "required": 3,
+          "missed": [],
+          "listed": 8,
+          "unknown": []
+        }
+      ],
+      "edit": {
+        "changed": true,
+        "parses": true,
+        "others": []
+      }
+    },
+    "costUsd": 0.2174486,
+    "turns": 10,
+    "toolCalls": 8,
+    "galacticaCalls": 1,
+    "skillAvailable": true,
+    "skillLoaded": true,
+    "denials": 0,
+    "durationMs": 30879
+  },
+  {
+    "id": "vite-tests-opus-instructed-r2",
+    "task": "vite-tests",
+    "kind": "edit-and-name-tests",
+    "repository": "vite",
+    "model": "opus",
+    "modelId": "claude-opus-5-5",
+    "condition": "instructed",
+    "rep": 2,
+    "accuracy": 1,
+    "grade": {
+      "accuracy": 1,
+      "lists": [
+        {
+          "heading": "TESTS",
+          "required": 3,
+          "missed": [],
+          "listed": 10,
+          "unknown": []
+        }
+      ],
+      "edit": {
+        "changed": true,
+        "parses": true,
+        "others": []
+      }
+    },
+    "costUsd": 0.19198379999999998,
+    "turns": 11,
+    "toolCalls": 9,
+    "galacticaCalls": 1,
+    "skillAvailable": true,
+    "skillLoaded": true,
+    "denials": 0,
+    "durationMs": 25274
+  },
+  {
+    "id": "vite-tests-opus-instructed-r3",
+    "task": "vite-tests",
+    "kind": "edit-and-name-tests",
+    "repository": "vite",
+    "model": "opus",
+    "modelId": "claude-opus-5-5",
+    "condition": "instructed",
+    "rep": 3,
+    "accuracy": 1,
+    "grade": {
+      "accuracy": 1,
+      "lists": [
+        {
+          "heading": "TESTS",
+          "required": 3,
+          "missed": [],
+          "listed": 10,
+          "unknown": []
+        }
+      ],
+      "edit": {
+        "changed": true,
+        "parses": true,
+        "others": []
+      }
+    },
+    "costUsd": 0.1869148,
+    "turns": 10,
+    "toolCalls": 8,
+    "galacticaCalls": 1,
+    "skillAvailable": true,
+    "skillLoaded": true,
+    "denials": 0,
+    "durationMs": 24350
+  },
+  {
+    "id": "vite-tests-opus-instructed-r4",
+    "task": "vite-tests",
+    "kind": "edit-and-name-tests",
+    "repository": "vite",
+    "model": "opus",
+    "modelId": "claude-opus-5-5",
+    "condition": "instructed",
+    "rep": 4,
+    "accuracy": 1,
+    "grade": {
+      "accuracy": 1,
+      "lists": [
+        {
+          "heading": "TESTS",
+          "required": 3,
+          "missed": [],
+          "listed": 8,
+          "unknown": []
+        }
+      ],
+      "edit": {
+        "changed": true,
+        "parses": true,
+        "others": []
+      }
+    },
+    "costUsd": 0.16828599999999996,
+    "turns": 8,
+    "toolCalls": 6,
+    "galacticaCalls": 1,
+    "skillAvailable": true,
+    "skillLoaded": true,
+    "denials": 0,
+    "durationMs": 22958
+  },
+  {
+    "id": "vite-tests-opus-skill-r1",
+    "task": "vite-tests",
+    "kind": "edit-and-name-tests",
+    "repository": "vite",
+    "model": "opus",
+    "modelId": "claude-opus-5-5",
+    "condition": "skill",
+    "rep": 1,
+    "accuracy": 1,
+    "grade": {
+      "accuracy": 1,
+      "lists": [
+        {
+          "heading": "TESTS",
+          "required": 3,
+          "missed": [],
+          "listed": 8,
+          "unknown": []
+        }
+      ],
+      "edit": {
+        "changed": true,
+        "parses": true,
+        "others": []
+      }
+    },
+    "costUsd": 0.18656319999999998,
+    "turns": 9,
+    "toolCalls": 7,
+    "galacticaCalls": 1,
+    "skillAvailable": true,
+    "skillLoaded": true,
+    "denials": 0,
+    "durationMs": 31285
+  },
+  {
+    "id": "vite-tests-opus-skill-r2",
+    "task": "vite-tests",
+    "kind": "edit-and-name-tests",
+    "repository": "vite",
+    "model": "opus",
+    "modelId": "claude-opus-5-5",
+    "condition": "skill",
+    "rep": 2,
+    "accuracy": 1,
+    "grade": {
+      "accuracy": 1,
+      "lists": [
+        {
+          "heading": "TESTS",
+          "required": 3,
+          "missed": [],
+          "listed": 10,
+          "unknown": []
+        }
+      ],
+      "edit": {
+        "changed": true,
+        "parses": true,
+        "others": []
+      }
+    },
+    "costUsd": 0.17757119999999998,
+    "turns": 9,
+    "toolCalls": 7,
+    "galacticaCalls": 1,
+    "skillAvailable": true,
+    "skillLoaded": true,
+    "denials": 0,
+    "durationMs": 30678
+  },
+  {
+    "id": "vite-tests-opus-skill-r3",
+    "task": "vite-tests",
+    "kind": "edit-and-name-tests",
+    "repository": "vite",
+    "model": "opus",
+    "modelId": "claude-opus-5-5",
+    "condition": "skill",
+    "rep": 3,
+    "accuracy": 1,
+    "grade": {
+      "accuracy": 1,
+      "lists": [
+        {
+          "heading": "TESTS",
+          "required": 3,
+          "missed": [],
+          "listed": 8,
+          "unknown": []
+        }
+      ],
+      "edit": {
+        "changed": true,
+        "parses": true,
+        "others": []
+      }
+    },
+    "costUsd": 0.19332780000000002,
+    "turns": 10,
+    "toolCalls": 8,
+    "galacticaCalls": 1,
+    "skillAvailable": true,
+    "skillLoaded": true,
+    "denials": 0,
+    "durationMs": 24659
+  },
+  {
+    "id": "vite-tests-opus-skill-r4",
+    "task": "vite-tests",
+    "kind": "edit-and-name-tests",
+    "repository": "vite",
+    "model": "opus",
+    "modelId": "claude-opus-5-5",
+    "condition": "skill",
+    "rep": 4,
+    "accuracy": 1,
+    "grade": {
+      "accuracy": 1,
+      "lists": [
+        {
+          "heading": "TESTS",
+          "required": 3,
+          "missed": [],
+          "listed": 8,
+          "unknown": []
+        }
+      ],
+      "edit": {
+        "changed": true,
+        "parses": true,
+        "others": []
+      }
+    },
+    "costUsd": 0.17866719999999997,
+    "turns": 10,
+    "toolCalls": 8,
+    "galacticaCalls": 1,
+    "skillAvailable": true,
+    "skillLoaded": true,
+    "denials": 0,
+    "durationMs": 24948
+  },
+  {
+    "id": "vite-tests-opus-without-r1",
+    "task": "vite-tests",
+    "kind": "edit-and-name-tests",
+    "repository": "vite",
+    "model": "opus",
+    "modelId": "claude-opus-5-5",
+    "condition": "without",
+    "rep": 1,
+    "accuracy": 1,
+    "grade": {
+      "accuracy": 1,
+      "lists": [
+        {
+          "heading": "TESTS",
+          "required": 3,
+          "missed": [],
+          "listed": 5,
+          "unknown": []
+        }
+      ],
+      "edit": {
+        "changed": true,
+        "parses": true,
+        "others": []
+      }
+    },
+    "costUsd": 0.15657359999999998,
+    "turns": 9,
+    "toolCalls": 8,
+    "galacticaCalls": 0,
+    "skillAvailable": false,
+    "skillLoaded": false,
+    "denials": 0,
+    "durationMs": 22499
+  },
+  {
+    "id": "vite-tests-opus-without-r2",
+    "task": "vite-tests",
+    "kind": "edit-and-name-tests",
+    "repository": "vite",
+    "model": "opus",
+    "modelId": "claude-opus-5-5",
+    "condition": "without",
+    "rep": 2,
+    "accuracy": 1,
+    "grade": {
+      "accuracy": 1,
+      "lists": [
+        {
+          "heading": "TESTS",
+          "required": 3,
+          "missed": [],
+          "listed": 3,
+          "unknown": []
+        }
+      ],
+      "edit": {
+        "changed": true,
+        "parses": true,
+        "others": []
+      }
+    },
+    "costUsd": 0.1287562,
+    "turns": 8,
+    "toolCalls": 7,
+    "galacticaCalls": 0,
+    "skillAvailable": false,
+    "skillLoaded": false,
+    "denials": 0,
+    "durationMs": 22224
+  },
+  {
+    "id": "vite-tests-opus-without-r3",
+    "task": "vite-tests",
+    "kind": "edit-and-name-tests",
+    "repository": "vite",
+    "model": "opus",
+    "modelId": "claude-opus-5-5",
+    "condition": "without",
+    "rep": 3,
+    "accuracy": 1,
+    "grade": {
+      "accuracy": 1,
+      "lists": [
+        {
+          "heading": "TESTS",
+          "required": 3,
+          "missed": [],
+          "listed": 5,
+          "unknown": []
+        }
+      ],
+      "edit": {
+        "changed": true,
+        "parses": true,
+        "others": []
+      }
+    },
+    "costUsd": 0.1326462,
+    "turns": 7,
+    "toolCalls": 6,
+    "galacticaCalls": 0,
+    "skillAvailable": false,
+    "skillLoaded": false,
+    "denials": 0,
+    "durationMs": 21742
+  },
+  {
+    "id": "vite-tests-opus-without-r4",
+    "task": "vite-tests",
+    "kind": "edit-and-name-tests",
+    "repository": "vite",
+    "model": "opus",
+    "modelId": "claude-opus-5-5",
+    "condition": "without",
+    "rep": 4,
+    "accuracy": 1,
+    "grade": {
+      "accuracy": 1,
+      "lists": [
+        {
+          "heading": "TESTS",
+          "required": 3,
+          "missed": [],
+          "listed": 7,
+          "unknown": []
+        }
+      ],
+      "edit": {
+        "changed": true,
+        "parses": true,
+        "others": []
+      }
+    },
+    "costUsd": 0.1263182,
+    "turns": 6,
+    "toolCalls": 5,
+    "galacticaCalls": 0,
+    "skillAvailable": false,
+    "skillLoaded": false,
+    "denials": 0,
+    "durationMs": 17551
+  },
+  {
+    "id": "vite-tests-sonnet-instructed-r1",
+    "task": "vite-tests",
+    "kind": "edit-and-name-tests",
+    "repository": "vite",
+    "model": "sonnet",
+    "modelId": "claude-sonnet-5-5",
+    "condition": "instructed",
+    "rep": 1,
+    "accuracy": 1,
+    "grade": {
+      "accuracy": 1,
+      "lists": [
+        {
+          "heading": "TESTS",
+          "required": 3,
+          "missed": [],
+          "listed": 7,
+          "unknown": []
+        }
+      ],
+      "edit": {
+        "changed": true,
+        "parses": true,
+        "others": []
+      }
+    },
+    "costUsd": 0.038186,
+    "turns": 7,
+    "toolCalls": 5,
+    "galacticaCalls": 1,
+    "skillAvailable": true,
+    "skillLoaded": true,
+    "denials": 0,
+    "durationMs": 17993
+  },
+  {
+    "id": "vite-tests-sonnet-instructed-r2",
+    "task": "vite-tests",
+    "kind": "edit-and-name-tests",
+    "repository": "vite",
+    "model": "sonnet",
+    "modelId": "claude-sonnet-5-5",
+    "condition": "instructed",
+    "rep": 2,
+    "accuracy": 0.3333333333333333,
+    "grade": {
+      "accuracy": 0.3333333333333333,
+      "lists": [
+        {
+          "heading": "TESTS",
+          "required": 3,
+          "missed": [
+            "playground/js-sourcemap/__tests__/js-sourcemap.spec.ts",
+            "playground/css-sourcemap/__tests__/css-sourcemap.spec.ts"
+          ],
+          "listed": 5,
+          "unknown": []
+        }
+      ],
+      "edit": {
+        "changed": true,
+        "parses": true,
+        "others": []
+      }
+    },
+    "costUsd": 0.0668864,
+    "turns": 8,
+    "toolCalls": 6,
+    "galacticaCalls": 1,
+    "skillAvailable": true,
+    "skillLoaded": true,
+    "denials": 0,
+    "durationMs": 15733
+  },
+  {
+    "id": "vite-tests-sonnet-instructed-r3",
+    "task": "vite-tests",
+    "kind": "edit-and-name-tests",
+    "repository": "vite",
+    "model": "sonnet",
+    "modelId": "claude-sonnet-5-5",
+    "condition": "instructed",
+    "rep": 3,
+    "accuracy": 1,
+    "grade": {
+      "accuracy": 1,
+      "lists": [
+        {
+          "heading": "TESTS",
+          "required": 3,
+          "missed": [],
+          "listed": 7,
+          "unknown": []
+        }
+      ],
+      "edit": {
+        "changed": true,
+        "parses": true,
+        "others": []
+      }
+    },
+    "costUsd": 0.0808063,
+    "turns": 8,
+    "toolCalls": 6,
+    "galacticaCalls": 1,
+    "skillAvailable": true,
+    "skillLoaded": true,
+    "denials": 0,
+    "durationMs": 16394
+  },
+  {
+    "id": "vite-tests-sonnet-instructed-r4",
+    "task": "vite-tests",
+    "kind": "edit-and-name-tests",
+    "repository": "vite",
+    "model": "sonnet",
+    "modelId": "claude-sonnet-5-5",
+    "condition": "instructed",
+    "rep": 4,
+    "accuracy": 0.6666666666666666,
+    "grade": {
+      "accuracy": 0.6666666666666666,
+      "lists": [
+        {
+          "heading": "TESTS",
+          "required": 3,
+          "missed": ["playground/js-sourcemap/__tests__/js-sourcemap.spec.ts"],
+          "listed": 6,
+          "unknown": []
+        }
+      ],
+      "edit": {
+        "changed": true,
+        "parses": true,
+        "others": []
+      }
+    },
+    "costUsd": 0.0734966,
+    "turns": 7,
+    "toolCalls": 5,
+    "galacticaCalls": 1,
+    "skillAvailable": true,
+    "skillLoaded": true,
+    "denials": 0,
+    "durationMs": 15749
+  },
+  {
+    "id": "vite-tests-sonnet-skill-r1",
+    "task": "vite-tests",
+    "kind": "edit-and-name-tests",
+    "repository": "vite",
+    "model": "sonnet",
+    "modelId": "claude-sonnet-5-5",
+    "condition": "skill",
+    "rep": 1,
+    "accuracy": 0.3333333333333333,
+    "grade": {
+      "accuracy": 0.3333333333333333,
+      "lists": [
+        {
+          "heading": "TESTS",
+          "required": 3,
+          "missed": [
+            "playground/js-sourcemap/__tests__/js-sourcemap.spec.ts",
+            "playground/css-sourcemap/__tests__/css-sourcemap.spec.ts"
+          ],
+          "listed": 2,
+          "unknown": []
+        }
+      ],
+      "edit": {
+        "changed": true,
+        "parses": true,
+        "others": []
+      }
+    },
+    "costUsd": 0.0557493,
+    "turns": 5,
+    "toolCalls": 4,
+    "galacticaCalls": 0,
+    "skillAvailable": true,
+    "skillLoaded": false,
+    "denials": 0,
+    "durationMs": 13199
+  },
+  {
+    "id": "vite-tests-sonnet-skill-r2",
+    "task": "vite-tests",
+    "kind": "edit-and-name-tests",
+    "repository": "vite",
+    "model": "sonnet",
+    "modelId": "claude-sonnet-5-5",
+    "condition": "skill",
+    "rep": 2,
+    "accuracy": 0.3333333333333333,
+    "grade": {
+      "accuracy": 0.3333333333333333,
+      "lists": [
+        {
+          "heading": "TESTS",
+          "required": 3,
+          "missed": [
+            "playground/js-sourcemap/__tests__/js-sourcemap.spec.ts",
+            "playground/css-sourcemap/__tests__/css-sourcemap.spec.ts"
+          ],
+          "listed": 3,
+          "unknown": []
+        }
+      ],
+      "edit": {
+        "changed": true,
+        "parses": true,
+        "others": []
+      }
+    },
+    "costUsd": 0.0574676,
+    "turns": 8,
+    "toolCalls": 7,
+    "galacticaCalls": 0,
+    "skillAvailable": true,
+    "skillLoaded": false,
+    "denials": 0,
+    "durationMs": 18461
+  },
+  {
+    "id": "vite-tests-sonnet-skill-r3",
+    "task": "vite-tests",
+    "kind": "edit-and-name-tests",
+    "repository": "vite",
+    "model": "sonnet",
+    "modelId": "claude-sonnet-5-5",
+    "condition": "skill",
+    "rep": 3,
+    "accuracy": 0.3333333333333333,
+    "grade": {
+      "accuracy": 0.3333333333333333,
+      "lists": [
+        {
+          "heading": "TESTS",
+          "required": 3,
+          "missed": [
+            "playground/js-sourcemap/__tests__/js-sourcemap.spec.ts",
+            "playground/css-sourcemap/__tests__/css-sourcemap.spec.ts"
+          ],
+          "listed": 2,
+          "unknown": []
+        }
+      ],
+      "edit": {
+        "changed": true,
+        "parses": true,
+        "others": []
+      }
+    },
+    "costUsd": 0.045519699999999996,
+    "turns": 6,
+    "toolCalls": 5,
+    "galacticaCalls": 0,
+    "skillAvailable": true,
+    "skillLoaded": false,
+    "denials": 0,
+    "durationMs": 14644
+  },
+  {
+    "id": "vite-tests-sonnet-skill-r4",
+    "task": "vite-tests",
+    "kind": "edit-and-name-tests",
+    "repository": "vite",
+    "model": "sonnet",
+    "modelId": "claude-sonnet-5-5",
+    "condition": "skill",
+    "rep": 4,
+    "accuracy": 0.3333333333333333,
+    "grade": {
+      "accuracy": 0.3333333333333333,
+      "lists": [
+        {
+          "heading": "TESTS",
+          "required": 3,
+          "missed": [
+            "playground/js-sourcemap/__tests__/js-sourcemap.spec.ts",
+            "playground/css-sourcemap/__tests__/css-sourcemap.spec.ts"
+          ],
+          "listed": 1,
+          "unknown": []
+        }
+      ],
+      "edit": {
+        "changed": true,
+        "parses": true,
+        "others": []
+      }
+    },
+    "costUsd": 0.05373800000000001,
+    "turns": 5,
+    "toolCalls": 4,
+    "galacticaCalls": 0,
+    "skillAvailable": true,
+    "skillLoaded": false,
+    "denials": 0,
+    "durationMs": 12372
+  },
+  {
+    "id": "vite-tests-sonnet-without-r1",
+    "task": "vite-tests",
+    "kind": "edit-and-name-tests",
+    "repository": "vite",
+    "model": "sonnet",
+    "modelId": "claude-sonnet-5-5",
+    "condition": "without",
+    "rep": 1,
+    "accuracy": 0.3333333333333333,
+    "grade": {
+      "accuracy": 0.3333333333333333,
+      "lists": [
+        {
+          "heading": "TESTS",
+          "required": 3,
+          "missed": [
+            "playground/js-sourcemap/__tests__/js-sourcemap.spec.ts",
+            "playground/css-sourcemap/__tests__/css-sourcemap.spec.ts"
+          ],
+          "listed": 4,
+          "unknown": []
+        }
+      ],
+      "edit": {
+        "changed": true,
+        "parses": true,
+        "others": []
+      }
+    },
+    "costUsd": 0.0482636,
+    "turns": 6,
+    "toolCalls": 5,
+    "galacticaCalls": 0,
+    "skillAvailable": false,
+    "skillLoaded": false,
+    "denials": 0,
+    "durationMs": 15728
+  },
+  {
+    "id": "vite-tests-sonnet-without-r2",
+    "task": "vite-tests",
+    "kind": "edit-and-name-tests",
+    "repository": "vite",
+    "model": "sonnet",
+    "modelId": "claude-sonnet-5-5",
+    "condition": "without",
+    "rep": 2,
+    "accuracy": 0.3333333333333333,
+    "grade": {
+      "accuracy": 0.3333333333333333,
+      "lists": [
+        {
+          "heading": "TESTS",
+          "required": 3,
+          "missed": [
+            "playground/js-sourcemap/__tests__/js-sourcemap.spec.ts",
+            "playground/css-sourcemap/__tests__/css-sourcemap.spec.ts"
+          ],
+          "listed": 2,
+          "unknown": []
+        }
+      ],
+      "edit": {
+        "changed": true,
+        "parses": true,
+        "others": []
+      }
+    },
+    "costUsd": 0.0403631,
+    "turns": 5,
+    "toolCalls": 4,
+    "galacticaCalls": 0,
+    "skillAvailable": false,
+    "skillLoaded": false,
+    "denials": 0,
+    "durationMs": 13570
+  },
+  {
+    "id": "vite-tests-sonnet-without-r3",
+    "task": "vite-tests",
+    "kind": "edit-and-name-tests",
+    "repository": "vite",
+    "model": "sonnet",
+    "modelId": "claude-sonnet-5-5",
+    "condition": "without",
+    "rep": 3,
+    "accuracy": 1,
+    "grade": {
+      "accuracy": 1,
+      "lists": [
+        {
+          "heading": "TESTS",
+          "required": 3,
+          "missed": [],
+          "listed": 6,
+          "unknown": []
+        }
+      ],
+      "edit": {
+        "changed": true,
+        "parses": true,
+        "others": []
+      }
+    },
+    "costUsd": 0.0449491,
+    "turns": 6,
+    "toolCalls": 5,
+    "galacticaCalls": 0,
+    "skillAvailable": false,
+    "skillLoaded": false,
+    "denials": 0,
+    "durationMs": 14104
+  },
+  {
+    "id": "vite-tests-sonnet-without-r4",
+    "task": "vite-tests",
+    "kind": "edit-and-name-tests",
+    "repository": "vite",
+    "model": "sonnet",
+    "modelId": "claude-sonnet-5-5",
+    "condition": "without",
+    "rep": 4,
+    "accuracy": 0.3333333333333333,
+    "grade": {
+      "accuracy": 0.3333333333333333,
+      "lists": [
+        {
+          "heading": "TESTS",
+          "required": 3,
+          "missed": [
+            "playground/js-sourcemap/__tests__/js-sourcemap.spec.ts",
+            "playground/css-sourcemap/__tests__/css-sourcemap.spec.ts"
+          ],
+          "listed": 3,
+          "unknown": []
+        }
+      ],
+      "edit": {
+        "changed": true,
+        "parses": true,
+        "others": []
+      }
+    },
+    "costUsd": 0.0432463,
+    "turns": 6,
+    "toolCalls": 5,
+    "galacticaCalls": 0,
+    "skillAvailable": false,
+    "skillLoaded": false,
+    "denials": 0,
+    "durationMs": 14505
+  }
+]
