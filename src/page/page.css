@@ -631,6 +631,7 @@ main {
   border-radius: 0 4px 4px 0;
 }
 
+/* Dimmed boxes let the links behind them show; related boxes stay opaque on top. */
 .has-selection .area:not(.is-selected, .has-selected, .is-uses, .is-used-by) {
   opacity: 0.35;
 }
@@ -674,13 +675,35 @@ main {
 }
 
 .columns {
+  position: relative;
   display: grid;
   grid-template-columns: repeat(var(--layers), minmax(0, 1fr));
   gap: 0.6rem;
   align-items: start;
 }
 
+.area-links {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+  pointer-events: none;
+  fill: none;
+  stroke-width: 1.5;
+  stroke-linecap: round;
+}
+
+.link-uses {
+  stroke: var(--uses);
+}
+
+.link-used-by {
+  stroke: var(--used-by);
+}
+
 .column {
+  position: relative;
   min-width: 0;
   display: grid;
   gap: 0.5rem;
@@ -703,6 +726,7 @@ main {
 }
 
 .area {
+  position: relative;
   min-width: 0;
   background: var(--surface);
   border: 1px solid var(--line);

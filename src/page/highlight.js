@@ -1,5 +1,6 @@
 import { indexesOf } from './indexes.js'
 import { byId, element, plural, formatted, KINDS } from './dom.js'
+import { areaLinks } from './area-links.js'
 
 /** @typedef {import('../page-data.ts').PageData} PageData */
 /** @typedef {import('../contract.ts').ModuleKind} ModuleKind */
@@ -60,6 +61,7 @@ export function selectionView(data, view) {
    * @param {MapView['modules']} drawnRows
    */
   function highlighter(areaViews, drawnRows) {
+    const links = areaLinks(view.columns)
     /** @type {(() => void)[]} */
     let undo = []
     /**
@@ -95,7 +97,10 @@ export function selectionView(data, view) {
       for (const step of undo) step()
       undo = []
       document.body.classList.toggle('has-selection', selection !== undefined)
-      if (selection === undefined) return
+      if (selection === undefined) {
+        links.show(undefined, new Map())
+        return
+      }
       document.body.dataset.selection = selection.kind
       const subject = subjectOf(selection)
       /** @type {Map<number, Set<Relation>>} */
@@ -159,6 +164,16 @@ export function selectionView(data, view) {
           )
           .join(' · ')
       }
+      /** @type {Map<HTMLElement, Set<Relation>>} */
+      const linked = new Map()
+      for (const [index, counts] of areas) {
+        const relations = /** @type {Relation[]} */ (Object.keys(counts)).filter(
+          key => counts[key] > 0
+        )
+        linked.set(areaViews[index].box, new Set(relations))
+      }
+      const area = selection.kind === 'area' ? selection.index : data.modules[selection.index].area
+      links.show(areaViews[area].box, linked)
       if (selection.kind === 'area') {
         const { box, select } = areaViews[selection.index]
         add(box, ['is-selected'])

@@ -552,3 +552,65 @@ for (const width of [390, 700]) {
     }
   )
 }
+
+test(
+  'selecting an area draws its links, which follow the boxes when the layout changes',
+  { skip },
+  async t => {
+    const tab = await openPage(t, chrome!, { width: 1440 })
+    await tab.load(layeredHtml)
+    const run = <T>(body: string) => tab.run<T>(helpers + body)
+    const links = `
+      const ends = path => {
+        const columns = path.closest('.columns').getBoundingClientRect()
+        const length = path.getTotalLength()
+        return [path.getPointAtLength(0), path.getPointAtLength(length)]
+          .map(({ x, y }) => [Math.round(x + columns.left), Math.round(y + columns.top)])
+      }
+      const touches = (box, [x, y]) => {
+        const rect = box.getBoundingClientRect()
+        return (Math.abs(x - rect.left) <= 1 || Math.abs(x - rect.right) <= 1) &&
+          y >= rect.top && y <= rect.bottom
+      }
+      const links = () => [...document.querySelectorAll('.area-links path')].map(path => {
+        const [from, to] = ends(path)
+        const target = path.classList.contains('link-uses') ? 'src/layer3' : 'src/layer5'
+        return {
+          relation: path.getAttribute('class'),
+          fromSelected: touches(box('src/layer4'), from),
+          toRelated: touches(box(target), to)
+        }
+      })
+    `
+    assert.equal(await run(`return document.querySelectorAll('.area-links path').length`), 0)
+    const expected = [
+      { relation: 'link-uses', fromSelected: true, toRelated: true },
+      { relation: 'link-used-by', fromSelected: true, toRelated: true }
+    ]
+    assert.deepEqual(
+      await run(`${links}
+        box('src/layer4').querySelector('.area-select').click(); await frame()
+        return links()`),
+      expected
+    )
+    assert.deepEqual(
+      await run(`${links}
+        const before = document.querySelector('.area-links path').getAttribute('d')
+        document.querySelector('.columns').style.width = '60%'
+        await frame(); await frame()
+        return { moved: document.querySelector('.area-links path').getAttribute('d') !== before, links: links() }`),
+      { moved: true, links: expected }
+    )
+    assert.equal(
+      await run(`document.getElementById('clear-selection').click(); await frame()
+        return document.querySelectorAll('.area-links path').length`),
+      0
+    )
+  }
+)
+
+test('stacked rows on a narrow screen draw no links', { skip }, async t => {
+  const tab = await openPage(t, chrome!, { width: 390 })
+  await tab.load(layeredHtml, '#area=src%2Flayer4')
+  assert.equal(await tab.run(`return document.querySelectorAll('.area-links path').length`), 0)
+})
