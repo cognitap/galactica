@@ -13,7 +13,7 @@ import { plainInputs, type Inputs } from './inputs.ts'
 import { parseRepoPath, toRepoPath, type PackageName, type RepoPath } from './model.ts'
 import { nameOf, readJson } from './workspace.ts'
 
-export type UnresolvedReason = 'blocked' | 'no-export' | 'missing' | 'build-output'
+export type UnresolvedReason = 'blocked' | 'no-export' | 'missing' | 'build-output' | 'too-deep'
 
 export type WorkspaceResolution =
   | { readonly kind: 'module'; readonly path: RepoPath }
@@ -51,11 +51,15 @@ export interface WorkspaceResolver {
   readonly warnings: () => readonly Warning[]
 }
 
+/** How deep `exports` targets are followed. Real packages nest a few levels, and a hostile one could nest thousands. */
+const maxNesting = 32
+
 const reasons: Readonly<Record<UnresolvedReason, string>> = {
   blocked: 'exports maps the subpath to null',
   'no-export': 'exports has no entry for the subpath',
   missing: 'the target is no module in the repository',
-  'build-output': 'the target is build output with no source module'
+  'build-output': 'the target is build output with no source module',
+  'too-deep': `exports nests conditions or fallbacks more than ${maxNesting} levels deep`
 }
 
 /**
@@ -165,14 +169,16 @@ function firstModule<T>(
 const isRecord = (value: unknown): value is Readonly<Record<string, unknown>> =>
   typeof value === 'object' && value !== null && !Array.isArray(value)
 
-/** An `exports` target: a path, null, a list of fallbacks, or conditions nested to any depth. */
+/** An `exports` target: a path, null, or a list of fallbacks or conditions nested up to `maxNesting` deep. */
 function resolveTarget(
   target: unknown,
   star: string,
-  locate: (path: string) => WorkspaceResolution
+  locate: (path: string) => WorkspaceResolution,
+  depth = 0
 ): WorkspaceResolution {
   if (target === null) return unresolved('blocked')
   if (typeof target === 'string') return locate(target.replaceAll('*', star))
+  if (depth === maxNesting) return unresolved('too-deep')
   const options: readonly unknown[] = Array.isArray(target)
     ? target
     : isRecord(target)
@@ -181,7 +187,7 @@ function resolveTarget(
           ...Object.keys(target).filter(condition => !conditions.includes(condition))
         ].map(condition => target[condition])
       : []
-  return firstModule(options, option => resolveTarget(option, star, locate))
+  return firstModule(options, option => resolveTarget(option, star, locate, depth + 1))
 }
 
 /** The exports entry for `subpath` and the text its `*` stands for, by the package.json exports rules. */
@@ -399,11 +405,12 @@ function ownPaths(relativePath: string): readonly string[] {
   return [...new Set([...folder, stem, relativePath])]
 }
 
-/** Every string an `exports` target can lead to, through conditions and fallbacks. */
-function targetStrings(target: unknown): readonly string[] {
+/** Every string an `exports` target can lead to, through conditions and fallbacks up to `maxNesting` deep. */
+function targetStrings(target: unknown, depth = 0): readonly string[] {
   if (typeof target === 'string') return [target]
-  if (Array.isArray(target)) return target.flatMap(targetStrings)
-  return isRecord(target) ? Object.values(target).flatMap(targetStrings) : []
+  if (depth === maxNesting) return []
+  const options = Array.isArray(target) ? target : isRecord(target) ? Object.values(target) : []
+  return options.flatMap(option => targetStrings(option, depth + 1))
 }
 
 /**
