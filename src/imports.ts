@@ -6,9 +6,9 @@
 
 import ts from 'typescript'
 import { isRequireCall, usesOf, type JSXRead } from './load-time.ts'
-import { parseRepoPath, type Edge } from './model.ts'
-import type { ScriptLanguage } from './source-file.ts'
-import { parseScript, pushChildren } from './syntax.ts'
+import { compare, parseRepoPath, sortedUnique, type Edge } from './model.ts'
+import type { ScriptLanguage } from './frameworks.ts'
+import { firstOf, parseScript, pushChildren, when } from './syntax.ts'
 
 /** How an import is written, which TypeScript reads its resolution mode from. */
 export type ImportSyntax = 'declaration' | 'import-equals' | 'require' | 'import-call'
@@ -52,15 +52,6 @@ interface Taken {
   readonly elidable?: true
 }
 
-type Guard<T extends ts.Node> = (node: ts.Node) => node is T
-
-function when<T extends ts.Node>(
-  is: Guard<T>,
-  then: (node: T) => Taken | undefined
-): (node: ts.Node) => Taken | undefined {
-  return node => (is(node) ? then(node) : undefined)
-}
-
 const nameOf = (specifier: ts.ImportSpecifier | ts.ExportSpecifier) =>
   (specifier.propertyName ?? specifier.name).text
 
@@ -90,8 +81,7 @@ function fromImportDeclaration(node: ts.ImportDeclaration): Taken {
   }
 }
 
-const byKey = ([a]: readonly [string, string], [b]: readonly [string, string]) =>
-  a < b ? -1 : a > b ? 1 : 0
+const byKey = ([a]: readonly [string, string], [b]: readonly [string, string]) => compare(a, b)
 
 /** A name a module passes on, as it exports it and as its source module exports it. */
 interface Passed {
@@ -205,6 +195,7 @@ export interface Binding {
   readonly syntax: ImportSyntax
   /** As the imported module exports it. */
   readonly taken: string
+  /** Written type-only, so emitDecoratorMetadata never reads it. */
   readonly typeOnly: boolean
 }
 
@@ -288,15 +279,9 @@ const rules = [
 ]
 
 function takenBy(node: ts.Node, bindings: ReadonlyMap<string, Binding>): readonly Taken[] {
-  for (const rule of rules) {
-    const taken = rule(node)
-    if (taken !== undefined) return [taken]
-  }
-  return reexportsOf(node, bindings)
+  const taken = firstOf(rules, node, undefined)
+  return taken ? [taken] : reexportsOf(node, bindings)
 }
-
-const sortedNames = (names: readonly string[]) =>
-  [...new Set(names)].sort((a, b) => (a < b ? -1 : a > b ? 1 : 0))
 
 /**
  * Options under which module resolution ignores import syntax, so TypeScript
@@ -334,7 +319,7 @@ export function importsOf(source: ts.SourceFile, elides: boolean): readonly Impo
       if (!specifier || !ts.isStringLiteralLike(specifier)) continue
       const resolutionMode = overrideOf(source, specifier)
       const at = taken.at ?? specifier
-      const names = sortedNames(taken.names)
+      const names = sortedUnique(taken.names)
       const use = taken.form === 'import' && !taken.dynamic ? uses(specifier, names) : undefined
       const read = use?.loadTime ?? []
       const metadataLoadTime = use?.metadataLoadTime ?? []
@@ -397,7 +382,10 @@ export function asCompiled(
   const kept = keepsImports(options) || (elided === 'unless-metadata' && metadata) || jsxRead
   if (elided !== undefined && !kept) return { ...imported, typeOnly: true }
   if (!metadata || metadataLoadTime === undefined) return imported
-  return { ...imported, loadTime: sortedNames([...(imported.loadTime ?? []), ...metadataLoadTime]) }
+  return {
+    ...imported,
+    loadTime: sortedUnique([...(imported.loadTime ?? []), ...metadataLoadTime])
+  }
 }
 
 const standInText = [

@@ -10,9 +10,6 @@ import { createRequire } from 'node:module'
 import type { Warning } from './compiler-settings.ts'
 import type { Language } from './contract.ts'
 import type { RepoPath } from './model.ts'
-import { isScriptLanguage, type ScriptLanguage } from './source-file.ts'
-
-export type FrameworkLanguage = Exclude<Language, ScriptLanguage>
 
 export interface ScriptBlock {
   readonly text: string
@@ -21,6 +18,8 @@ export interface ScriptBlock {
   readonly language: ScriptLanguage
   /** Whether the block's exports are the module's. */
   readonly exports: boolean
+  /** Whether the block runs as the module loads, rather than per component instance or render. */
+  readonly loads: boolean
 }
 
 interface Framework {
@@ -65,7 +64,8 @@ function vueBlocks(text: string, path: RepoPath, compiler: unknown): readonly Sc
     text: block.content,
     offset: block.loc.start.line - 1,
     language: scriptLanguageOf(block.lang),
-    exports
+    exports,
+    loads: exports
   })
   return [
     ...(script ? [blockOf(script, true)] : []),
@@ -100,7 +100,8 @@ function svelteBlocks(text: string, _path: RepoPath, compiler: unknown): readonl
     text: text.slice(script.content.start, script.content.end),
     offset: linesBefore(text, script.content.start),
     language: scriptLanguageOf(svelteLangOf(script)),
-    exports
+    exports,
+    loads: exports
   })
   return [
     ...(module ? [blockOf(module, true)] : []),
@@ -126,15 +127,27 @@ function astroBlocks(text: string): readonly ScriptBlock[] {
       text: text.slice(start, start + close.index),
       offset: linesBefore(text, start),
       language: 'ts',
-      exports: true
+      exports: true,
+      loads: false
     }
   ]
 }
 
-const frameworks: Readonly<Record<FrameworkLanguage, Framework>> = {
+/** One entry per framework, keyed by its file extension. */
+const frameworks = {
   vue: { compiler: '@vue/compiler-sfc', blocks: vueBlocks },
   svelte: { compiler: 'svelte/compiler', blocks: svelteBlocks },
   astro: { blocks: astroBlocks }
+} satisfies Readonly<Partial<Record<Language, Framework>>>
+
+export type FrameworkLanguage = keyof typeof frameworks
+export const frameworkLanguages = Object.keys(frameworks) as readonly FrameworkLanguage[]
+
+/** The languages TypeScript parses directly. Framework files need their own compiler. */
+export type ScriptLanguage = Exclude<Language, FrameworkLanguage>
+
+export function isScriptLanguage(language: Language): language is ScriptLanguage {
+  return !Object.hasOwn(frameworks, language)
 }
 
 /**
@@ -148,13 +161,13 @@ export function scriptBlocksOf(
   text: string,
   load: (() => unknown) | undefined
 ): readonly ScriptBlock[] {
-  const framework = frameworks[language]
+  const framework: Framework = frameworks[language]
   if (framework.compiler && !load) return []
   return [...framework.blocks(text, path, load?.())].sort((a, b) => a.offset - b.offset)
 }
 
 /** The compiler a language's files are read with. */
-export interface Compiler {
+interface Compiler {
   readonly entry: string
   /** Requires the compiler module. Absent when Galactica was installed without it. */
   readonly load?: () => unknown
@@ -166,7 +179,8 @@ const compilers = new Map<FrameworkLanguage, Compiler>()
 /** Galactica's own compiler for `language`, resolved once. Undefined when the language needs none. */
 export function compilerOf(language: Language): Compiler | undefined {
   if (isScriptLanguage(language)) return undefined
-  const entry = frameworks[language].compiler
+  const framework: Framework = frameworks[language]
+  const entry = framework.compiler
   if (entry === undefined) return undefined
   let compiler = compilers.get(language)
   if (!compiler) {

@@ -19,9 +19,9 @@ import {
   readCache,
   writeCache,
   type Cache,
-  type CacheEntry,
   type Environment
 } from '../src/cache.ts'
+import type { CacheEntry } from '../src/cache-schema.ts'
 import type { RepoPath } from '../src/model.ts'
 import { repository } from './temp-repository.ts'
 

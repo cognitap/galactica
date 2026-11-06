@@ -4,9 +4,9 @@
  * wrote, so a later run can tell an untouched file from an edited one.
  */
 
-import { createHash } from 'node:crypto'
 import { existsSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
+import { sha256 } from './model.ts'
 import { readRepositoryFile } from './safe-read.ts'
 import { refuseLinks, writeBelow } from './safe-write.ts'
 
@@ -41,8 +41,6 @@ export interface SkillSource {
 
 const hashLine = /^ {2}galactica-hash: "([0-9a-f]{64})"\n/m
 
-const hashOf = (text: string) => createHash('sha256').update(text).digest('hex')
-
 /** The template with `command` in place of the default, stamped with the version and hash. */
 export function skillFile({ template, command, version }: SkillSource): string {
   return stamped(
@@ -65,10 +63,10 @@ function stamped(text: string, version: string): string {
   const end = text.indexOf('\n---\n')
   const versioned = `${text.slice(0, end)}\nmetadata:\n  galactica-version: "${version}"`
   const rest = text.slice(end)
-  return `${versioned}\n  galactica-hash: "${hashOf(versioned + rest)}"${rest}`
+  return `${versioned}\n  galactica-hash: "${sha256(versioned + rest)}"${rest}`
 }
 
-export interface AgentFile {
+interface AgentFile {
   /** Relative to the root. */
   readonly path: string
   readonly text: string
@@ -86,12 +84,12 @@ export const agentFiles = (source: SkillSource): readonly AgentFile[] => {
 /** Whether the file is exactly what some version of Galactica wrote. */
 function isUnedited(text: string): boolean {
   const hash = hashLine.exec(text)?.[1]
-  return hash !== undefined && hashOf(text.replace(hashLine, '')) === hash
+  return hash !== undefined && sha256(text.replace(hashLine, '')) === hash
 }
 
-export type InstallStatus = 'created' | 'updated' | 'unchanged' | 'kept'
+type InstallStatus = 'created' | 'updated' | 'unchanged' | 'kept'
 
-export interface Installed {
+interface Installed {
   /** Relative to the root. */
   readonly path: string
   readonly status: InstallStatus

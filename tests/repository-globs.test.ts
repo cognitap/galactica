@@ -48,6 +48,8 @@ for (const source of ['pnpm', 'npm', 'include', 'exclude', 'kinds', 'areas']) {
 test('unsupported glob warnings identify every config key and workspace source', async t => {
   const { discover } = await import('../src/discovery.ts')
   const { loadConfig } = await import('../src/config.ts')
+  const { plainInputs } = await import('../src/inputs.ts')
+  const { default: ts } = await import('typescript')
   for (const source of ['pnpm', 'npm']) {
     const root = repository(t, {
       'package.json': { name: 'root', workspaces: ['@(packages)/*'] },
@@ -59,7 +61,7 @@ test('unsupported glob warnings identify every config key and workspace source',
         areas: { '@(src)/**': 'src' }
       }
     })
-    const warnings = discover(root, loadConfig(root)).warnings
+    const warnings = discover(root, loadConfig(root), plainInputs(ts.sys)).warnings
     assert.equal(warnings.length, 5)
     for (const key of ['include[0]', 'exclude[0]', 'kinds.test[0]', 'areas["@(src)/**"]']) {
       assert.ok(

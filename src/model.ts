@@ -12,6 +12,7 @@
  * change invalidates no cache entry.
  */
 
+import { createHash } from 'node:crypto'
 import { isAbsolute, posix, relative, sep } from 'node:path'
 import type { Language, ModuleKind, SymbolKind } from './contract.ts'
 
@@ -140,8 +141,15 @@ export interface Internal {
   readonly instead?: string
 }
 
+/** The SHA-256 of `data` in hex, which identifies file bytes and recorded inputs. */
+export const sha256 = (data: string | Uint8Array): string =>
+  createHash('sha256').update(data).digest('hex')
+
 /** Code-unit order, the same on every machine and locale. */
 export const compare = (a: string, b: string) => (a < b ? -1 : a > b ? 1 : 0)
+
+/** The distinct values in `compare` order. */
+export const sortedUnique = (values: Iterable<string>) => [...new Set(values)].sort(compare)
 
 function targetKey(target: Target): string {
   if (target.kind === 'module') return target.path

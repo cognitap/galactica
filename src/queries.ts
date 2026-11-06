@@ -18,7 +18,14 @@ import {
   type Where
 } from './contract.ts'
 import { cyclesWhere } from './cycles.ts'
-import { compare, type Graph, type Incoming, type RepoPath, type SymbolFacts } from './model.ts'
+import {
+  compare,
+  sortedUnique,
+  type Graph,
+  type Incoming,
+  type RepoPath,
+  type SymbolFacts
+} from './model.ts'
 import { resolveModule, resolveSubject, type Miss, type Resolved } from './subjects.ts'
 
 export function failure(command: Command, { error }: Miss): Failure {
@@ -40,8 +47,6 @@ function symbolRef({
 }: SymbolFacts): SymbolRef {
   return { name, kind, line, default: isDefault, signature, ...(doc === undefined ? {} : { doc }) }
 }
-
-const sortedUnique = (values: Iterable<string>) => [...new Set(values)].sort(compare)
 
 /** Up to three exported names equal to `name` but for case, or containing it, or contained in it. */
 function similarNames(graph: Graph, name: string): readonly string[] {

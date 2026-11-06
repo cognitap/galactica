@@ -5,7 +5,7 @@
 
 import ts from 'typescript'
 import type { RepoPath } from './model.ts'
-import type { ScriptLanguage } from './source-file.ts'
+import type { ScriptLanguage } from './frameworks.ts'
 
 const scriptKinds: Readonly<Record<ScriptLanguage, ts.ScriptKind>> = {
   ts: ts.ScriptKind.TS,
@@ -36,6 +36,29 @@ export function parseScript(
     true,
     scriptKinds[language]
   )
+}
+
+type Rule<C, R> = (node: ts.Node, context: C) => R | undefined
+
+/** A rule of a table: `then` gives the result for a node `is` accepts, and no node else gives one. */
+export function when<T extends ts.Node, C, R>(
+  is: (node: ts.Node) => node is T,
+  then: (node: T, context: C) => R
+): Rule<C, R> {
+  return (node, context) => (is(node) ? then(node, context) : undefined)
+}
+
+/** The result of the first rule that gives one for `node`. */
+export function firstOf<C, R>(
+  rules: readonly Rule<C, R>[],
+  node: ts.Node,
+  context: C
+): R | undefined {
+  for (const rule of rules) {
+    const result = rule(node, context)
+    if (result !== undefined) return result
+  }
+  return undefined
 }
 
 /**

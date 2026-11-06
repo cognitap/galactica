@@ -8,11 +8,12 @@ import { join, posix } from 'node:path'
 import type { Warning } from './compiler-settings.ts'
 import { globProblem, matchesGlob } from './glob.ts'
 import type { Inputs } from './inputs.ts'
+import { isRecord } from './json.ts'
 import { parseRepoPath, type Model, type PackageName, type RepoPath } from './model.ts'
 import { missingFile, readProblem, readRepositoryFile } from './safe-read.ts'
 
 /** Globs over package directories. A leading `!` excludes. */
-export type WorkspacePatterns = readonly string[]
+type WorkspacePatterns = readonly string[]
 
 export interface WorkspacePackage {
   readonly name: PackageName
@@ -108,14 +109,9 @@ export function pnpmWorkspacePatterns(text: string): WorkspacePatterns | undefin
 }
 
 function workspacesField(manifest: unknown): unknown {
-  if (typeof manifest !== 'object' || manifest === null || !('workspaces' in manifest)) {
-    return undefined
-  }
+  if (!isRecord(manifest)) return undefined
   const { workspaces } = manifest
-  if (typeof workspaces === 'object' && workspaces !== null && 'packages' in workspaces) {
-    return workspaces.packages
-  }
-  return workspaces
+  return isRecord(workspaces) && 'packages' in workspaces ? workspaces.packages : workspaces
 }
 
 /** The first workspace source that names packages, or undefined in a single-package repository. */

@@ -13,15 +13,6 @@ const languageByExtension: ReadonlyMap<string, Language> = new Map(
   languages.map(language => [`.${language}`, language])
 )
 
-const frameworkLanguages = ['vue', 'svelte', 'astro'] as const
-
-/** The languages TypeScript parses directly. Framework files need their own compiler. */
-export type ScriptLanguage = Exclude<Language, (typeof frameworkLanguages)[number]>
-
-export function isScriptLanguage(language: Language): language is ScriptLanguage {
-  return !(frameworkLanguages as readonly string[]).includes(language)
-}
-
 const declaration = /\.d\.[cm]?ts$/
 
 function nameOf(path: RepoPath): string {

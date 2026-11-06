@@ -2,7 +2,7 @@ import assert from 'node:assert/strict'
 import { test } from 'node:test'
 import { parseRepoPath } from '../src/model.ts'
 import { symbolsOf } from '../src/symbols.ts'
-import type { ScriptLanguage } from '../src/source-file.ts'
+import type { ScriptLanguage } from '../src/frameworks.ts'
 import { parseScript } from '../src/syntax.ts'
 
 const symbols = (lines: readonly string[], language: ScriptLanguage = 'ts') =>

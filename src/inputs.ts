@@ -8,16 +8,15 @@
  * to find that out.
  */
 
-import { createHash } from 'node:crypto'
 import { readdirSync, statSync, type Dirent } from 'node:fs'
 import { dirname, isAbsolute, join, relative, sep } from 'node:path'
 import type ts from 'typescript'
 import { isRecord, isString } from './json.ts'
-import type { Config } from './model.ts'
+import { sha256, type Config } from './model.ts'
 import { isWithin } from './paths.ts'
 import { gitListing } from './repository-files.ts'
 
-export interface FileStat {
+interface FileStat {
   readonly mtimeMs: number
   readonly size: number
 }
@@ -72,13 +71,11 @@ export interface Fingerprint {
   ])[]
 }
 
-export interface Recorder {
+interface Recorder {
   readonly inputs: Inputs
   /** The record, or undefined when a timestamp is too fresh to trust. */
   readonly fingerprint: () => Fingerprint | undefined
 }
-
-const sha256 = (text: string) => createHash('sha256').update(text).digest('hex')
 
 function directoryMtime(path: string): number | null {
   const stat = statSync(path, { throwIfNoEntry: false })
