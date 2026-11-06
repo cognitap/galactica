@@ -4,6 +4,8 @@
 
 ## Unreleased
 
+## 0.1.6
+
 - Lead the README with a real Immich map, a CLI excerpt, agent/human views, a glossary, tool comparisons and the measured benchmark's limits; move reference details below the pitch.
 - **Breaking:** `--json` help links to its reference on GitHub. Before: `docs/json-output.md`, absent from the npm package. After: `https://github.com/cognitap/galactica/blob/main/docs/json-output.md`.
 - Add repository topics and a homepage pointing to the README; verify that published releases have their version-specific notes.
@@ -33,7 +35,7 @@
 
 - `init` and `html` refuse to write through a symbolic link, which a repository could commit to make them write outside it. `init` checks each of its paths and the folders above them inside the repository, such as a `.claude` linked to `~/.claude`, and writes all its files or none. `html` refuses a page path that is a link, and a linked folder above it inside the repository; an `--out` outside the repository may still sit in a linked folder. Either prints one line, such as `galactica: refused to write galactica.html: it is a symbolic link`, and exits with code 1. `html --out` into the repository now creates missing folders.
 - Galactica keeps its cache only in the user cache folder, never in `node_modules/.cache/galactica`, so a repository can no longer ship a cache that makes the map lie. A cached model that does not parse is analyzed again.
-- **Breaking, ships in 0.2.0:** the skill that `init` writes, the skill template and the README run Galactica with `npx --prefix / @cognitap/galactica` instead of `npx @cognitap/galactica`. Run inside a repository, plain npx ran a `node_modules/@cognitap/galactica` that the repository holds, even one its `package.json` does not list, and read the repository's `.npmrc`, so a hostile repository could run its own code in place of Galactica. With `--prefix /`, npm ignores both. Run `init` again to update an unedited skill. Before: `npx @cognitap/galactica overview`. After: `npx --prefix / @cognitap/galactica overview`.
+- **Breaking:** the skill that `init` writes, the skill template and the README run Galactica with `npx --prefix / @cognitap/galactica` instead of `npx @cognitap/galactica`. Run inside a repository, plain npx ran a `node_modules/@cognitap/galactica` that the repository holds, even one its `package.json` does not list, and read the repository's `.npmrc`, so a hostile repository could run its own code in place of Galactica. With `--prefix /`, npm ignores both. Run `init` again to update an unedited skill. Before: `npx @cognitap/galactica overview`. After: `npx --prefix / @cognitap/galactica overview`.
 - Resolve private `package.json` `imports` to Vue, Svelte, Astro and extensionless script source files, including projects whose generated SvelteKit config is unavailable.
 - Treat existing workspace JSON, metadata and asset exports as files rather than unresolved imports.
 - Resolve declaration-only workspace entries and subpaths without inventing runtime dependencies, while preferring available source modules.
