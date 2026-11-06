@@ -5,6 +5,7 @@
     "noEmitOnError": true,
     "allowImportingTsExtensions": false,
     "rewriteRelativeImportExtensions": true,
+    "sourceMap": true,
     "rootDir": "./src",
     "outDir": "./dist"
   },
