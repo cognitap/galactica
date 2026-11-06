@@ -4,7 +4,7 @@
 
 ## Unreleased
 
-- Galactica keeps its cache only in the user cache folder, never in `node_modules/.cache/galactica`, so a repository can no longer ship a cache that makes the map lie.
+- Galactica keeps its cache only in the user cache folder, never in `node_modules/.cache/galactica`, so a repository can no longer ship a cache that makes the map lie. A cached model that does not parse is analyzed again.
 
 ## 0.1.5
 

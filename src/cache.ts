@@ -139,16 +139,17 @@ export function cacheDirectory(
 
 const cacheFile = (directory: string) => join(directory, 'cache.json')
 
-type Unknown = Readonly<Record<string, unknown>>
+export type Unknown = Readonly<Record<string, unknown>>
 
 export const isRecord = (value: unknown): value is Unknown =>
   typeof value === 'object' && value !== null && !Array.isArray(value)
 
-const isString = (value: unknown): value is string => typeof value === 'string'
+export const isString = (value: unknown): value is string => typeof value === 'string'
 
-const isLine = (value: unknown): value is number => Number.isInteger(value) && Number(value) > 0
+export const isLine = (value: unknown): value is number =>
+  Number.isInteger(value) && Number(value) > 0
 
-const isStrings = (value: unknown): value is readonly string[] =>
+export const isStrings = (value: unknown): value is readonly string[] =>
   Array.isArray(value) && value.every(isString)
 
 const oneOf =
@@ -158,10 +159,10 @@ const oneOf =
 
 const isSymbolKind = oneOf(symbolKinds)
 const isSyntax = oneOf<ImportSyntax>(['declaration', 'import-equals', 'require', 'import-call'])
-const isForm = oneOf<Import['form']>(['import', 'reexport'])
+export const isForm = oneOf<Import['form']>(['import', 'reexport'])
 const isMode = oneOf<NonNullable<Import['resolutionMode']>>(['import', 'require'])
 
-function symbolOf(value: unknown): SymbolFacts | undefined {
+export function symbolOf(value: unknown): SymbolFacts | undefined {
   if (!isRecord(value)) return undefined
   const { name, kind, line, signature, doc } = value
   if (!isString(name) || !isSymbolKind(kind) || !isLine(line) || !isString(signature)) {
@@ -178,7 +179,7 @@ function symbolOf(value: unknown): SymbolFacts | undefined {
   }
 }
 
-const isRenames = (value: unknown): value is Readonly<Record<string, string>> =>
+export const isRenames = (value: unknown): value is Readonly<Record<string, string>> =>
   isRecord(value) && Object.values(value).every(isString)
 
 function importOf(value: unknown): Import | undefined {
