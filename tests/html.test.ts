@@ -61,6 +61,15 @@ test('the stylesheet and the page scripts are inlined, and the title names the r
   assert.doesNotMatch(html, /\{\{\w+\}\}/)
 })
 
+test('the inlined page module has no JSDoc comments or redundant strict-mode IIFE', () => {
+  const block = html.match(/<script\s+type="module"\s*>([^]*?)<\/script>/)
+  assert.ok(block, 'the page script is an ES module')
+  const script = block[1]!
+  assert.doesNotMatch(script, /\/\*\*/)
+  assert.doesNotMatch(script, /^\s*["']use strict["']/)
+  assert.doesNotMatch(script, /^\s*\(\(\)\s*=>/)
+})
+
 const source: PageSource = {
   template: 'https://github.com/acme/app/blob/abc1234/{path}#L{line}',
   prefix: '',

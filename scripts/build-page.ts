@@ -6,19 +6,23 @@ import { buildSync } from 'esbuild'
 
 const root = fileURLToPath(new URL('../', import.meta.url))
 mkdirSync(new URL('../dist/page/', import.meta.url), { recursive: true })
-for (const name of ['page.css', 'page.html']) {
-  cpSync(
-    new URL(`../src/page/${name}`, import.meta.url),
-    new URL(`../dist/page/${name}`, import.meta.url)
-  )
+cpSync(
+  new URL('../src/page/page.html', import.meta.url),
+  new URL('../dist/page/page.html', import.meta.url)
+)
+for (const extension of ['js', 'css']) {
+  buildSync({
+    absWorkingDir: root,
+    entryPoints: [`src/page/page.${extension}`],
+    outfile: `dist/page/page.${extension}`,
+    bundle: true,
+    platform: 'browser',
+    format: 'esm',
+    // CSS syntax transforms round color alpha; whitespace minification preserves the pixels.
+    minify: extension === 'js',
+    minifyWhitespace: true,
+    legalComments: 'none',
+    target: 'es2022',
+    charset: 'utf8'
+  })
 }
-buildSync({
-  absWorkingDir: root,
-  entryPoints: ['src/page/page.js'],
-  outfile: 'dist/page/page.js',
-  bundle: true,
-  platform: 'browser',
-  format: 'iife',
-  target: 'es2022',
-  charset: 'utf8'
-})
