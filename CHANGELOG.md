@@ -4,6 +4,10 @@
 
 ## Unreleased
 
+## 0.2.2
+
+- The npm package page shows the Immich dependency graph, one-off and global CLI commands, and measured agent benchmark results.
+
 ## 0.2.1
 
 - Browse wider dependency layers horizontally and select an area anywhere on its card.
