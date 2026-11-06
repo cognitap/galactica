@@ -1,8 +1,4 @@
-/**
- * The oldest Node.js Galactica runs on. Node.js 24.0 prints an
- * ExperimentalWarning on the first `path.matchesGlob` call, which 24.1.0
- * removed (nodejs/node#58236).
- */
+/** The agreed Node.js support baseline for Galactica. */
 export const minimumNode = '24.1.0'
 
 /** Why Galactica cannot run on Node.js `version`, or undefined when it can. */
