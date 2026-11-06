@@ -4,7 +4,8 @@
  * `schema/galactica.config.schema.json` states the same rules for editors.
  */
 
-import { readFileSync } from 'node:fs'
+import { existsSync, readFileSync } from 'node:fs'
+import { missingFile, readRepositoryFile, UnsafeReadError } from './safe-read.ts'
 import { join } from 'node:path'
 import { moduleKinds, type ModuleKind } from './contract.ts'
 import { emptyConfig, parseRepoPath, type AreaPath, type Config } from './model.ts'
@@ -138,9 +139,13 @@ function parseConfig(raw: unknown): Config {
 export function loadConfig(root: string): Config {
   let text
   try {
-    text = readFileSync(join(root, CONFIG_FILE), 'utf8')
+    text = readRepositoryFile(root, join(root, CONFIG_FILE), {
+      fileExists: existsSync,
+      readFile: file => readFileSync(file, 'utf8')
+    })
   } catch (error) {
-    if ((error as NodeJS.ErrnoException).code === 'ENOENT') return emptyConfig
+    if (missingFile(error)) return emptyConfig
+    if (error instanceof UnsafeReadError) throw new ConfigError(undefined, error.reason)
     throw new ConfigError(undefined, `could not read: ${(error as Error).message}`)
   }
   let raw

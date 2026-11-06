@@ -240,6 +240,8 @@ Galactica never runs code from the repository it maps, so it is safe to run on a
 
 Galactica itself loads no module from the repository's `node_modules`. It runs git with `core.fsmonitor`, optional index writes and the filter drivers of the repository's own config turned off, so a `.git` folder that came with a download cannot make git run a program. A tool that acts on a file in the repository before Galactica starts, such as a version manager that reads `.nvmrc` or `.tool-versions` and switches Node.js or npm, is outside this guarantee.
 
+Before reading repository content, including compiler configs, workspace manifests and existing installed skill files, Galactica requires a regular file inside the root after following links, of at most 10 MB. Unsafe optional configs are skipped with warnings; an unsafe `galactica.config.json` or an existing skill file that `init` must read fails clearly. An `extends` target outside the root is refused too.
+
 ## Performance
 
 The targets are a first run under 10 seconds on a repository of about 3,000 modules, and any command with a warm cache under half a second. `pnpm bench` measures both:

@@ -7,6 +7,7 @@
 import { join, posix } from 'node:path'
 import type { Warning } from './compiler-settings.ts'
 import { globProblem, matchesGlob } from './glob.ts'
+import { missingFile, readRepositoryFile, UnsafeReadError } from './safe-read.ts'
 import type { Inputs } from './inputs.ts'
 import { parseRepoPath, type Model, type PackageName, type RepoPath } from './model.ts'
 
@@ -25,8 +26,17 @@ export function readJson(
   path: RepoPath,
   warnings: Warning[]
 ): unknown {
-  const text = inputs.readFile(join(root, path))
-  if (text === undefined) return undefined
+  let text
+  try {
+    text = readRepositoryFile(root, join(root, path), inputs)
+  } catch (error) {
+    if (missingFile(error)) return undefined
+    warnings.push({
+      path,
+      message: error instanceof UnsafeReadError ? error.message : 'could not read file'
+    })
+    return undefined
+  }
   try {
     return JSON.parse(text)
   } catch (error) {
@@ -116,7 +126,16 @@ export function workspacePatterns(
   warnings: Warning[]
 ): WorkspacePatterns | undefined {
   const yamlPath = parseRepoPath('pnpm-workspace.yaml')
-  const yaml = inputs.readFile(join(root, yamlPath))
+  let yaml
+  try {
+    yaml = readRepositoryFile(root, join(root, yamlPath), inputs)
+  } catch (error) {
+    if (!missingFile(error))
+      warnings.push({
+        path: yamlPath,
+        message: error instanceof UnsafeReadError ? error.message : 'could not read file'
+      })
+  }
   if (yaml !== undefined) {
     try {
       const patterns = pnpmWorkspacePatterns(yaml)
