@@ -19,10 +19,10 @@ are immutable. Prereleases use a version suffix and their own npm tag, never
 The contract covers the commands and their options, their text output, their
 `--json` output as `docs/json-output.md` documents it, exit codes,
 `galactica.config.json` and its schema, the files `init` writes and the skill's
-`npx @cognitap/galactica` command. Breaking changes include incompatible changes
-to any of these, a higher `schemaVersion`, config that no longer loads and
-narrowed Node.js support. The model, the cache and the HTML page's embedded data
-are private.
+`npx --prefix / @cognitap/galactica` command. Breaking changes include
+incompatible changes to any of these, a higher `schemaVersion`, config that no
+longer loads and narrowed Node.js support. The model, the cache and the HTML
+page's embedded data are private.
 
 ## Support
 
