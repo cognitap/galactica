@@ -8,7 +8,7 @@ Galactica reads source statically with the TypeScript compiler API. It never run
 
 - JavaScript and TypeScript, including JSX and CommonJS.
 - Vue, Svelte and Astro files. Each one exports its component, named after the file.
-  - Galactica reads the imports and exports of a Vue file's `<script>` and `<script setup>`, and of a Svelte file's instance and module scripts. It uses its own `vue/compiler-sfc` and `svelte/compiler`, installed as optional dependencies. Because it reads only script blocks, Vue 2 components and Svelte 4 syntax work too. Only `<script>` and a Svelte module script can export.
+  - Galactica reads the imports and exports of a Vue file's `<script>` and `<script setup>`, and of a Svelte file's instance and module scripts. It uses its own `@vue/compiler-sfc` and `svelte/compiler`, installed as optional dependencies. Because it reads only script blocks, Vue 2 components and Svelte 4 syntax work too. Only `<script>` and a Svelte module script can export.
   - A file whose compiler is missing, because Galactica was installed with `--omit=optional`, or fails on it, keeps its component and has no imports.
   - An Astro file's frontmatter is read as text, with no compiler. The `<script>` tags in its body are not read.
 

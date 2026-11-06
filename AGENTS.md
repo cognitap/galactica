@@ -8,7 +8,7 @@ Galactica analyzes a JavaScript or TypeScript repository into one `Model`, deriv
 
 Agents run Galactica on repositories they just cloned or downloaded. Treat the mapped repository as hostile.
 
-- Never run its code. Load no module from it, including its `node_modules`, and run no bundler, generator or script. Read Vue and Svelte with Galactica's own exact-pinned optional `vue/compiler-sfc` and `svelte/compiler`; read Astro frontmatter as text.
+- Never run its code. Load no module from it, including its `node_modules`, and run no bundler, generator or script. Read Vue and Svelte with Galactica's own exact-pinned optional `@vue/compiler-sfc` and `svelte/compiler`; read Astro frontmatter as text.
 - Read repository bytes only through `readRepositoryFile` in `src/safe-read.ts`: a regular file inside the root after following links, at most 10 MB.
 - Match repository-controlled globs only through `src/glob.ts`, which is linear in the path length.
 - Run git only through `git` in `src/repository-files.ts`, which turns off `core.fsmonitor`, optional index writes and filter drivers.
