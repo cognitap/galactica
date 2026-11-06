@@ -25,7 +25,7 @@ export function failure(command: Command, { error }: Miss): Failure {
   return { schemaVersion: SCHEMA_VERSION, command, error }
 }
 
-export function moduleRef(graph: Graph, path: RepoPath): ModuleRef {
+function moduleRef(graph: Graph, path: RepoPath): ModuleRef {
   const node = graph.modules.get(path)!
   return { path, package: node.package, area: node.area, kind: node.kind }
 }
@@ -137,7 +137,7 @@ function reach(
  * and at least `share` of all modules. A test that reaches a subject only
  * through one says little about the subject, since it reaches most modules.
  */
-export const HUB = { importers: 20, share: 1 / 20 } as const
+const HUB = { importers: 20, share: 1 / 20 } as const
 
 const hubCache = new WeakMap<Graph, ReadonlySet<RepoPath>>()
 

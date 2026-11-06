@@ -16,12 +16,13 @@ import {
 import { pageSourceOf } from './git-source.ts'
 import { graphOf } from './graph.ts'
 import { htmlOf } from './html.ts'
-import { toRepoPath, type RepoPath } from './model.ts'
 import { analyze } from './model-cache.ts'
+import { toRepoPath, type RepoPath } from './model.ts'
+import { isBelow } from './paths.ts'
 import { render } from './render.ts'
-import { isBelow, SymlinkRefused, writeBelow } from './safe-write.ts'
-import { templateProblem } from './source-links.ts'
+import { SymlinkRefused, writeBelow } from './safe-write.ts'
 import { agentFiles, defaultCommand, installSkill, skillTemplate } from './skill.ts'
+import { templateProblem } from './source-links.ts'
 
 const htmlOptions = {
   out: { type: 'string', value: '<file>', summary: 'File html writes (default: galactica.html)' },

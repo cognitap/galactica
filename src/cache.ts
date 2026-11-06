@@ -19,20 +19,16 @@ import {
 } from 'node:fs'
 import { createRequire } from 'node:module'
 import { homedir } from 'node:os'
-import { basename, dirname, extname, isAbsolute, join, relative, sep } from 'node:path'
+import { basename, dirname, extname, isAbsolute, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { symbolKinds } from './contract.ts'
-import type { Extraction } from './extraction.ts'
-import type { Import, ImportSyntax } from './imports.ts'
-import { compare, type RepoPath, type SymbolFacts } from './model.ts'
+import { cacheEntryOf, type CacheEntry } from './cache-schema.ts'
+import { isRecord, type UnknownRecord } from './json.ts'
+import { compare, type RepoPath } from './model.ts'
+import { isWithin } from './paths.ts'
+
+export type { CacheEntry } from './cache-schema.ts'
 
 export const CACHE_FORMAT = 6
-
-export interface CacheEntry extends Extraction {
-  readonly hash: string
-  readonly mtimeMs: number
-  readonly size: number
-}
 
 export type Cache = ReadonlyMap<RepoPath, CacheEntry>
 
@@ -105,11 +101,6 @@ function userCacheDirectory({ platform, env, home }: Environment): string {
   return platform === 'win32' ? join(home, 'AppData', 'Local') : join(home, '.cache')
 }
 
-const isWithin = (parent: string, path: string) => {
-  const rel = relative(parent, path)
-  return rel === '' || (!isAbsolute(rel) && rel !== '..' && !rel.startsWith(`..${sep}`))
-}
-
 /**
  * The cache folder of `root`: in the user's cache directory, in a folder
  * named by a hash of the root's real path, created for this user alone. The
@@ -139,135 +130,7 @@ export function cacheDirectory(
 
 const cacheFile = (directory: string) => join(directory, 'cache.json')
 
-export type Unknown = Readonly<Record<string, unknown>>
-
-export const isRecord = (value: unknown): value is Unknown =>
-  typeof value === 'object' && value !== null && !Array.isArray(value)
-
-export const isString = (value: unknown): value is string => typeof value === 'string'
-
-export const isLine = (value: unknown): value is number =>
-  Number.isInteger(value) && Number(value) > 0
-
-export const isStrings = (value: unknown): value is readonly string[] =>
-  Array.isArray(value) && value.every(isString)
-
-const oneOf =
-  <T extends string>(values: readonly T[]) =>
-  (value: unknown): value is T =>
-    (values as readonly unknown[]).includes(value)
-
-const isSymbolKind = oneOf(symbolKinds)
-const isSyntax = oneOf<ImportSyntax>(['declaration', 'import-equals', 'require', 'import-call'])
-export const isForm = oneOf<Import['form']>(['import', 'reexport'])
-const isMode = oneOf<NonNullable<Import['resolutionMode']>>(['import', 'require'])
-
-export function symbolOf(value: unknown): SymbolFacts | undefined {
-  if (!isRecord(value)) return undefined
-  const { name, kind, line, signature, doc } = value
-  if (!isString(name) || !isSymbolKind(kind) || !isLine(line) || !isString(signature)) {
-    return undefined
-  }
-  if (typeof value.default !== 'boolean' || (doc !== undefined && !isString(doc))) return undefined
-  return {
-    name,
-    kind,
-    line,
-    default: value.default,
-    signature,
-    ...(doc === undefined ? {} : { doc })
-  }
-}
-
-export const isRenames = (value: unknown): value is Readonly<Record<string, string>> =>
-  isRecord(value) && Object.values(value).every(isString)
-
-function isJSX(value: unknown): value is NonNullable<Import['jsx']> {
-  return (
-    isRecord(value) &&
-    isStrings(value.names) &&
-    (value.factory === undefined || isString(value.factory)) &&
-    (value.fragmentFactory === undefined || isString(value.fragmentFactory)) &&
-    (value.fragment === undefined || value.fragment === true)
-  )
-}
-
-function importOf(value: unknown): Import | undefined {
-  if (!isRecord(value)) return undefined
-  const {
-    specifier,
-    syntax,
-    resolutionMode,
-    line,
-    form,
-    names,
-    renames,
-    typeOnly,
-    dynamic,
-    loadTime,
-    elided,
-    metadataLoadTime,
-    jsx
-  } = value
-  if (!isString(specifier) || !isSyntax(syntax) || !isLine(line) || !isForm(form)) return undefined
-  if (!isStrings(names) || typeof typeOnly !== 'boolean' || typeof dynamic !== 'boolean') {
-    return undefined
-  }
-  if (resolutionMode !== undefined && !isMode(resolutionMode)) return undefined
-  if (renames !== undefined && !isRenames(renames)) return undefined
-  if (loadTime !== undefined && !isStrings(loadTime)) return undefined
-  if (elided !== undefined && elided !== 'unless-verbatim' && elided !== 'unless-metadata') {
-    return undefined
-  }
-  if (metadataLoadTime !== undefined && !isStrings(metadataLoadTime)) return undefined
-  if (jsx !== undefined && !isJSX(jsx)) return undefined
-  return {
-    specifier,
-    syntax,
-    ...(resolutionMode === undefined ? {} : { resolutionMode }),
-    line,
-    form,
-    names,
-    ...(renames === undefined ? {} : { renames }),
-    typeOnly,
-    dynamic,
-    ...(loadTime === undefined ? {} : { loadTime }),
-    ...(elided === undefined ? {} : { elided }),
-    ...(metadataLoadTime === undefined ? {} : { metadataLoadTime }),
-    ...(jsx === undefined ? {} : { jsx })
-  }
-}
-
-function every<T>(values: unknown, parse: (value: unknown) => T | undefined): T[] | undefined {
-  if (!Array.isArray(values)) return undefined
-  const parsed = values.map(parse)
-  return parsed.every(value => value !== undefined) ? parsed : undefined
-}
-
-const isOptionalString = (value: unknown): value is string | undefined =>
-  value === undefined || isString(value)
-
-function entryOf(value: unknown): CacheEntry | undefined {
-  if (!isRecord(value)) return undefined
-  const { hash, mtimeMs, size, failure } = value
-  const symbols = every(value.symbols, symbolOf)
-  const imports = every(value.imports, importOf)
-  if (!isString(hash) || typeof mtimeMs !== 'number' || typeof size !== 'number') return undefined
-  if (!isOptionalString(failure)) return undefined
-  return (
-    symbols &&
-    imports && {
-      hash,
-      mtimeMs,
-      size,
-      symbols,
-      imports,
-      ...(failure === undefined ? {} : { failure })
-    }
-  )
-}
-
-export const sameStamp = (file: Unknown, stamp: Stamp) =>
+export const sameStamp = (file: UnknownRecord, stamp: Stamp) =>
   file.galactica === stamp.galactica &&
   file.build === stamp.build &&
   file.typescript === stamp.typescript &&
@@ -286,7 +149,7 @@ export function readCache(directory: string, stamp: Stamp): Cache {
   if (!isRecord(file.modules)) return new Map()
   return new Map(
     Object.entries(file.modules).flatMap(([path, value]) => {
-      const entry = entryOf(value)
+      const entry = cacheEntryOf(value)
       return entry ? [[path as RepoPath, entry] as const] : []
     })
   )

@@ -5,13 +5,15 @@
  * else to the source a bundler most likely built it from.
  */
 
-import { isAbsolute, join, posix, relative, sep } from 'node:path'
-import ts from 'typescript'
 import { lstatSync } from 'node:fs'
-import type { Discovery } from './discovery.ts'
+import { join, posix, relative } from 'node:path'
+import ts from 'typescript'
 import type { Warning } from './compiler-settings.ts'
+import type { Discovery } from './discovery.ts'
 import { plainInputs, type Inputs } from './inputs.ts'
+import { isRecord } from './json.ts'
 import { parseRepoPath, toRepoPath, type PackageName, type RepoPath } from './model.ts'
+import { isWithin } from './paths.ts'
 import { nameOf, readJson } from './workspace.ts'
 
 export type UnresolvedReason = 'blocked' | 'no-export' | 'missing' | 'build-output' | 'too-deep'
@@ -170,9 +172,6 @@ function firstModule<T>(
   return file ?? failure
 }
 
-const isRecord = (value: unknown): value is Readonly<Record<string, unknown>> =>
-  typeof value === 'object' && value !== null && !Array.isArray(value)
-
 /** An `exports` target: a path, null, or a list of fallbacks or conditions nested up to `maxNesting` deep. */
 function resolveTarget(
   target: unknown,
@@ -300,11 +299,6 @@ export function packageImports(root: string, inputs: Inputs, warnings: Warning[]
   }
 }
 
-function isInside(dir: string, path: string): boolean {
-  const rel = relative(dir, path)
-  return !isAbsolute(rel) && rel !== '..' && !rel.startsWith(`..${sep}`)
-}
-
 /**
  * Splits a bare specifier into its package name, scoped or not, and its
  * subpath, "." for none. A name npm could not publish, such as SvelteKit's
@@ -358,11 +352,11 @@ export function workspaceResolver(
   /** A path can lie under the outDirs of several configs, so the first whose source is a module wins. */
   function fromBuild(path: string): WorkspaceResolution {
     const absolute = join(discovery.root, path)
-    const matching = discovery.builds.filter(({ outDir }) => isInside(outDir, absolute))
+    const matching = discovery.builds.filter(({ outDir }) => isWithin(outDir, absolute))
     if (matching.length === 0) return unresolved('missing')
     for (const { outDir, rootDir } of matching) {
       const source = join(rootDir, relative(outDir, absolute))
-      if (!isInside(discovery.root, source)) continue
+      if (!isWithin(discovery.root, source)) continue
       const found = asModule(toRepoPath(discovery.root, source))
       if (found) return { kind: 'module', path: found }
     }

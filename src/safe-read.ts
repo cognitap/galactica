@@ -62,3 +62,7 @@ export const missingFile = (error: unknown) =>
   'code' in error &&
   typeof error.code === 'string' &&
   ['ENOENT', 'ENOTDIR'].includes(error.code)
+
+/** The policy refusal when known, otherwise the caller's context for an ordinary read failure. */
+export const readProblem = (error: unknown, fallback: string): string =>
+  error instanceof UnsafeReadError ? error.message : fallback

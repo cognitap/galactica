@@ -6,7 +6,7 @@
  * A template is a URL with the placeholders `{commit}`, `{path}` and `{line}`.
  */
 
-export const GITHUB_HOST = 'github.com'
+const GITHUB_HOST = 'github.com'
 
 /** What the page needs to build a link: the template with `{commit}` filled in, and where the root sits. */
 export interface PageSource {

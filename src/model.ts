@@ -158,25 +158,6 @@ export function compareEdges(a: Edge, b: Edge): number {
   )
 }
 
-function sortedModules(entries: Iterable<[RepoPath, ModuleFacts]>): Model['modules'] {
-  return Object.fromEntries([...entries].sort(([a], [b]) => compare(a, b)))
-}
-
-/** Returns a model with `facts` in place of any entry at its path. Idempotent. */
-export function replaceModule(model: Model, facts: ModuleFacts): Model {
-  const entries = Object.entries(model.modules).filter(([path]) => path !== facts.path)
-  return {
-    ...model,
-    modules: sortedModules([...(entries as [RepoPath, ModuleFacts][]), [facts.path, facts]])
-  }
-}
-
-/** Returns a model without the entry at `path`. Idempotent. */
-export function removeModule(model: Model, path: RepoPath): Model {
-  const entries = Object.entries(model.modules).filter(([key]) => key !== path)
-  return { ...model, modules: sortedModules(entries as [RepoPath, ModuleFacts][]) }
-}
-
 /** The overrides from `galactica.config.json`, parsed once per run by `loadConfig`. */
 export interface Config {
   /** A module is kept when it matches one of these globs. Absent keeps every module. */

@@ -12,7 +12,9 @@ import { createHash } from 'node:crypto'
 import { readdirSync, statSync, type Dirent } from 'node:fs'
 import { dirname, isAbsolute, join, relative, sep } from 'node:path'
 import type ts from 'typescript'
+import { isRecord, isString } from './json.ts'
 import type { Config } from './model.ts'
+import { isWithin } from './paths.ts'
 import { gitListing } from './repository-files.ts'
 
 export interface FileStat {
@@ -93,8 +95,7 @@ function statOf(path: string): FileStat | null {
 // all of them on POSIX. `relative` answers a path with the other separator.
 function isInside(root: string, path: string): boolean {
   if (path === root || path.startsWith(root + sep)) return true
-  const rel = relative(root, path)
-  return !isAbsolute(rel) && rel !== '..' && !rel.startsWith(`..${sep}`)
+  return isWithin(root, path)
 }
 
 function shorten(root: string, path: string): string {
@@ -220,11 +221,6 @@ export function unchanged(root: string, fingerprint: Fingerprint, config: Config
   if (fingerprint.git === null) return listing === undefined
   return listing !== undefined && sha256(listing) === fingerprint.git
 }
-
-const isRecord = (value: unknown): value is Readonly<Record<string, unknown>> =>
-  typeof value === 'object' && value !== null && !Array.isArray(value)
-
-const isString = (value: unknown): value is string => typeof value === 'string'
 
 const isNumber = (value: unknown): value is number => typeof value === 'number'
 

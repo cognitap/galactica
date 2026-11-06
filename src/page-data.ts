@@ -14,16 +14,16 @@ import {
   type RepoPath,
   type SymbolFacts
 } from './model.ts'
-import { stronglyConnected } from './strongly-connected.ts'
 import { orderRows } from './row-order.ts'
 import { isSourceOrConfig } from './source-file.ts'
 import type { PageSource } from './source-links.ts'
+import { stronglyConnected } from './strongly-connected.ts'
 import { areaSubject, moduleSubject, type Resolved } from './subjects.ts'
 
 /** Ascending module indexes, each stored as its gap from the one before, so long lists of nearby modules take few digits. */
 export type IndexGaps = Brand<readonly number[], 'IndexGaps'>
 
-export function gapsOf(indexes: readonly number[]): IndexGaps {
+function gapsOf(indexes: readonly number[]): IndexGaps {
   const gaps: readonly number[] = indexes.map(
     (index, position) => index - (indexes[position - 1] ?? 0)
   )

@@ -3,12 +3,12 @@
  * most imported source and config modules of each area.
  */
 
-import { SCHEMA_VERSION, type Overview, type Warning, type UnresolvedImport } from './contract.ts'
+import { SCHEMA_VERSION, type Overview, type UnresolvedImport, type Warning } from './contract.ts'
 import { compare, type Graph, type RepoPath } from './model.ts'
 import { isSourceOrConfig } from './source-file.ts'
 
 /** Modules listed per area unless `--all`. */
-export const TOP = 5
+const TOP = 5
 
 /** Hints only: a missing generated or virtual module is often expected before a build. */
 function likelyCause(specifier: string): UnresolvedImport['cause'] {
