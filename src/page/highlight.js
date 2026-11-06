@@ -1,12 +1,11 @@
-import { indexesOf } from './indexes.js'
-import { byId, element, plural, formatted, KINDS } from './dom.js'
+import { indexesOf, subjectOf } from './indexes.js'
+import { byId, element, plural, formatted, kindCount, KINDS } from './dom.js'
 import { areaLinks } from './area-links.js'
 
 /** @typedef {import('../page-data.ts').PageData} PageData */
 /** @typedef {import('../contract.ts').ModuleKind} ModuleKind */
-/** @typedef {import('./search.js').Target} Target */
 /** @typedef {import('./map-view.js').MapView} MapView */
-/** @typedef {import('./navigation.js').Selection} Selection */
+/** @typedef {import('./indexes.js').Selection} Selection */
 /** @typedef {import('../page-data.ts').IndexGaps} IndexGaps */
 /** @typedef {'uses' | 'used-by'} Relation */
 
@@ -20,15 +19,12 @@ export function selectionView(data, view) {
     'used-by': { one: 'dependent', many: 'dependents', short: 'dependent', shorts: 'dependents' }
   })
 
-  /** @param {Selection} selection */
-  const subjectOf = ({ kind, index }) => (kind === 'area' ? data.areas[index] : data.modules[index])
-
   /**
    * @param {Selection} selection
    * @param {ReadonlySet<ModuleKind>} shown
    */
   function summaryOf(selection, shown) {
-    const subject = subjectOf(selection)
+    const subject = subjectOf(data, selection)
     const parts = [
       element('span', 'selection-kind', selection.kind),
       element('code', 'selection-path', subject.path),
@@ -48,7 +44,7 @@ export function selectionView(data, view) {
     if (hidden.size > 0) {
       const counts = /** @type {ModuleKind[]} */ (Object.keys(KINDS))
         .filter(kind => hidden.has(kind))
-        .map(kind => plural(hidden.get(kind) ?? 0, KINDS[kind].one, KINDS[kind].many))
+        .map(kind => kindCount(hidden.get(kind) ?? 0, kind))
       parts.push(element('span', 'count-hidden', `${counts.join(' and ')} hidden by the filter`))
     }
     return parts
@@ -102,7 +98,7 @@ export function selectionView(data, view) {
         return
       }
       document.body.dataset.selection = selection.kind
-      const subject = subjectOf(selection)
+      const subject = subjectOf(data, selection)
       /** @type {Map<number, Set<Relation>>} */
       const modules = new Map()
       /**
@@ -136,11 +132,14 @@ export function selectionView(data, view) {
         for (const relation of relations) counts[relation] += 1
         areas.set(area, counts)
       }
+      /** @type {Map<HTMLElement, Set<Relation>>} */
+      const linked = new Map()
       for (const [index, counts] of areas) {
         const { box, tag } = areaViews[index]
         const relations = /** @type {Relation[]} */ (Object.keys(counts)).filter(
           key => counts[key] > 0
         )
+        linked.set(box, new Set(relations))
         add(
           box,
           relations.map(relation => `is-${relation}`)
@@ -163,14 +162,6 @@ export function selectionView(data, view) {
             plural(counts[relation], RELATIONS[relation].one, RELATIONS[relation].many)
           )
           .join(' · ')
-      }
-      /** @type {Map<HTMLElement, Set<Relation>>} */
-      const linked = new Map()
-      for (const [index, counts] of areas) {
-        const relations = /** @type {Relation[]} */ (Object.keys(counts)).filter(
-          key => counts[key] > 0
-        )
-        linked.set(areaViews[index].box, new Set(relations))
       }
       const area = selection.kind === 'area' ? selection.index : data.modules[selection.index].area
       links.show(areaViews[area].box, linked)

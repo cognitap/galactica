@@ -1,7 +1,6 @@
 import { byId, element, breakable, plural, formatted, linked } from './dom.js'
 
 /** @typedef {import('../page-data.ts').PageData} PageData */
-/** @typedef {import('../contract.ts').ModuleKind} ModuleKind */
 /** @typedef {import('./search.js').Target} Target */
 
 /**
@@ -67,9 +66,8 @@ export function healthSection(data, go) {
 
   /**
    * The findings of `health`, grouped by kind.
-   * @param {(target: Target) => void} go
    */
-  function healthGroups(go) {
+  function healthGroups() {
     const { health } = data
     /** @param {number} module */
     const goModule = module => () => go({ kind: 'module', module })
@@ -161,7 +159,7 @@ export function healthSection(data, go) {
   )
   toggle.addEventListener('click', () => {
     const open = toggle.getAttribute('aria-expanded') !== 'true'
-    if (open && body.childElementCount === 0) body.append(...healthGroups(go))
+    if (open && body.childElementCount === 0) body.append(...healthGroups())
     toggle.setAttribute('aria-expanded', String(open))
     body.hidden = !open
   })

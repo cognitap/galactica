@@ -1,13 +1,13 @@
-import { byId, element, breakable, plural, formatted, KINDS, linked } from './dom.js'
+import { byId, element, breakable, plural, formatted, kindCount, KINDS, linked } from './dom.js'
 import { noteOf } from './links.js'
+import { compareText } from './search.js'
 
 /** @typedef {import('../page-data.ts').PageData} PageData */
 /** @typedef {import('../contract.ts').ModuleKind} ModuleKind */
-/** @typedef {import('./search.js').Target} Target */
 /** @typedef {import('../page-data.ts').PageArea} PageArea */
 /** @typedef {import('../page-data.ts').PageModule} PageModule */
 /** @typedef {import('../page-data.ts').PagePackage} PagePackage */
-/** @typedef {import('./navigation.js').Selection} Selection */
+/** @typedef {import('./indexes.js').Selection} Selection */
 /** @typedef {{ readonly index: number, readonly item: HTMLElement, readonly select: HTMLElement, readonly tag: HTMLElement, readonly symbolAt: ((position: number) => HTMLElement) | undefined }} ModuleView */
 /** @typedef {ReturnType<typeof mapView>} MapView */
 
@@ -366,9 +366,7 @@ export function mapView(data, onSelection) {
         return count + source + config
       }, 0)
     }))
-    .sort(
-      (a, b) => b.size - a.size || (a.pkg.name < b.pkg.name ? -1 : a.pkg.name > b.pkg.name ? 1 : 0)
-    )
+    .sort((a, b) => b.size - a.size || compareText(a.pkg.name, b.pkg.name))
 
   function packageNav() {
     if (data.packages.length < 2) return
@@ -464,7 +462,7 @@ export function mapView(data, onSelection) {
       .filter(kind => !shown.has(kind))
       .map(kind => ({ kind, count: data.modules.filter(module => module.kind === kind).length }))
       .filter(({ count }) => count > 0)
-      .map(({ kind, count }) => plural(count, KINDS[kind].one, KINDS[kind].many))
+      .map(({ kind, count }) => kindCount(count, kind))
     const hidden = hiddenKinds.length === 0 ? '' : ` (+${hiddenKinds.join(' and ')} hidden)`
     byId('counts').textContent = [
       plural(data.packages.length, 'package'),

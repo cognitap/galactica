@@ -1,14 +1,15 @@
-import { byId, KINDS } from './dom.js'
+import { byId } from './dom.js'
+import { kindsOf, subjectOf } from './indexes.js'
 import { mapView } from './map-view.js'
 import { selectionView } from './highlight.js'
 import { searchField } from './search-field.js'
-import { entriesOf } from './search.js'
+import { entriesOf, hiddenBy } from './search.js'
 import { healthSection } from './health.js'
 
 /** @typedef {import('../page-data.ts').PageData} PageData */
 /** @typedef {import('../contract.ts').ModuleKind} ModuleKind */
 /** @typedef {import('./search.js').Target} Target */
-/** @typedef {{ readonly kind: 'area' | 'module', readonly index: number }} Selection */
+/** @typedef {import('./indexes.js').Selection} Selection */
 /** @typedef {import('./map-view.js').ModuleView} ModuleView */
 
 /** Tests and stories only use the code, so the map opens on the code. */
@@ -16,13 +17,11 @@ const SHOWN_AT_FIRST = /** @type {ReadonlySet<ModuleKind>} */ (new Set(['source'
 
 /** @param {PageData} data */
 export function draw(data) {
-  /** @param {Selection} selection */
-  const subjectOf = ({ kind, index }) => (kind === 'area' ? data.areas[index] : data.modules[index])
   /** @param {Selection | undefined} selection */
   function fragmentOf(selection) {
     return selection === undefined
       ? ''
-      : `#${selection.kind}=${encodeURIComponent(subjectOf(selection).path)}`
+      : `#${selection.kind}=${encodeURIComponent(subjectOf(data, selection).path)}`
   }
 
   /**
@@ -44,21 +43,6 @@ export function draw(data) {
       item => item.path === path
     )
     return index < 0 ? undefined : { kind, index }
-  }
-
-  /**
-   * @param {Target} target
-   * @param {ReadonlySet<ModuleKind>} shown
-   * @returns {readonly ModuleKind[]}
-   */
-  function missingKinds(target, shown) {
-    const held =
-      target.kind === 'area'
-        ? /** @type {ModuleKind[]} */ (Object.keys(KINDS)).filter(
-            kind => data.areas[target.area].kinds[kind] > 0
-          )
-        : [data.modules[target.module].kind]
-    return held.some(kind => shown.has(kind)) ? [] : held
   }
 
   /** @type {Selection | undefined} */
@@ -102,7 +86,7 @@ export function draw(data) {
   }
   /** @param {Target} target */
   const go = target => {
-    const missing = missingKinds(target, shown)
+    const missing = hiddenBy({ kinds: kindsOf(data, target) }, shown)
     if (missing.length > 0) {
       show(new Set([...shown, ...missing]))
       field.refresh()

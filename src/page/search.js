@@ -1,3 +1,5 @@
+import { kindsOf } from './indexes.js'
+
 /** @typedef {import('../page-data.ts').PageData} PageData */
 /** @typedef {import('../contract.ts').ModuleKind} ModuleKind */
 
@@ -21,6 +23,13 @@
 const tailOf = path => path.slice(path.lastIndexOf('/') + 1)
 
 /**
+ * Locale-independent order for paths and package names.
+ * @param {string} a
+ * @param {string} b
+ */
+export const compareText = (a, b) => (a < b ? -1 : a > b ? 1 : 0)
+
+/**
  * Areas, modules and exported symbols, in path order, a symbol after its module.
  * @param {PageData} data
  * @returns {readonly SearchEntry[]}
@@ -37,9 +46,7 @@ export function entriesOf(data) {
         tail: tailOf(area.path),
         kind: 'area',
         where: data.packages[area.package].name,
-        kinds: /** @type {ModuleKind[]} */ (Object.keys(area.kinds)).filter(
-          kind => area.kinds[kind] > 0
-        ),
+        kinds: kindsOf(data, { kind: 'area', area: index }),
         target: { kind: 'area', area: index }
       }
     })
@@ -74,7 +81,7 @@ export function entriesOf(data) {
     })
   })
   return placed
-    .sort((a, b) => (a.path < b.path ? -1 : a.path > b.path ? 1 : a.order - b.order))
+    .sort((a, b) => compareText(a.path, b.path) || a.order - b.order)
     .map(({ entry }) => entry)
 }
 
@@ -94,7 +101,7 @@ function tierOf(entry, wanted) {
 }
 
 /**
- * @param {SearchEntry} entry
+ * @param {Pick<SearchEntry, 'kinds'>} entry
  * @param {ReadonlySet<ModuleKind>} shown
  * @returns {readonly ModuleKind[]}
  */
