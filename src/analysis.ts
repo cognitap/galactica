@@ -23,7 +23,7 @@ import { compilerOf, unreadWarnings, type Unread } from './frameworks.ts'
 import { importResolver, type ImportResolver } from './import-resolution.ts'
 import { reachFinder, withInstead } from './internal-imports.ts'
 import { plainInputs, type Inputs } from './inputs.ts'
-import { resolutionModeOf } from './imports.ts'
+import { asCompiled, resolutionModeOf } from './imports.ts'
 import {
   compareEdges,
   MODEL_FORMAT,
@@ -102,7 +102,8 @@ function resolveModule(
     : frameworkScript
   const edges: Edge[] = []
   const skipped: string[] = []
-  for (const { specifier, syntax, resolutionMode, ...taken } of imports) {
+  for (const imported of imports) {
+    const { specifier, syntax, resolutionMode, ...taken } = asCompiled(imported, options)
     const mode = resolutionModeOf({ syntax, resolutionMode }, language, format, options)
     const to = resolver.resolve(module, specifier, mode)
     const internal = reachOf(module, specifier, to)

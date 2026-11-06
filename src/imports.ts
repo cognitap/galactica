@@ -5,7 +5,7 @@
  */
 
 import ts from 'typescript'
-import { isRequireCall, loadTimeOf } from './load-time.ts'
+import { isRequireCall, usesOf } from './load-time.ts'
 import { parseRepoPath, type Edge } from './model.ts'
 import type { ScriptLanguage } from './source-file.ts'
 import { parseScript, pushChildren } from './syntax.ts'
@@ -13,12 +13,26 @@ import { parseScript, pushChildren } from './syntax.ts'
 /** How an import is written, which TypeScript reads its resolution mode from. */
 export type ImportSyntax = 'declaration' | 'import-equals' | 'require' | 'import-call'
 
-/** An edge before its target is known. Plain data, read from the module's syntax tree alone. */
+/**
+ * An edge before its target is known. Plain data, read from the module's
+ * syntax tree alone, so the compiler options it depends on apply later, in
+ * `asCompiled`.
+ */
 export interface Import extends Omit<Edge, 'to' | 'via'> {
   readonly specifier: string
   readonly syntax: ImportSyntax
   /** The `resolution-mode` attribute of a type-only import or export, which overrides the syntax. */
   readonly resolutionMode?: 'import' | 'require'
+  /**
+   * Set on an import of a TypeScript module whose bindings no code reads as
+   * values, which TypeScript leaves out of its output unless
+   * `verbatimModuleSyntax` keeps it, or, for `unless-metadata`,
+   * `emitDecoratorMetadata` reads a type that a decorated signature names.
+   * `typeOnly` is then false, since some options keep the import.
+   */
+  readonly elided?: 'unless-verbatim' | 'unless-metadata'
+  /** The `names` a decorated signature names in load-time code, which `emitDecoratorMetadata` reads then. */
+  readonly metadataLoadTime?: readonly string[]
 }
 
 /** What an import takes, before its line is known. */
@@ -32,6 +46,8 @@ interface Taken {
   readonly renames?: Edge['renames']
   readonly typeOnly: boolean
   readonly dynamic: boolean
+  /** Whether TypeScript drops the import when no code reads its bindings as values. */
+  readonly elidable?: true
 }
 
 type Guard<T extends ts.Node> = (node: ts.Node) => node is T
@@ -65,7 +81,10 @@ function fromImportDeclaration(node: ts.ImportDeclaration): Taken {
     typeOnly:
       clause?.phaseModifier === ts.SyntaxKind.TypeKeyword ||
       (clause?.name === undefined && allTypeOnly(named)),
-    dynamic: false
+    dynamic: false,
+    ...(clause === undefined || clause.phaseModifier === ts.SyntaxKind.TypeKeyword
+      ? {}
+      : { elidable: true })
   }
 }
 
@@ -125,7 +144,8 @@ function fromImportEquals(node: ts.ImportEqualsDeclaration): Taken | undefined {
     names: ['*'],
     renames: exported ? { [node.name.text]: '*' } : undefined,
     typeOnly: node.isTypeOnly,
-    dynamic: false
+    dynamic: false,
+    ...(exported || node.isTypeOnly ? {} : { elidable: true })
   }
 }
 
@@ -296,10 +316,14 @@ function overrideOf(
   return mode === ts.ModuleKind.CommonJS ? 'require' : 'import'
 }
 
-/** The module's imports in source order. Specifiers that are no string literal are skipped. */
-export function importsOf(source: ts.SourceFile): readonly Import[] {
+/**
+ * The module's imports in source order. Specifiers that are no string literal
+ * are skipped. `elides` says whether TypeScript compiles the module, and so
+ * may drop an import whose bindings it never reads as values.
+ */
+export function importsOf(source: ts.SourceFile, elides: boolean): readonly Import[] {
   const bindings = bindingsOf(source)
-  const loadTime = loadTimeOf(source, bindings)
+  const uses = usesOf(source, bindings)
   const imports: Import[] = []
   const pending: ts.Node[] = [source]
   for (let node = pending.pop(); node !== undefined; node = pending.pop()) {
@@ -309,7 +333,15 @@ export function importsOf(source: ts.SourceFile): readonly Import[] {
       const resolutionMode = overrideOf(source, specifier)
       const at = taken.at ?? specifier
       const names = sortedNames(taken.names)
-      const read = taken.form === 'import' && !taken.dynamic ? loadTime(specifier, names) : []
+      const use = taken.form === 'import' && !taken.dynamic ? uses(specifier, names) : undefined
+      const read = use?.loadTime ?? []
+      const metadataLoadTime = use?.metadataLoadTime ?? []
+      const elided =
+        elides && taken.elidable && use?.value !== 'code'
+          ? use?.value === 'metadata'
+            ? 'unless-metadata'
+            : 'unless-verbatim'
+          : undefined
       imports.push({
         specifier: specifier.text,
         syntax: taken.syntax,
@@ -318,14 +350,42 @@ export function importsOf(source: ts.SourceFile): readonly Import[] {
         form: taken.form,
         names,
         ...(taken.renames === undefined ? {} : { renames: taken.renames }),
-        typeOnly: taken.typeOnly,
+        typeOnly: taken.typeOnly && elided === undefined,
         dynamic: taken.dynamic,
-        ...(read.length === 0 || taken.typeOnly ? {} : { loadTime: read })
+        ...(read.length === 0 || taken.typeOnly ? {} : { loadTime: read }),
+        ...(elided === undefined ? {} : { elided }),
+        ...(metadataLoadTime.length === 0 ? {} : { metadataLoadTime })
       })
     }
     pushChildren(pending, node, child => child)
   }
   return imports
+}
+
+/** Whether TypeScript keeps every import not written type-only, whatever reads its bindings. */
+const keepsImports = (options: ts.CompilerOptions) =>
+  options.verbatimModuleSyntax === true ||
+  options.preserveValueImports === true ||
+  (options.importsNotUsedAsValues ?? ts.ImportsNotUsedAsValues.Remove) !==
+    ts.ImportsNotUsedAsValues.Remove
+
+const emitsMetadata = (options: ts.CompilerOptions) =>
+  options.experimentalDecorators === true && options.emitDecoratorMetadata === true
+
+/**
+ * The import as TypeScript compiles the module under `options`: type-only
+ * when the output leaves it out, and with the names decorator metadata reads
+ * at load time when the output emits that metadata.
+ */
+export function asCompiled(
+  { elided, metadataLoadTime, ...imported }: Import,
+  options: ts.CompilerOptions
+): Omit<Import, 'elided' | 'metadataLoadTime'> {
+  const metadata = emitsMetadata(options)
+  const kept = keepsImports(options) || (elided === 'unless-metadata' && metadata)
+  if (elided !== undefined && !kept) return { ...imported, typeOnly: true }
+  if (!metadata || metadataLoadTime === undefined) return imported
+  return { ...imported, loadTime: sortedNames([...(imported.loadTime ?? []), ...metadataLoadTime]) }
 }
 
 const standInText = [

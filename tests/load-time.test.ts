@@ -7,7 +7,7 @@ import { importsOf } from '../src/imports.ts'
 function readAtLoad(lines: readonly string[], kind = ts.ScriptKind.TS) {
   const source = ts.createSourceFile('a.ts', lines.join('\n'), ts.ScriptTarget.Latest, true, kind)
   return Object.fromEntries(
-    importsOf(source).flatMap(({ specifier, loadTime }) =>
+    importsOf(source, false).flatMap(({ specifier, loadTime }) =>
       loadTime === undefined ? [] : [[specifier, loadTime]]
     )
   )

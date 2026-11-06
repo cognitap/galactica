@@ -1,9 +1,10 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
 import { commandTable, type Input } from '../src/commands.ts'
-import { commands, type Failure, type Overview, type Cycles } from '../src/contract.ts'
+import { commands, type Failure, type Overview, type Cycles, type Uses } from '../src/contract.ts'
 import { graphOf } from '../src/graph.ts'
 import { emptyConfig, type RepoPath } from '../src/model.ts'
+import { TESTS_NOTE } from '../src/queries.ts'
 import { LIST_LIMIT, render } from '../src/render.ts'
 import { defines, edge, edgeTo, modelOf } from './models.ts'
 
@@ -56,7 +57,7 @@ test('overview text gives each layer one line, then the most imported modules', 
       'most imported:',
       'src/cn.ts  1 importer  cn',
       '0 import cycles, 0 unresolved imports',
-      'next: galactica where <name> finds a symbol, galactica uses <file> lists what to check and test before you edit it'
+      'next: run the same command with where <name> in place of overview to find a symbol, or with uses <file> to list what to check and test before you edit it'
     ].join('\n')
   )
 })
@@ -76,7 +77,7 @@ test('overview text counts the warnings in one line that points at --json', () =
   const lines = render(output).split('\n')
   assert.deepEqual(lines.slice(-3, -1), [
     '0 import cycles, 0 unresolved imports',
-    '2 warnings, galactica overview --json lists them'
+    '2 warnings, overview --json lists them'
   ])
   assert.ok(!lines.some(line => line.includes('tsconfig.json')))
 })
@@ -100,8 +101,9 @@ test('uses and deps print a header, one module per line, and say when a list is 
     [
       'src/cn.ts (module): 1 dependent within depth 1, 1 test',
       '1  src/ui/Button.tsx  cn',
-      'tests:',
-      '2  src/ui/Button.test.tsx'
+      'tests, closest first:',
+      '2  src/ui/Button.test.tsx  via src/ui/Button.tsx',
+      TESTS_NOTE
     ].join('\n')
   )
   assert.equal(
@@ -116,7 +118,7 @@ test('uses and deps print a header, one module per line, and say when a list is 
   )
   assert.equal(
     text('uses', 'src/ui/Button.test.tsx'),
-    'src/ui/Button.test.tsx (module): 0 dependents within depth 1, 0 tests\nno dependents\nno tests'
+    `src/ui/Button.test.tsx (module): 0 dependents within depth 1, 0 tests\nno dependents\nno tests\n${TESTS_NOTE}`
   )
 })
 
@@ -153,7 +155,7 @@ test('cycles text lists each cycle, its modules and its imports, those to break 
   )
   assert.match(
     run('uses', 'src/a.ts'),
-    /\nin an import cycle with src\/b\.ts, used at load time: galactica cycles shows where to break it$/
+    /\nin an import cycle with src\/b\.ts, used at load time: the cycles command shows where to break it$/
   )
   assert.equal(text('cycles'), 'no import cycles')
 })
@@ -169,8 +171,8 @@ test('a long list stops after the limit and points at --json', () => {
   const lines = render(
     commandTable.uses.run({ graph: wide, config: emptyConfig, warnings: [] }, input('lib/cn.ts'))
   ).split('\n')
-  assert.equal(lines.length, 1 + LIST_LIMIT + 2)
-  assert.equal(lines.at(-2), '… 3 more, use --json')
+  assert.equal(lines.length, 1 + LIST_LIMIT + 3)
+  assert.equal(lines.at(-3), '… 3 more, use --json')
 })
 
 test('a failure renders as its one-line message', () => {
@@ -252,4 +254,65 @@ test('cycles caps the entire report with its total and full JSON intact', () => 
   assert.ok(Buffer.byteLength(result) < 8192, `cycles has ${Buffer.byteLength(result)} bytes`)
   assert.match(result, /more.*use --json/)
   assert.equal(JSON.stringify(output), before)
+})
+
+test('uses text lists the tests outside hubs, then counts those that reach the subject only through each hub', () => {
+  const at = (path: string, distance: number, fields: { via?: string; hub?: string } = {}) => ({
+    path,
+    package: 'acme',
+    area: 'src',
+    kind: 'test' as const,
+    distance,
+    names: distance === 1 ? ['parse'] : [],
+    ...fields
+  })
+  const uses: Uses = {
+    schemaVersion: 1,
+    command: 'uses',
+    subject: { kind: 'module', path: 'src/sourcemap.ts', package: 'acme' },
+    depth: 1,
+    modules: [],
+    tests: [
+      at('src/sourcemap.test.ts', 1),
+      at('src/css.test.ts', 2, { via: 'src/css.ts' }),
+      at('src/a.test.ts', 3, { via: 'src/css.ts', hub: 'src/config.ts' }),
+      at('src/b.test.ts', 3, { via: 'src/css.ts', hub: 'src/config.ts' }),
+      at('src/c.test.ts', 4, { via: 'src/send.ts', hub: 'src/server.ts' })
+    ],
+    testsNote: 'Only tests that import it.',
+    cycles: []
+  }
+  assert.equal(
+    render(uses),
+    [
+      'src/sourcemap.ts (module): 0 dependents within depth 1, 2 tests and 3 more only through widely imported modules',
+      'no dependents',
+      'tests, closest first:',
+      '1  src/sourcemap.test.ts  parse',
+      '2  src/css.test.ts  via src/css.ts',
+      '2 more tests reach it only through src/config.ts, which much of the repository imports',
+      '1 more test reaches it only through src/server.ts, which much of the repository imports',
+      'Only tests that import it.'
+    ].join('\n')
+  )
+})
+
+test('no text names a bare galactica command, since agents run it through the command the skill names', () => {
+  const cyclic = graphOf(
+    modelOf({
+      'src/a.ts': { edges: [edge('src/b.ts', { loadTime: ['x'] })] },
+      'src/b.ts': { edges: [edge('src/a.ts')] }
+    }),
+    emptyConfig
+  )
+  const warnings = [
+    { path: 'package.json', message: 'a workspace package without a name is skipped' }
+  ]
+  for (const command of commands) {
+    const argument = commandTable[command].argument === undefined ? '' : 'src/a.ts'
+    const output = render(
+      commandTable[command].run({ graph: cyclic, config: emptyConfig, warnings }, input(argument))
+    )
+    assert.doesNotMatch(output, /galactica [a-z]/, command)
+  }
 })

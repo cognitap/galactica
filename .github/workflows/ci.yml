@@ -42,6 +42,18 @@ jobs:
       - name: Format, lint, typecheck, test and run the packed package
         run: pnpm check
 
+      - name: Upload coverage report
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: coverage
+          path: |
+            coverage/lcov.info
+            coverage/lcov-report/
+            coverage/coverage-summary.json
+          if-no-files-found: warn
+          retention-days: 7
+
   bench:
     name: Benchmark
     runs-on: ubuntu-latest

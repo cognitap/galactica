@@ -244,3 +244,22 @@ test('a file nested deeper than the parser can follow gives a failure in place o
     failure: 'Maximum call stack size exceeded'
   })
 })
+
+test('only a TypeScript module marks an import whose bindings only types use, never JavaScript or a Vue block', () => {
+  const elided = (path: string, language: Language, lines: readonly string[]) =>
+    read(path, language, lines, vue).imports.map(({ specifier, elided }) => [specifier, elided])
+  const lines = ["import { User } from './user'", '/** @param {User} user */', 'export let user']
+  assert.deepEqual(elided('a.ts', 'ts', lines), [['./user', 'unless-verbatim']])
+  assert.deepEqual(elided('a.mts', 'mts', lines), [['./user', 'unless-verbatim']])
+  assert.deepEqual(elided('a.js', 'js', lines), [['./user', undefined]])
+  assert.deepEqual(
+    elided('Card.vue', 'vue', [
+      '<script setup lang="ts">',
+      "import User from './User.vue'",
+      'let user: User',
+      '</script>',
+      '<template><User /></template>'
+    ]),
+    [['./User.vue', undefined]]
+  )
+})

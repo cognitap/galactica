@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
 import ts from 'typescript'
-import { importsOf, resolutionModeOf } from '../src/imports.ts'
+import { asCompiled, importsOf, resolutionModeOf } from '../src/imports.ts'
 import { parseRepoPath } from '../src/model.ts'
 import type { ScriptLanguage } from '../src/source-file.ts'
 import { parseScript } from '../src/syntax.ts'
@@ -9,7 +9,8 @@ import { parseScript } from '../src/syntax.ts'
 const parse = (lines: readonly string[], kind = ts.ScriptKind.TS) =>
   ts.createSourceFile('a.ts', lines.join('\n'), ts.ScriptTarget.Latest, true, kind)
 
-const imports = (lines: readonly string[], kind?: ts.ScriptKind) => importsOf(parse(lines, kind))
+const imports = (lines: readonly string[], kind?: ts.ScriptKind) =>
+  importsOf(parse(lines, kind), false)
 
 const names = (lines: readonly string[]) =>
   Object.fromEntries(imports(lines).map(entry => [entry.specifier, entry.names]))
@@ -262,7 +263,7 @@ test('the resolution mode of each import is the one TypeScript reads from the mo
       }
       visit(source)
       for (const options of optionSets) {
-        for (const imported of importsOf(source)) {
+        for (const imported of importsOf(source, false)) {
           assert.equal(
             resolutionModeOf(imported, language, format, options),
             ts.getModeForUsageLocation(source, literals.get(imported.specifier)!, options),
@@ -408,5 +409,118 @@ test('the resolution-mode of a type-only import carries over to its re-export', 
       { form: 'import', resolutionMode: 'require' },
       { form: 'reexport', resolutionMode: 'require' }
     ]
+  )
+})
+
+/** Snippets whose import of './b' TypeScript keeps or drops depending on how the module uses it. */
+const elision: Readonly<Record<string, string>> = {
+  'an unused import': "import { B } from './b'",
+  'an empty import': "import {} from './b'",
+  'a type annotation': "import { B } from './b'; let x: B",
+  'a type query': "import { B } from './b'; let x: typeof B",
+  'a type argument': "import { B } from './b'; f<B>()",
+  implements: "import { B } from './b'; class A implements B {}",
+  'ambient declarations':
+    "import { B } from './b'; declare const x: B; declare class C extends B {}",
+  'a namespace import used in types': "import * as N from './b'; let x: N.T",
+  'a default import used in types': "import D from './b'; let x: D",
+  'an inline type on every name': "import { type B } from './b'",
+  'an import-equals used in types': "import N = require('./b'); let x: N.T",
+  'a local shadowing the import': "import { B } from './b'; function f(B: number) { return B }",
+  'a value read': "import { B } from './b'; B()",
+  'a namespace read': "import * as N from './b'; N.f()",
+  extends: "import { B } from './b'; class A extends B {}",
+  'one value among types': "import { B, C } from './b'; let x: B = C",
+  'an export of the binding': "import { B } from './b'; export { B }",
+  'a default export of the binding': "import { B } from './b'; export default B",
+  'an alias of a namespace member': "import { N } from './b'; import X = N.Y; X",
+  'a JSX element under the React factory': "import React from './b'; export const a = <div />",
+  'a JSX pragma factory': "/** @jsx h */ import { h } from './b'; export const a = <div />",
+  'a computed key in a type': "import { E } from './b'; type X = { [E.A]: string }",
+  'a computed key in an interface': "import { k } from './b'; interface X { [k]: string }",
+  'a computed key in a declared class':
+    "import { E } from './b'; declare class X { [E.A]: string }",
+  'a decorated nullable type': "import { B } from './b'; class A { @dec b: B | null | undefined }",
+  'a decorated union with a primitive': "import { B } from './b'; class A { @dec b: B | string }",
+  'a decorated union of two names': "import { B, C } from './b'; class A { @dec b: B | C }",
+  'a decorated union of one name': "import { B } from './b'; class A { @dec b: (B) | B }",
+  'a decorated readonly array': "import { B } from './b'; class A { @dec b: readonly B[] }",
+  'a decorated rest parameter': "import { B } from './b'; class A { @dec m(...b: B[]) {} }",
+  'a decorated rest parameter of a named type':
+    "import { B } from './b'; class A { @dec m(...b: B) {} }",
+  'a decorated this parameter': "import { B } from './b'; class A { @dec m(this: B) {} }",
+  'a decorated method without a body':
+    "import { B } from './b'; abstract class A { @dec abstract m(b: B): void }",
+  'a decorated property type': "import { B } from './b'; class A { @dec b: B }",
+  'a decorated class constructor': "import { B } from './b'; @dec class A { constructor(b: B) {} }",
+  'a decorated constructor parameter':
+    "import { B } from './b'; class A { constructor(@dec b: B) {} }",
+  'a decorated method signature': "import { B } from './b'; class A { @dec m(b: B) {} }",
+  'a decorated getter': "import { B } from './b'; class A { @dec get b(): B { return null! } }",
+  'a decorated namespace member': "import * as N from './b'; class A { @dec b: N.T }",
+  'a decorated type argument': "import { B } from './b'; class A { @dec b: Promise<B> }",
+  'a decorated type query': "import { B } from './b'; class A { @dec b: typeof B }",
+  'an undecorated constructor':
+    "import { B } from './b'; class A { @dec x = 1; constructor(b: B) {} }",
+  'an undecorated method': "import { B } from './b'; class A { m(b: B) {} @dec n() {} }"
+}
+
+const compilerVariants: Readonly<Record<string, ts.CompilerOptions>> = {
+  default: {},
+  emitDecoratorMetadata: { experimentalDecorators: true, emitDecoratorMetadata: true },
+  verbatimModuleSyntax: { verbatimModuleSyntax: true }
+}
+
+test('an import is type-only exactly when TypeScript leaves it out of its output', () => {
+  // Under strictNullChecks, TypeScript drops an import that only `B | null` in a
+  // decorated signature names. Galactica reads no options while it parses, so it
+  // keeps that import, as TypeScript does without strictNullChecks.
+  const base = {
+    module: ts.ModuleKind.CommonJS,
+    target: ts.ScriptTarget.ES2022,
+    jsx: ts.JsxEmit.React,
+    strictNullChecks: false
+  }
+  for (const [variant, options] of Object.entries(compilerVariants)) {
+    for (const [name, text] of Object.entries(elision)) {
+      const compilerOptions = { ...base, ...options }
+      const { outputText } = ts.transpileModule(text, { compilerOptions, fileName: 'a.tsx' })
+      const kept = /['"]\.\/b['"]/.test(outputText)
+      const imported = importsOf(parse([text], ts.ScriptKind.TSX), true).find(
+        ({ specifier }) => specifier === './b'
+      )!
+      assert.equal(
+        asCompiled(imported, compilerOptions).typeOnly,
+        !kept,
+        `${name} under ${variant}: TypeScript ${kept ? 'keeps' : 'drops'} the import`
+      )
+    }
+  }
+})
+
+test('decorator metadata reads the types of decorated signatures at load time, when emitted', () => {
+  const metadata = { experimentalDecorators: true, emitDecoratorMetadata: true }
+  const loadTimes = (options: ts.CompilerOptions, lines: readonly string[]) =>
+    importsOf(parse(lines), true).map(imported => asCompiled(imported, options).loadTime ?? [])
+  const lines = [
+    "import { Field } from './field'",
+    "import { Owner } from './owner'",
+    "import { Later } from './later'",
+    'export class Account {',
+    '  @Field() owner?: Owner',
+    '}',
+    'export function make() {',
+    '  class Inner { @Field() later?: Later }',
+    '  return Inner',
+    '}'
+  ]
+  assert.deepEqual(loadTimes(metadata, lines), [['Field'], ['Owner'], []])
+  assert.deepEqual(loadTimes({}, lines), [['Field'], [], []])
+  assert.deepEqual(
+    imports(['import { Owner } from "./owner"', 'class A { @f() o?: Owner }'], undefined).map(
+      ({ elided }) => elided
+    ),
+    [undefined],
+    'without elision, as in a framework script block, no import is marked'
   )
 })

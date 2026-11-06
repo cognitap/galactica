@@ -55,7 +55,7 @@ These options apply across commands:
 
 `html` and `init` take the options described in their sections below.
 
-`uses` lists what imports a file, with the names each direct dependent takes, and every test that reaches it at any distance. On Radiant:
+`uses` lists what imports a file, with the names each direct dependent takes, and every test that imports it at any distance, closest first. A test that imports it through other modules names the module its path starts from. Tests that reach it only through a hub, a module that much of the repository imports, are counted per hub rather than listed. Only tests that import the file are listed, so an end-to-end, playground or fixture-driven test that loads it another way can be missing. On Radiant:
 
 ```text
 $ galactica uses src/components/Kbd/Kbd.tsx
@@ -67,28 +67,29 @@ src/components/Kbd/Kbd.tsx (module): 7 dependents within depth 1, 21 tests
 1  src/components/Kbd/Kbd.stories.tsx  Kbd
 1  src/index.ts  Kbd, KbdGroup, KbdGroupProps, KbdProps
 1  src/recipes/ThemeShowcase.stories.tsx  Kbd, KbdGroup
-tests:
+tests, closest first:
 1  tests/browser/InputGroup.test.tsx  Kbd
 1  tests/browser/Kbd.test.tsx  Kbd, KbdGroup
 1  tests/package/input-group.test.ts  Kbd, KbdGroup
 1  tests/package/kbd-types.tsx  Kbd, KbdGroup, KbdGroupProps, KbdProps
 1  tests/package/kbd.test.ts  Kbd, KbdGroup
-2  tests/browser/Command.test.tsx
-2  tests/browser/DataSlot.test.tsx
-2  tests/browser/DisclosureTriggerState.test.tsx
-2  tests/package/charts.test.ts
-2  tests/package/command-types.tsx
-2  tests/package/command.test.ts
-2  tests/package/context-menu.test.ts
-2  tests/package/empty-state.test.ts
-2  tests/package/menu-features.test.ts
-2  tests/package/menubar.test.ts
-2  tests/package/multi-select-tags-input.test.ts
-2  tests/package/otp-field.test.ts
-2  tests/package/package.test.ts
-2  tests/package/theme-definition.test.ts
-2  tests/package/types.tsx
-3  tests/browser/EmptyState.test.tsx
+2  tests/browser/Command.test.tsx  via .storybook/examples/CommandExamples.tsx
+2  tests/browser/DataSlot.test.tsx  via src/components/Command/Command.tsx
+2  tests/browser/DisclosureTriggerState.test.tsx  via src/components/Command/Command.tsx
+2  tests/package/charts.test.ts  via src/index.ts
+2  tests/package/command-types.tsx  via src/components/Command/Command.tsx
+2  tests/package/command.test.ts  via src/components/Command/Command.tsx
+2  tests/package/context-menu.test.ts  via src/index.ts
+2  tests/package/empty-state.test.ts  via src/components/Command/Command.tsx
+2  tests/package/menu-features.test.ts  via src/index.ts
+2  tests/package/menubar.test.ts  via src/index.ts
+2  tests/package/multi-select-tags-input.test.ts  via src/index.ts
+2  tests/package/otp-field.test.ts  via src/index.ts
+2  tests/package/package.test.ts  via src/index.ts
+2  tests/package/theme-definition.test.ts  via src/index.ts
+2  tests/package/types.tsx  via src/index.ts
+3  tests/browser/EmptyState.test.tsx  via src/components/Command/Command.tsx
+Lists only tests that import the subject, directly or through other modules. End-to-end, playground and fixture-driven tests that load it another way, such as through a dev server, a build or a config file, can be missing, so also search for tests named after the feature.
 ```
 
 `deps` lists what a file or area imports, inside the workspace and outside it:
@@ -272,3 +273,7 @@ node /path/to/galactica/dist/bin.js overview --root /path/to/repository
 ```
 
 `pnpm check` runs format, lint, typecheck and the tests, and then installs the packed package in a throwaway repository and runs it there. [RELEASE_POLICY.md](RELEASE_POLICY.md) describes how a version is released.
+
+`pnpm test:coverage` builds and runs the existing Node test suite with coverage. It fails below aggregate floors of 90% lines, 85% branches and 90% functions. CI runs this through `pnpm check` and uploads `coverage/`, including when a floor fails. The directory contains an HTML report (`coverage/lcov-report/index.html`), LCOV and a JSON summary.
+
+Coverage includes every production TypeScript module under `src/`, even modules no test loads, and the pure page helpers `search.js`, `links.js` and `indexes.js`. Build source maps merge CLI subprocess coverage from `dist/` into the same source files, so each module is counted once. Tests, fixtures, dependencies and build copies of the plain page scripts are outside the report. The browser-executed `src/page/page.js` is also outside this Node percentage; `tests/page.test.ts` checks its behavior in Chrome.
