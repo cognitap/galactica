@@ -335,7 +335,7 @@ export function mapView(data, onSelection) {
     const empty = element('p', 'empty', 'Every module here is of a kind the filter hides.')
     section.append(head, columns, empty)
     if (pkg.areaCycles.length > 0 || pkg.moduleCycles.length > 0) section.append(cyclesSection(pkg))
-    return { section, lines, empty }
+    return { section, columns, lines, empty }
   }
 
   function legend() {
@@ -479,6 +479,7 @@ export function mapView(data, onSelection) {
     modules: moduleViews,
     filter,
     filterButtons: kindFilter,
-    showArea: detail.show
+    showArea: detail.show,
+    columns: sections.map(({ columns }) => columns)
   }
 }
