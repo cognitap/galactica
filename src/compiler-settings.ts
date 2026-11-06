@@ -1,6 +1,6 @@
 /**
  * Which TypeScript compiler settings apply to a module, decided as an editor
- * decides it: the nearest `tsconfig.json` whose files include the module, or
+ * decides it: the nearest `tsconfig.json` (else `jsconfig.json`) whose files include it, or
  * one of its project references that does. A module no config claims gets
  * defaults that resolve like a bundler and allow JavaScript.
  */
@@ -8,7 +8,13 @@
 import { dirname, isAbsolute, join, relative, sep } from 'node:path'
 import ts from 'typescript'
 import type { Inputs } from './inputs.ts'
-import { toRepoPath, type RepoPath } from './model.ts'
+import { parseRepoPath, toRepoPath, type RepoPath } from './model.ts'
+import {
+  readJson,
+  workspacePackages,
+  workspacePatterns,
+  type WorkspacePackage
+} from './workspace.ts'
 
 export const defaultCompilerOptions: ts.CompilerOptions = {
   allowJs: true,
@@ -143,6 +149,46 @@ export function compilerSettings(
   const parsed = new Map<string, Parsed | undefined>()
   const extendedConfigCache = new Map<string, ts.ExtendedConfigCacheEntry>()
   const warnings: Warning[] = []
+  let members: readonly WorkspacePackage[] | undefined
+  /** Resolve a bare extends through the workspace, keeping relative options based at its real file. */
+  function workspaceExtends(value: unknown): unknown {
+    if (Array.isArray(value)) return value.map(workspaceExtends)
+    if (typeof value !== 'string' || isAbsolute(value) || value.startsWith('.')) return value
+    const parts = /^(@[^/]+\/[^/]+|[^/]+)(?:\/(.*))?$/.exec(value)
+    if (!parts) return value
+    if (!members) {
+      // Discovery reports workspace manifest warnings separately.
+      const ignored: Warning[] = []
+      const manifest = readJson(inputs, root, parseRepoPath('package.json'), ignored)
+      const patterns = workspacePatterns(inputs, root, manifest, ignored)
+      members = patterns ? workspacePackages(inputs, root, files, patterns, ignored) : []
+    }
+    const member = members.find(member => member.name === parts[1])
+    if (!member) return value
+    let subpath = parts[2]
+    if (!subpath) {
+      const manifest = readJson(inputs, root, parseRepoPath(`${member.dir}/package.json`), [])
+      subpath =
+        typeof manifest === 'object' &&
+        manifest !== null &&
+        'tsconfig' in manifest &&
+        typeof manifest.tsconfig === 'string'
+          ? manifest.tsconfig
+          : 'tsconfig.json'
+    }
+    const target = join(root, member.dir, subpath)
+    return isInside(join(root, member.dir), target) ? target : value
+  }
+  function readConfig(path: string): string | undefined {
+    const text = inputs.readFile(path)
+    if (text === undefined) return text
+    const { config, error } = ts.parseConfigFileTextToJson(path, text)
+    if (error || !config || typeof config !== 'object' || !('extends' in config)) return text
+    const extended = workspaceExtends(config.extends)
+    return JSON.stringify(extended) === JSON.stringify(config.extends)
+      ? text
+      : JSON.stringify({ ...config, extends: extended })
+  }
   const rootPrefix = `${root.replaceAll('\\', '/')}/`
   /** One line, with the paths under the root relative to it, so the text is the same in every clone. */
   const messageOf = (diagnostic: ts.Diagnostic) =>
@@ -154,7 +200,7 @@ export function compilerSettings(
       .replaceAll(rootPrefix, '')
   const reads = {
     fileExists: inputs.fileExists,
-    readFile: inputs.readFile,
+    readFile: readConfig,
     directoryExists: inputs.directoryExists,
     realpath: inputs.realpath,
     getDirectories: inputs.getDirectories,
@@ -202,8 +248,11 @@ export function compilerSettings(
   function parse(configFile: string): Parsed | undefined {
     if (parsed.has(configFile)) return parsed.get(configFile)
     const path = toRepoPath(root, configFile)
-    const report = (diagnostic: ts.Diagnostic) =>
+    const report = (diagnostic: ts.Diagnostic) => {
+      // These describe emitting/migrating a project, not reading its modules.
+      if ([5011, 5101, 5107].includes(diagnostic.code)) return
       warnings.push({ path, message: messageOf(diagnostic) })
+    }
     const commandLine = commandLineOf(configFile, report)
     if (!commandLine) {
       parsed.set(configFile, undefined)
@@ -247,7 +296,8 @@ export function compilerSettings(
     configOf(file) {
       const seen = new Set<string>()
       for (let dir = dirname(file); isInside(root, dir); dir = dirname(dir)) {
-        const configFile = join(dir, 'tsconfig.json')
+        const typescript = join(dir, 'tsconfig.json')
+        const configFile = reads.fileExists(typescript) ? typescript : join(dir, 'jsconfig.json')
         const found = reads.fileExists(configFile) && claiming(configFile, file, seen)
         if (found) return found
         if (dir === root) break
