@@ -46,26 +46,50 @@ jobs:
           pnpm install --frozen-lockfile
           pnpm build
 
-      - name: Run Node unit and CLI tests
+      - name: Check the test runtime
         env:
           EXPECTED_NODE_MAJOR: ${{ matrix.node }}
         run: |
           node --input-type=module -e "if (process.versions.node.split('.')[0] !== process.env.EXPECTED_NODE_MAJOR) throw new Error('Wrong test runtime: ' + process.version)"
-          node scripts/test-node.ts
+
+      - name: Run Node unit and CLI tests
+        if: matrix.node == '24'
+        run: node scripts/test-node.ts
+
+      - name: Require Chrome for browser tests
+        if: matrix.node == '26'
+        run: |
+          chrome_path="$(command -v google-chrome || command -v chromium || command -v chromium-browser || true)"
+          if [ -z "$chrome_path" ] || [ ! -x "$chrome_path" ]; then
+            echo '::error::Browser tests require Chrome. Install it and set CHROME_PATH.'
+            exit 1
+          fi
+          "$chrome_path" --version
+          echo "CHROME_PATH=$chrome_path" >> "$GITHUB_ENV"
+
+      - name: Run all tests with coverage and run the packed package
+        if: matrix.node == '26'
+        run: |
+          node node_modules/c8/bin/c8.js node --test tests/*.test.ts
+          node scripts/pack-and-test.ts
+
+      - name: Upload coverage report
+        if: ${{ always() && matrix.node == '26' }}
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: coverage
+          path: |
+            coverage/lcov.info
+            coverage/lcov-report/
+            coverage/coverage-summary.json
+          if-no-files-found: warn
+          retention-days: 7
 
   check:
     name: Checks
-    needs: compatibility
-    if: ${{ !cancelled() }}
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
-      - name: Require supported Node versions to pass
-        if: needs.compatibility.result != 'success'
-        run: |
-          echo '::error::Node compatibility tests failed. See the Node 24 and Node 26 jobs.'
-          exit 1
-
       - name: Check out repository
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -86,30 +110,8 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Require Chrome for browser tests
-        run: |
-          chrome_path="$(command -v google-chrome || command -v chromium || command -v chromium-browser || true)"
-          if [ -z "$chrome_path" ] || [ ! -x "$chrome_path" ]; then
-            echo '::error::Browser tests require Chrome. Install it and set CHROME_PATH.'
-            exit 1
-          fi
-          "$chrome_path" --version
-          echo "CHROME_PATH=$chrome_path" >> "$GITHUB_ENV"
-
-      - name: Format, lint, typecheck, test and run the packed package
-        run: pnpm check
-
-      - name: Upload coverage report
-        if: always()
-        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
-        with:
-          name: coverage
-          path: |
-            coverage/lcov.info
-            coverage/lcov-report/
-            coverage/coverage-summary.json
-          if-no-files-found: warn
-          retention-days: 7
+      - name: Check shrinkwrap, format, lint and types
+        run: pnpm check:static
 
   bench:
     name: Benchmark
