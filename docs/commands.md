@@ -148,7 +148,7 @@ The page is one file that loads nothing from the network, so it opens from disk 
 
 - Each package is a section, largest first; a package picker jumps between them.
 - Each area is a box in a row by layer. The bottom row imports no other area, and each row above imports only from rows below, except areas marked as a cycle. A wider box exports more symbols, and its colour marks its top-level folder.
-- An area of more than eight modules starts collapsed; its module count expands it. Each module expands to list its exported symbols with signatures and docs.
+- Selecting an area lists its modules in a panel beside the map, or at the bottom of a narrow screen. Each module expands to list its exported symbols with signatures and docs. Clearing the selection closes the panel.
 - The Show buttons filter by kind. Source and config modules show at first; tests and stories stay hidden until you show them. A module's kind comes from its name and folder, or from [`kinds`](configuration.md#kinds) in the config. To leave generated files out entirely, list them in `exclude`.
 - Search finds areas, modules and exported symbols, including what the filter hides. Press `/` to focus it, the arrow keys to move, Enter to go and Escape to close or clear. Exact matches come first, then prefixes, then substrings.
 - Select a box title, or the circle at the end of a module's row, to highlight its dependencies and dependents. The bar at the top gives the same counts as `deps` and `uses` at depth 1. Escape or Clear ends the selection. The selection is kept in the address, as `#module=src%2Fcn.ts` or `#area=src%2Fcomponents`, so a link opens the same view.
