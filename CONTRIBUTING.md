@@ -22,7 +22,7 @@ Run `dist/bin.js` wherever you would run `galactica`. To try the skill against y
 4. When the `--json` output changes, update `src/contract.ts` and [docs/json-output.md](docs/json-output.md) together. Command output, config and the files `init` writes are the public contract; [RELEASE_POLICY.md](RELEASE_POLICY.md) says what counts as breaking.
 5. When the config gains an example, add it to `tests/config-examples.ts`. `tests/config.test.ts` checks the examples in [docs/configuration.md](docs/configuration.md) against the schema and the loader.
 
-[AGENTS.md](AGENTS.md) holds the project rules: determinism, never running the mapped code, and the performance targets.
+[docs/architecture.md](docs/architecture.md) explains how a repository becomes the model, the graph and each output. [AGENTS.md](AGENTS.md) holds the project rules: security, determinism and the performance targets.
 
 ## Tests
 
