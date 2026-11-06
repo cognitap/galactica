@@ -4,6 +4,9 @@
 
 ## Unreleased
 
+- Speed up workspace package lookup for warm commands by indexing package directories and reusing folder ownership.
+- Generate large HTML maps faster by computing test reach once for the graph instead of walking every module's transitive importers separately.
+- Prune untracked build output and dependency folders inside Git before listing their files, keeping the same mapped modules and ignore rules.
 - Keep imports used by JSX factories named in `jsxFactory` or `jsxFragmentFactory` in runtime cycles, including factories selected only by `tsconfig.json`.
 - State the Node.js 24.1.0 minimum at the start of the README, before installation.
 - **Breaking:** Repository configuration follows the same regular-file, root and 10 MB policy as source. Before: linked or oversized configs could hang analysis or read outside content. After: unsafe optional configs are skipped with warnings, and an unsafe `galactica.config.json` fails clearly.

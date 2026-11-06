@@ -4,7 +4,7 @@
  * embedded JSON small. The shape is private to the page and is no contract.
  */
 
-import type { InternalImport, ModuleKind, Reached } from './contract.ts'
+import type { InternalImport, ModuleKind } from './contract.ts'
 import { health } from './health.ts'
 import {
   compare,
@@ -14,7 +14,7 @@ import {
   type RepoPath,
   type SymbolFacts
 } from './model.ts'
-import { depsOf, usesOf } from './queries.ts'
+import { stronglyConnected } from './strongly-connected.ts'
 import { orderRows } from './row-order.ts'
 import { isSourceOrConfig } from './source-file.ts'
 import type { PageSource } from './source-links.ts'
@@ -162,18 +162,96 @@ function foldersOf(labels: readonly string[]): readonly string[] {
     .map(([folder]) => folder)
 }
 
+/** Tests reachable through ordinary imports, shared by every member of a strongly connected component. */
+function testReachOf(graph: Graph, moduleIndex: ReadonlyMap<string, number>) {
+  const tests = graph.paths.filter(path => graph.modules.get(path)!.kind === 'test')
+  if (tests.length === 0) return (_members: ReadonlySet<RepoPath>) => gapsOf([])
+  const testIndex = indexOf(tests)
+  const importers = new Map(
+    graph.paths.map(path => [
+      path,
+      [
+        ...new Set(
+          graph.incoming
+            .get(path)!
+            .filter(entry => !entry.through)
+            .map(entry => entry.from)
+        )
+      ]
+    ])
+  )
+  const components = stronglyConnected(graph.paths, path => importers.get(path)!)
+  const componentOf = new Map(
+    components.flatMap((members, index) => members.map(path => [path, index] as const))
+  )
+  const words = Math.ceil(tests.length / 32)
+  const reachable = components.map(() => new Uint32Array(words))
+  const union = (into: Uint32Array, from: Uint32Array) => {
+    for (let word = 0; word < words; word++) into[word] = into[word]! | from[word]!
+  }
+  // stronglyConnected puts each component after all components it reaches.
+  for (const [index, members] of components.entries()) {
+    const bits = reachable[index]!
+    for (const path of members) {
+      const test = testIndex.get(path)
+      if (test !== undefined) bits[test >>> 5] = bits[test >>> 5]! | (1 << (test & 31))
+      for (const importer of importers.get(path)!) {
+        const other = componentOf.get(importer)!
+        if (other !== index) union(bits, reachable[other]!)
+      }
+    }
+  }
+  return (members: ReadonlySet<RepoPath>): IndexGaps => {
+    const bits = new Uint32Array(words)
+    for (const path of members) {
+      union(bits, reachable[componentOf.get(path)!]!)
+      // A through-barrel edge counts only when the barrel itself is a subject member.
+      for (const { from, through } of graph.incoming.get(path)!) {
+        if (through) union(bits, reachable[componentOf.get(from)!]!)
+      }
+    }
+    const indexes: number[] = []
+    for (let word = 0; word < words; word++) {
+      let value = bits[word]!
+      while (value !== 0) {
+        const bit = 31 - Math.clz32(value & -value)
+        const path = tests[word * 32 + bit]!
+        if (!members.has(path)) indexes.push(moduleIndex.get(path)!)
+        value = (value & (value - 1)) >>> 0
+      }
+    }
+    return gapsOf(indexes)
+  }
+}
+
 function relationsOf(
   graph: Graph,
   resolved: Resolved,
-  moduleIndex: ReadonlyMap<string, number>
+  moduleIndex: ReadonlyMap<string, number>,
+  testsOf: (members: ReadonlySet<RepoPath>) => IndexGaps
 ): PageRelations {
-  const indexes = (modules: readonly Reached[]) =>
-    gapsOf(modules.map(({ path }) => moduleIndex.get(path)!).sort((a, b) => a - b))
-  const { modules: usedBy, tests } = usesOf(graph, resolved, 1)
+  const indexes = (paths: Iterable<RepoPath>) =>
+    gapsOf(
+      [...new Set(paths)]
+        .filter(path => !resolved.members.has(path))
+        .map(path => moduleIndex.get(path)!)
+        .sort((a, b) => a - b)
+    )
+  const usedBy: RepoPath[] = []
+  const uses: RepoPath[] = []
+  for (const path of resolved.members) {
+    for (const { from } of graph.incoming.get(path)!) {
+      if (graph.modules.get(from)!.kind !== 'test') usedBy.push(from)
+    }
+    for (const { to, via } of graph.modules.get(path)!.facts.edges) {
+      if (to.kind === 'module') uses.push(to.path)
+      uses.push(...via)
+    }
+  }
   return {
     usedBy: indexes(usedBy),
-    usedByTests: indexes(tests),
-    uses: indexes(depsOf(graph, resolved, 1).modules)
+    usedByTests: testsOf(resolved.members),
+    uses: indexes(uses)
   }
 }
 
@@ -220,6 +298,7 @@ export function pageData(
   const areaPaths = [...graph.areas.keys()]
   const areaIndex = indexOf<string>(areaPaths)
   const moduleIndex = indexOf<string>(graph.paths)
+  const testsOf = testReachOf(graph, moduleIndex)
   const inCycle = new Set<AreaPath>(graph.areaCycles.flatMap(cycle => cycle.areas))
 
   const labels = areaPaths.map(path => {
@@ -242,7 +321,7 @@ export function pageData(
       kinds,
       modules: area.modules.map(module => moduleIndex.get(module)!),
       cycle: inCycle.has(path),
-      ...relationsOf(graph, areaSubject(graph, path), moduleIndex)
+      ...relationsOf(graph, areaSubject(graph, path), moduleIndex, testsOf)
     }
   })
 
@@ -255,7 +334,7 @@ export function pageData(
       kind: node.kind,
       symbols: node.facts.symbols,
       ...importCounts(graph, path),
-      ...relationsOf(graph, moduleSubject(graph, path), moduleIndex)
+      ...relationsOf(graph, moduleSubject(graph, path), moduleIndex, testsOf)
     }
   })
 

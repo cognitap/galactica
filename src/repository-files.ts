@@ -94,7 +94,14 @@ function listedByGit(root: string): boolean {
 /** What `git ls-files` prints for `root`, NUL-separated, or undefined when git does not list it. */
 export function gitListing(root: string): string | undefined {
   if (!listedByGit(root)) return undefined
-  const result = git(root, ['ls-files', '-z', '--cached', '--others', '--exclude-standard'])
+  const result = git(root, [
+    'ls-files',
+    '-z',
+    '--cached',
+    '--others',
+    '--exclude-standard',
+    ...[...skippedDirectories].map(dir => `--exclude=${dir}/`)
+  ])
   return result.status === 0 ? result.stdout : undefined
 }
 
