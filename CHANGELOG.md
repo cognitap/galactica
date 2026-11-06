@@ -4,6 +4,9 @@
 
 ## Unreleased
 
+- Pin CI and release actions to commit SHAs and reduce the npm publishing job to Node setup, candidate download and publication.
+- Ship an npm shrinkwrap with exact versions and integrity hashes for the full Vue and Svelte compiler dependency tree used by npm and npx; verify it from the packed package.
+
 ## 0.1.5
 
 - Add `health`, which lists concrete findings about the structure with no score: each import cycle with the imports to break, each area with at least 20 source modules and 5 times the median area of its package, and each import outside tests and stories that reaches into another workspace package by a relative path or by a subpath its `exports` does not list, with the public specifier to use instead where one exists. It always exits with code 0. On Vitest it finds 4 cycles, 2 oversized areas and 20 such imports.
