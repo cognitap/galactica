@@ -6,6 +6,7 @@
 
 import { join, posix } from 'node:path'
 import type { Warning } from './compiler-settings.ts'
+import { globProblem, matchesGlob } from './glob.ts'
 import type { Inputs } from './inputs.ts'
 import { parseRepoPath, type Model, type PackageName, type RepoPath } from './model.ts'
 
@@ -119,14 +120,16 @@ export function workspacePatterns(
   if (yaml !== undefined) {
     try {
       const patterns = pnpmWorkspacePatterns(yaml)
-      if (patterns) return patterns
+      if (patterns) return checkedPatterns(patterns, yamlPath, warnings)
     } catch (error) {
       warnings.push({ path: yamlPath, message: `packages: ${(error as Error).message}` })
     }
   }
   const field = workspacesField(manifest)
   if (field === undefined) return undefined
-  if (Array.isArray(field) && field.every(pattern => typeof pattern === 'string')) return field
+  if (Array.isArray(field) && field.every(pattern => typeof pattern === 'string')) {
+    return checkedPatterns(field, parseRepoPath('package.json'), warnings)
+  }
   warnings.push({
     path: parseRepoPath('package.json'),
     message: 'workspaces must be a list of strings, or { "packages": [...] }'
@@ -136,6 +139,21 @@ export function workspacePatterns(
 
 function normalizePattern(pattern: string): string {
   return posix.normalize(pattern).replace(/\/$/, '')
+}
+
+/** Validate once at the source, including patterns that no directory reaches. */
+function checkedPatterns(
+  patterns: WorkspacePatterns,
+  path: RepoPath,
+  warnings: Warning[]
+): WorkspacePatterns {
+  for (const pattern of patterns) {
+    const normalized = normalizePattern(pattern.startsWith('!') ? pattern.slice(1) : pattern)
+    const problem = globProblem(normalized)
+    if (problem)
+      warnings.push({ path, message: `workspace pattern ${JSON.stringify(pattern)}: ${problem}` })
+  }
+  return patterns
 }
 
 /**
@@ -153,7 +171,7 @@ export function workspacePackages(
   const excluded = patterns
     .filter(pattern => pattern.startsWith('!'))
     .map(pattern => normalizePattern(pattern.slice(1)))
-  const matches = (dir: string) => (pattern: string) => posix.matchesGlob(dir, pattern)
+  const matches = (dir: string) => (pattern: string) => matchesGlob(dir, pattern)
   const dirs = files
     .filter(path => path.endsWith('/package.json'))
     .map(path => path.slice(0, -'/package.json'.length) as RepoPath)
