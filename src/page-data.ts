@@ -4,7 +4,7 @@
  * embedded JSON small. The shape is private to the page and is no contract.
  */
 
-import type { InternalImport, ModuleKind } from './contract.ts'
+import { symbolKinds, type InternalImport, type ModuleKind, type SymbolKind } from './contract.ts'
 import { health } from './health.ts'
 import {
   compare,
@@ -123,7 +123,16 @@ export interface PageData {
 }
 
 /** The private HTML wire shape; the page restores PageData once before rendering. */
-export type PageWireSymbol = Omit<SymbolFacts, 'default'> & { readonly default?: true }
+export type PageWireSymbol = readonly [
+  name: string,
+  /** Index into PageWireData.symbolKinds. */
+  kind: number,
+  line: number,
+  signature: string,
+  /** Null is a placeholder when a default export has no documentation. */
+  doc?: string | null,
+  defaultExport?: true
+]
 
 export type PageWireModule = Omit<PageModule, 'label' | 'symbols' | keyof PageRelations> &
   Partial<PageRelations> & { readonly symbols?: readonly PageWireSymbol[] }
@@ -138,6 +147,7 @@ export type PageWireData = Omit<
   PageData,
   'folders' | 'packages' | 'areas' | 'modules' | 'health'
 > & {
+  readonly symbolKinds?: readonly SymbolKind[]
   readonly folders?: PageData['folders']
   readonly packages?: readonly PageWirePackage[]
   readonly areas?: readonly PageWireArea[]
@@ -156,10 +166,24 @@ const wireRelations = ({ usedBy, usedByTests, uses }: PageRelations): Partial<Pa
   uses: nonempty(uses)
 })
 
+function wireSymbolOf({
+  name,
+  kind,
+  line,
+  signature,
+  doc,
+  default: isDefault
+}: SymbolFacts): PageWireSymbol {
+  const fields = [name, symbolKinds.indexOf(kind), line, signature] as const
+  if (isDefault) return [...fields, doc ?? null, true]
+  return doc === undefined ? fields : [...fields, doc]
+}
+
 /** Keep the full model for callers; compact only the data embedded in HTML. */
 export function wireDataOf(data: PageData): PageWireData {
   return {
     ...data,
+    symbolKinds: data.modules.some(module => module.symbols.length > 0) ? symbolKinds : undefined,
     folders: nonempty(data.folders),
     packages: nonempty(
       data.packages.map(pkg => ({
@@ -179,12 +203,7 @@ export function wireDataOf(data: PageData): PageWireData {
     modules: nonempty(
       data.modules.map(({ label: _label, symbols, ...module }) => ({
         ...module,
-        symbols: nonempty(
-          symbols.map(({ default: isDefault, ...symbol }) => ({
-            ...symbol,
-            ...(isDefault ? { default: true as const } : {})
-          }))
-        ),
+        symbols: nonempty(symbols.map(wireSymbolOf)),
         ...wireRelations(module)
       }))
     ),

@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
-import type { Deps, Failure, Uses } from '../src/contract.ts'
+import { symbolKinds, type Deps, type Failure, type Uses } from '../src/contract.ts'
 import { graphOf } from '../src/graph.ts'
 import { emptyConfig, type AreaPath, type RepoPath } from '../src/model.ts'
 import {
@@ -377,7 +377,7 @@ test('HTML wire data omits labels, false defaults and empty collections, then re
       assert.equal('label' in module, false)
       for (const key of ['usedBy', 'usedByTests', 'uses', 'symbols'] as const)
         assert.notDeepEqual(module[key], [], key)
-      for (const symbol of module.symbols ?? []) assert.notEqual(symbol.default, false)
+      for (const symbol of module.symbols ?? []) assert.notEqual(symbol[5], false)
     }
     for (const pkg of wire.packages ?? []) {
       assert.notDeepEqual(pkg.rows, [])
@@ -452,4 +452,37 @@ test('wire decoding preserves default exports, documentation, signatures and sou
   const decoded = decodePage(wireOf(expected))
   assert.deepEqual(decoded, expected)
   assert.deepEqual(decoded.modules[0]!.symbols, symbols)
+})
+
+test('symbol tuples retain all kinds and omit unused trailing fields', () => {
+  const symbols = [
+    ...symbolKinds.map((kind, index) => defines(`kind${index}`, index + 1, { kind })),
+    defines('documented', 20, {
+      doc: 'Unicode café 😀 and </script>',
+      signature: 'function documented(value: string)'
+    }),
+    defines('defaultOnly', 30, { default: true }),
+    defines('emptyDoc', 40, { default: true, doc: '' }),
+    defines('defaultDoc', 50, { default: true, doc: 'A default export.' })
+  ]
+  const expected = pageData(graphOf(modelOf({ 'src/symbols.ts': { symbols } }), emptyConfig))
+  const wire = wireOf(expected)
+  assert.deepEqual(wire.symbolKinds, symbolKinds)
+  const tuples = wire.modules![0]!.symbols!
+  for (const [index, kind] of symbolKinds.entries()) {
+    assert.deepEqual(tuples[index], [`kind${index}`, index, index + 1, `const kind${index}`], kind)
+  }
+  assert.deepEqual(tuples.slice(symbolKinds.length), [
+    [
+      'documented',
+      symbolKinds.indexOf('const'),
+      20,
+      'function documented(value: string)',
+      'Unicode café 😀 and </script>'
+    ],
+    ['defaultOnly', symbolKinds.indexOf('const'), 30, 'const defaultOnly', null, true],
+    ['emptyDoc', symbolKinds.indexOf('const'), 40, 'const emptyDoc', '', true],
+    ['defaultDoc', symbolKinds.indexOf('const'), 50, 'const defaultDoc', 'A default export.', true]
+  ])
+  assert.deepEqual(decodePage(wire), expected)
 })
