@@ -91,21 +91,38 @@ jobs:
           expected=$(jq -er .integrity release/release.json)
           archive_integrity="sha512-$(openssl dgst -sha512 -binary release/galactica.tgz | openssl base64 -A)"
           test "$archive_integrity" = "$expected"
-          for attempt in {0..30}; do
-            if published=$(curl -fsS --max-time 10 -H 'Cache-Control: no-cache' "https://registry.npmjs.org/@cognitap%2Fgalactica/$version" | jq -er .dist.integrity); then
-              if [ "$published" != "$expected" ]; then
+          # A version URL first queried before publication can keep serving its cached 404.
+          # Read the package document with a fresh cache key on every check.
+          registry_integrity() {
+            local url="https://registry.npmjs.org/@cognitap%2Fgalactica?verify=${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}-$1"
+            local status
+            status=$(curl -sS --max-time 6 -H 'Accept: application/vnd.npm.install-v1+json' \
+              -H 'Cache-Control: no-cache' -o registry.json -w '%{http_code}' "$url") || return 1
+            case "$status" in
+              200) jq -er --arg v "$version" '.versions | objects | if has($v) then .[$v].dist.integrity | strings else "absent" end' registry.json ;;
+              404) echo absent ;;
+              *) echo "Registry lookup returned HTTP $status." >&2; return 1 ;;
+            esac
+          }
+
+          attempted=false
+          for attempt in {0..60}; do
+            if published=$(registry_integrity "$attempt"); then
+              if [ "$published" = "$expected" ]; then
+                echo "Verified @cognitap/galactica@$version."
+                exit 0
+              fi
+              if [ "$published" != absent ]; then
                 echo 'Registry integrity differs from the release archive.' >&2
                 exit 1
               fi
-              echo "Verified @cognitap/galactica@$version."
-              exit 0
+              if [ "$attempted" = false ]; then
+                attempted=true
+                # npm can accept the archive even when the client loses the response.
+                npm publish ./release/galactica.tgz --ignore-scripts --provenance --access public --tag latest --registry https://registry.npmjs.org/ || echo 'Publish returned an error; checking npm.'
+              fi
             fi
-            if [ "$attempt" -eq 0 ]; then
-              # An upload can succeed even when the publish command fails.
-              npm publish ./release/galactica.tgz --ignore-scripts --provenance --access public --tag latest --registry https://registry.npmjs.org/ || echo 'Publish returned an error; checking npm.'
-            else
-              sleep 5
-            fi
+            if [ "$attempt" -lt 60 ]; then sleep 5; fi
           done
-          echo "Could not verify @cognitap/galactica@$version after 30 registry checks." >&2
+          echo "Could not verify @cognitap/galactica@$version against the release receipt." >&2
           exit 1
