@@ -18,6 +18,7 @@ import { dirname, join, relative } from 'node:path'
 import { after, test, type TestContext } from 'node:test'
 import { cacheDirectory, CACHE_FORMAT } from '../src/cache.ts'
 import { loadConfig } from '../src/config.ts'
+import { TESTS_NOTE } from '../src/queries.ts'
 import { commands } from '../src/contract.ts'
 import { MODEL_CACHE_FORMAT } from '../src/model-cache.ts'
 import { gitlab, invalidConfigs, validConfigs } from './config-examples.ts'
@@ -133,7 +134,7 @@ test('a command prints text by default and its JSON object with --json', () => {
 test('uses and deps follow edges in a plain repository', () => {
   assert.equal(
     galactica(plain, 'uses', 'src/math.ts').stdout,
-    'src/math.ts (module): 1 dependent within depth 1, 0 tests\n1  src/main.ts  PI, add\nno tests\n'
+    `src/math.ts (module): 1 dependent within depth 1, 0 tests\n1  src/main.ts  PI, add\nno tests\n${TESTS_NOTE}\n`
   )
   const deps = JSON.parse(galactica(plain, 'deps', 'src/main.ts', '--json').stdout)
   assert.deepEqual(deps.unresolved, [{ from: 'src/main.ts', specifier: './gone' }])
@@ -169,7 +170,7 @@ test('cycles lists each loop that runs as code, load time first, through barrels
   assert.doesNotMatch(text, /src\/types\//)
   assert.match(
     galactica(cycleKinds, 'uses', 'src/load/config.ts').stdout,
-    /^in an import cycle with src\/load\/plugins\.ts, used at load time: galactica cycles shows where to break it$/m
+    /^in an import cycle with src\/load\/plugins\.ts, used at load time: the cycles command shows where to break it$/m
   )
   assert.doesNotMatch(galactica(cycleKinds, 'deps', 'src/types/shape.ts').stdout, /cycle/)
 })
@@ -248,7 +249,7 @@ test('overview counts the warnings, and its JSON lists them the same from every 
   ]
   const text = galactica(root, 'overview', '--no-cache')
   assert.equal(text.status, 0)
-  assert.match(text.stdout, /^3 warnings, galactica overview --json lists them$/m)
+  assert.match(text.stdout, /^3 warnings, overview --json lists them$/m)
 
   const outputs = [
     galactica(root, 'overview', '--json'),

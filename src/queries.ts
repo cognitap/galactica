@@ -11,13 +11,14 @@ import {
   type ModuleRef,
   type Outline,
   type Reached,
+  type ReachedTest,
   type Subject,
   type SymbolRef,
   type Uses,
   type Where
 } from './contract.ts'
 import { cyclesWhere } from './cycles.ts'
-import { compare, type Graph, type RepoPath, type SymbolFacts } from './model.ts'
+import { compare, type Graph, type Incoming, type RepoPath, type SymbolFacts } from './model.ts'
 import { resolveModule, resolveSubject, type Miss, type Resolved } from './subjects.ts'
 
 export function failure(command: Command, { error }: Miss): Failure {
@@ -131,6 +132,105 @@ function reach(
     .sort((a, b) => a.distance - b.distance || compare(a.path, b.path))
 }
 
+/**
+ * A module that much of the repository imports: at least `importers` modules,
+ * and at least `share` of all modules. A test that reaches a subject only
+ * through one says little about the subject, since it reaches most modules.
+ */
+export const HUB = { importers: 20, share: 1 / 20 } as const
+
+const hubCache = new WeakMap<Graph, ReadonlySet<RepoPath>>()
+
+function hubsOf(graph: Graph): ReadonlySet<RepoPath> {
+  let hubs = hubCache.get(graph)
+  if (hubs === undefined) {
+    const least = Math.max(HUB.importers, HUB.share * graph.modules.size)
+    const importerCount = (incoming: readonly Incoming[]) =>
+      new Set(incoming.filter(({ through }) => !through).map(({ from }) => from)).size
+    hubs = new Set(
+      [...graph.incoming]
+        .filter(([, incoming]) => importerCount(incoming) >= least)
+        .map(([path]) => path)
+    )
+    hubCache.set(graph, hubs)
+  }
+  return hubs
+}
+
+/** How the walk from a subject reaches a module, by its shortest paths. */
+interface Route {
+  /** The first module on the paths, the least in path order. */
+  readonly via: RepoPath
+  /** The hub nearest the subject on the paths, the least in path order, and undefined when a path has none. */
+  readonly hub: RepoPath | undefined
+}
+
+/** The lesser path, undefined when either is. */
+const least = (a: RepoPath | undefined, b: RepoPath | undefined) =>
+  a === undefined || b === undefined ? undefined : compare(a, b) <= 0 ? a : b
+
+/**
+ * Breadth-first from `members` to the modules `importers` gives, without
+ * walking on past a module `stop` names. One layer at a time, so a module's
+ * route takes the least of all its shortest paths, whatever order they come in.
+ */
+function routes(
+  members: ReadonlySet<RepoPath>,
+  importers: (path: RepoPath) => readonly RepoPath[],
+  hubs: ReadonlySet<RepoPath>,
+  stop: (path: RepoPath) => boolean
+): ReadonlyMap<RepoPath, Route> {
+  const found = new Map<RepoPath, Route>()
+  let frontier: readonly RepoPath[] = [...members]
+  while (frontier.length > 0) {
+    const layer = new Map<RepoPath, Route>()
+    for (const path of frontier) {
+      const from = found.get(path)
+      for (const to of importers(path)) {
+        if (members.has(to) || found.has(to)) continue
+        const route = { via: from?.via ?? to, hub: from?.hub ?? (hubs.has(to) ? to : undefined) }
+        const known = layer.get(to)
+        layer.set(
+          to,
+          known === undefined
+            ? route
+            : { via: least(known.via, route.via)!, hub: least(known.hub, route.hub) }
+        )
+      }
+    }
+    for (const [path, route] of layer) found.set(path, route)
+    frontier = [...layer.keys()].filter(path => !stop(path))
+  }
+  return found
+}
+
+export const TESTS_NOTE =
+  'Lists only tests that import the subject, directly or through other modules. End-to-end, playground and fixture-driven tests that load it another way, such as through a dev server, a build or a config file, can be missing, so also search for tests named after the feature.'
+
+/** Each test with the module its path starts from, and the hub it reaches the subject only through. */
+function testRoutes(
+  graph: Graph,
+  members: ReadonlySet<RepoPath>,
+  tests: readonly Reached[]
+): readonly ReachedTest[] {
+  const hubs = hubsOf(graph)
+  const importers = (loading: boolean) => (path: RepoPath) =>
+    graph.incoming
+      .get(path)!
+      .filter(({ through, edge }) => (!through || members.has(path)) && !(loading && edge.typeOnly))
+      .map(({ from }) => from)
+  const any = routes(members, importers(false), hubs, () => false)
+  const loading = routes(members, importers(true), hubs, () => false)
+  const avoiding = routes(members, importers(false), hubs, path => hubs.has(path))
+  return tests.map(test => {
+    if (test.distance === 1) return test
+    const path = test.path as RepoPath
+    const { via } = loading.get(path) ?? any.get(path)!
+    const hub = avoiding.has(path) ? undefined : any.get(path)!.hub
+    return { ...test, via, ...(hub === undefined ? {} : { hub }) }
+  })
+}
+
 const cyclesOf = (graph: Graph, { members }: Resolved) =>
   cyclesWhere(graph, cycle => cycle.some(path => members.has(path)))
 
@@ -166,7 +266,12 @@ export function usesOf(graph: Graph, resolved: Resolved, depth: number): Uses {
     subject: resolved.subject,
     depth,
     modules: dependents.filter(module => module.kind !== 'test' && module.distance <= depth),
-    tests: dependents.filter(module => module.kind === 'test'),
+    tests: testRoutes(
+      graph,
+      resolved.members,
+      dependents.filter(module => module.kind === 'test')
+    ),
+    testsNote: TESTS_NOTE,
     cycles: cyclesOf(graph, resolved)
   }
 }

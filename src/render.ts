@@ -16,6 +16,7 @@ import type {
   Output,
   Overview,
   Reached,
+  ReachedTest,
   Subject,
   SymbolRef,
   Uses,
@@ -117,8 +118,8 @@ function renderOverview({
     `${plural(cycles, 'import cycle')}, ${plural(unresolved, 'unresolved import')}`,
     ...(warnings.length === 0
       ? []
-      : [`${plural(warnings.length, 'warning')}, galactica overview --json lists them`]),
-    'next: galactica where <name> finds a symbol, galactica uses <file> lists what to check and test before you edit it'
+      : [`${plural(warnings.length, 'warning')}, overview --json lists them`]),
+    'next: run the same command with where <name> in place of overview to find a symbol, or with uses <file> to list what to check and test before you edit it'
   ])
 }
 
@@ -160,15 +161,46 @@ function cycleLines(cycles: readonly Cycle[], subject: Subject): readonly string
       module === undefined
         ? `of ${plural(cycle.modules.length, 'module')} (${shown}${more})`
         : `with ${shown}${more}`
-    return `in an import cycle ${members}, ${useLabel(cycle)}: galactica cycles shows where to break it`
+    return `in an import cycle ${members}, ${useLabel(cycle)}: the cycles command shows where to break it`
   })
 }
 
-function renderUses({ subject, depth, modules, tests, cycles }: Uses): readonly string[] {
+function testLine(test: ReachedTest): string {
+  return test.via === undefined
+    ? reachedLine(test)
+    : `${test.distance}  ${test.path}  via ${test.via}`
+}
+
+/** One line per hub, most tests first, for the tests that reach the subject only through it. */
+function hubLines(tests: readonly ReachedTest[]): readonly string[] {
+  const counts = new Map<string, number>()
+  for (const { hub } of tests) if (hub !== undefined) counts.set(hub, (counts.get(hub) ?? 0) + 1)
+  return [...counts]
+    .sort(([a, countA], [b, countB]) => countB - countA || (a < b ? -1 : 1))
+    .map(
+      ([hub, count]) =>
+        `${count} more ${count === 1 ? 'test reaches' : 'tests reach'} it only through ${hub}, which much of the repository imports`
+    )
+}
+
+function renderUses({
+  subject,
+  depth,
+  modules,
+  tests,
+  testsNote,
+  cycles
+}: Uses): readonly string[] {
+  const listed = tests.filter(({ hub }) => hub === undefined)
+  const hubOnly = tests.length - listed.length
+  const more = hubOnly === 0 ? '' : ` and ${hubOnly} more only through widely imported modules`
   return [
-    `${subjectLabel(subject)}: ${plural(modules.length, 'dependent')} within depth ${depth}, ${plural(tests.length, 'test')}`,
+    `${subjectLabel(subject)}: ${plural(modules.length, 'dependent')} within depth ${depth}, ${plural(listed.length, 'test')}${more}`,
     ...(modules.length === 0 ? ['no dependents'] : capped(modules.map(reachedLine))),
-    ...(tests.length === 0 ? ['no tests'] : ['tests:', ...capped(tests.map(reachedLine))]),
+    ...(tests.length === 0
+      ? ['no tests']
+      : ['tests, closest first:', ...capped(listed.map(testLine)), ...hubLines(tests)]),
+    testsNote,
     ...cycleLines(cycles, subject)
   ]
 }
@@ -302,7 +334,7 @@ function renderHealth({
         ]),
     ...(cycles.length === 0
       ? []
-      : ['galactica cycles lists every import of each cycle and how to cut one'])
+      : ['the cycles command lists every import of each cycle and how to cut one'])
   ]
 }
 
