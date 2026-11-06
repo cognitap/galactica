@@ -27,38 +27,43 @@ const relationsOf = value => ({
 
 /** @param {PageWireData} wire @returns {PageData} */
 export function decodePage(wire) {
-  const packages = (wire.packages ?? []).map(pkg => ({
+  const { symbolKinds = [], ...data } = wire
+  const packages = (data.packages ?? []).map(pkg => ({
     ...pkg,
     rows: pkg.rows ?? [],
     areaCycles: pkg.areaCycles ?? [],
     moduleCycles: pkg.moduleCycles ?? []
   }))
-  const areas = (wire.areas ?? []).map(area => ({
+  const areas = (data.areas ?? []).map(area => ({
     ...area,
     label: relativeTo(packages[area.package].dir, area.path),
     modules: area.modules ?? [],
     ...relationsOf(area)
   }))
-  const modules = (wire.modules ?? []).map(module => ({
+  const modules = (data.modules ?? []).map(module => ({
     ...module,
     label: relativeTo(areas[module.area].path, module.path),
-    symbols: (module.symbols ?? []).map(symbol => ({
-      ...symbol,
-      default: symbol.default ?? false
+    symbols: (module.symbols ?? []).map(([name, kind, line, signature, doc, isDefault]) => ({
+      name,
+      kind: symbolKinds[kind],
+      line,
+      signature,
+      default: isDefault ?? false,
+      ...(doc == null ? {} : { doc })
     })),
     ...relationsOf(module)
   }))
   return {
-    ...wire,
-    folders: wire.folders ?? [],
+    ...data,
+    folders: data.folders ?? [],
     packages,
     areas,
     modules,
     health: {
-      ...wire.health,
-      cycles: wire.health.cycles ?? [],
-      oversized: wire.health.oversized ?? [],
-      internal: wire.health.internal ?? []
+      ...data.health,
+      cycles: data.health.cycles ?? [],
+      oversized: data.health.oversized ?? [],
+      internal: data.health.internal ?? []
     }
   }
 }
