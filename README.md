@@ -2,7 +2,7 @@
 
 Galactica maps a JavaScript or TypeScript repository, for coding agents and for the people who work with them. Both views come from the same analysis, so they never disagree.
 
-- **For agents:** five commands answer the questions an agent asks while it works, and a skill tells the agent when to ask them.
+- **For agents:** seven commands answer the questions an agent asks while it works, and a skill tells the agent when to ask them.
 - **For humans:** one self-contained HTML page shows where everything lives and what it touches.
 
 Galactica is inspired by [codemap](https://github.com/peterretief/codemap), which draws a similar page for Go modules.
