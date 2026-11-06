@@ -171,10 +171,10 @@ node /path/to/galactica/dist/bin.js init --command "node /path/to/galactica/dist
 Running `init` again updates each file to the current version, unless someone edited it. Each file records a hash of what `init` wrote, so `init` keeps an edited file, says so, and replaces it only with `--force`. It exits with code 1 only when it kept every file. The skill is also at `skills/galactica/` in this repository, so the [skills CLI](https://github.com/vercel-labs/skills) installs it for any agent it supports, in place of `init`:
 
 ```sh
-npx skills add cognitap/galactica
+npx --prefix / skills add cognitap/galactica
 ```
 
-A skill installed this way runs `npx --prefix / @cognitap/galactica`, and `npx skills update` updates it.
+`--prefix /` keeps npm from running a `skills` package planted in the repository you are in. A skill installed this way runs `npx --prefix / @cognitap/galactica`, and `npx --prefix / skills update` updates it.
 
 Galactica keeps the symbols and imports of each file in a cache, so it adds nothing to the repository except the optional skill. The cache is `node_modules/.cache/galactica/cache.json` when the repository has a `node_modules` folder. Otherwise it is in the user cache folder, under `galactica/` and a hash of the repository path: `~/Library/Caches` on macOS, `$XDG_CACHE_HOME` or `~/.cache` on Linux, and `%LOCALAPPDATA%` on Windows. A file whose size and modification time are unchanged is not read again, and a file whose content is unchanged is not parsed again. The whole cache is discarded when Galactica, TypeScript, `vue` or `svelte` changes version, or a compiler is installed or removed. Everything that depends on more than one file, such as where an import leads, is worked out again on every run, so the cache never gives a stale answer. Deleting the cache is always safe. `--no-cache` analyzes every file and neither reads nor writes the cache.
 
