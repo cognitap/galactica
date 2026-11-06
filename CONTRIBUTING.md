@@ -17,7 +17,7 @@ Run `dist/bin.js` wherever you would run `galactica`. To try the skill against y
 ## Workflow
 
 1. Work on a branch and open a pull request against `main`.
-2. Run `pnpm check` before every commit. It runs format, lint, typecheck and the tests, then installs the packed package in a throwaway repository and runs it there. CI runs the same check.
+2. Run `pnpm check` before every commit. It runs format, lint, typecheck and the tests, then installs the packed package in a throwaway repository and runs it there. CI runs the same steps, split across parallel jobs.
 3. When a change to the analysis output is intended, run `pnpm fixtures:update` and review the diff under `tests/fixtures` as part of the change.
 4. When the `--json` output changes, update `src/contract.ts` and [docs/json-output.md](docs/json-output.md) together. Command output, config and the files `init` writes are the public contract; [RELEASE_POLICY.md](RELEASE_POLICY.md) says what counts as breaking.
 5. When the config gains an example, add it to `tests/config-examples.ts`. `tests/config.test.ts` checks the examples in [docs/configuration.md](docs/configuration.md) against the schema and the loader.
@@ -26,14 +26,14 @@ Run `dist/bin.js` wherever you would run `galactica`. To try the skill against y
 
 ## Tests
 
-| Command              | Runs                                                                   |
-| -------------------- | ---------------------------------------------------------------------- |
-| `pnpm check`         | Shrinkwrap check, format, lint, typecheck, `pnpm test`.                |
-| `pnpm test`          | Build, every suite with coverage, then the packed-package smoke test.  |
-| `pnpm test:coverage` | Build and every suite with coverage.                                   |
-| `pnpm test:browser`  | Build and the HTML map tests in headless Chrome.                       |
-| `pnpm test:node`     | Build and the Node unit and CLI suites on the pinned development Node. |
-| `pnpm test:package`  | Build and the packed-package smoke test.                               |
+| Command              | Runs                                                                    |
+| -------------------- | ----------------------------------------------------------------------- |
+| `pnpm check`         | `pnpm check:static` (shrinkwrap, format, lint, typecheck), `pnpm test`. |
+| `pnpm test`          | Build, every suite with coverage, then the packed-package smoke test.   |
+| `pnpm test:coverage` | Build and every suite with coverage.                                    |
+| `pnpm test:browser`  | Build and the HTML map tests in headless Chrome.                        |
+| `pnpm test:node`     | Build and the Node unit and CLI suites on the pinned development Node.  |
+| `pnpm test:package`  | Build and the packed-package smoke test.                                |
 
 CLI tests run the built `dist/`; unit tests import `src/` directly. HTML tests also read the built browser assets. The build bundles the plain JavaScript page with esbuild.
 
@@ -49,9 +49,9 @@ The browser tests need Google Chrome in its usual location, or `CHROME_PATH` set
 
 ### Node.js versions
 
-Galactica supports Node.js 24.1.0 and newer. That is the support baseline for the first release: the Node.js 24 line from 24.1.0, and every later major. `package.json` `engines` and the startup check in `src/node-version.ts` state the same minimum, and `tests/node-version.test.ts` keeps them equal. Older versions, Node.js 22 included, get a one-line refusal. Keep `src/bin.ts` and `src/node-version.ts` free of other imports and of syntax older Node.js cannot parse, so that refusal still prints.
+Galactica supports Node.js 24.1.0 and newer. That is the support baseline for the first release: the Node.js 24 line from 24.1.0, and every later major. `package.json` `engines` and the startup check in `src/node-version.ts` state the same minimum, and `tests/node-version.test.ts` keeps them equal. Older versions, Node.js 22 included, get a one-line refusal; [AGENTS.md](AGENTS.md#nodejs) says how to keep it printing.
 
-CI runs the Node unit and CLI suites on the latest Node.js 24 and 26 on Linux. The main check uses `.nvmrc` for coverage, browser tests and the packed-package test.
+CI runs on Linux. On the latest Node.js 24 it runs the Node unit and CLI suites; on Node.js 26 it runs every suite with coverage, the browser tests and the packed-package test. A separate job runs `pnpm check:static` (shrinkwrap, format, lint and typecheck) on `.nvmrc`.
 
 To check another Node.js version locally:
 
@@ -65,14 +65,14 @@ Run `node scripts/test-node.ts` directly, not through pnpm: pnpm pins script run
 
 ## Benchmarks
 
-`pnpm bench` measures the speed targets: a first run under 10 seconds on about 3,000 modules, and a warm command under half a second.
+`pnpm bench` measures the [speed targets](AGENTS.md#performance).
 
 ```sh
 node scripts/synthetic-repo.ts /tmp/synthetic --modules 3000
 pnpm bench /tmp/synthetic
 ```
 
-It runs the built CLI for `overview` and for `uses` of the most-imported source module, cold and then warm, and prints the median and range of 5 runs with the time of each phase. `--runs` sets the number of runs, `--uses` the module, `--json` prints JSON, and `--check` exits with code 1 when a median misses its target. The synthetic repository is a pnpm workspace shaped like Radiant, and the same options always write the same files. CI runs `pnpm bench --check` on 3,000 synthetic modules.
+It runs the built CLI for `overview` and for `uses` of the most-imported source module, cold and then warm, and prints the median and range of 5 runs with the time of each phase. `--runs` sets the number of runs, `--uses` the module, `--json` prints JSON, and `--check` exits with code 1 when a median misses its target. The synthetic repository is a pnpm workspace with about 6.5 imports and 3.4 exported symbols per module, 14% of imports type-only and a few modules that most others import. The same options always write the same files. CI runs `pnpm bench --check` on 3,000 synthetic modules.
 
 The agent benchmark lives in [bench/agents](bench/agents/README.md), and its results in [docs/benchmark.md](docs/benchmark.md).
 
