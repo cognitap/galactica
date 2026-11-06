@@ -49,3 +49,12 @@ test('nodes without links keep path order, ties break by path, and links within 
     [['p', 'q'], ['z']]
   )
 })
+
+test('a node moves up towards a neighbour at the top of a short column', () => {
+  // Columns stack from the top, so r1 sits level with m1. By its share of the column's length,
+  // r1 would sit level with m2 and leave m3 where it was.
+  assert.deepEqual(orderRows([['m1', 'm2', 'm3'], ['r1']], [['m3', 'r1']]), [
+    ['m1', 'm3', 'm2'],
+    ['r1']
+  ])
+})
