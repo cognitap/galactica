@@ -38,6 +38,7 @@
     "test": "pnpm test:coverage && node scripts/pack-and-test.ts",
     "test:coverage": "pnpm build && c8 node --test tests/*.test.ts",
     "test:browser": "pnpm build && node --test tests/page.test.ts",
+    "test:node": "pnpm build && node scripts/test-node.ts",
     "test:package": "pnpm build && node scripts/pack-and-test.ts",
     "bench": "pnpm --silent build && node scripts/bench.ts",
     "fixtures:update": "node tests/update-fixtures.ts",
