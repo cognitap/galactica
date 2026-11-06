@@ -5,6 +5,7 @@
 ## Unreleased
 
 - A file nested too deeply for TypeScript to parse, such as a chain of thousands of `else if`, no longer crashes every command. Its module stays, with no symbols or imports, and the analysis adds one warning that names the file.
+- A deeply nested expression, such as the 3,000-term string concatenation in microsoft/TypeScript's `binderBinaryExpressionStress.ts`, is read in full instead of crashing with `RangeError: Maximum call stack size exceeded`. Galactica now maps microsoft/TypeScript.
 
 ## 0.1.5
 

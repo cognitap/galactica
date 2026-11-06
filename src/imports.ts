@@ -8,7 +8,7 @@ import ts from 'typescript'
 import { isRequireCall, loadTimeOf } from './load-time.ts'
 import { parseRepoPath, type Edge } from './model.ts'
 import type { ScriptLanguage } from './source-file.ts'
-import { parseScript } from './syntax.ts'
+import { parseScript, pushChildren } from './syntax.ts'
 
 /** How an import is written, which TypeScript reads its resolution mode from. */
 export type ImportSyntax = 'declaration' | 'import-equals' | 'require' | 'import-call'
@@ -301,7 +301,8 @@ export function importsOf(source: ts.SourceFile): readonly Import[] {
   const bindings = bindingsOf(source)
   const loadTime = loadTimeOf(source, bindings)
   const imports: Import[] = []
-  const visit = (node: ts.Node): void => {
+  const pending: ts.Node[] = [source]
+  for (let node = pending.pop(); node !== undefined; node = pending.pop()) {
     for (const taken of takenBy(node, bindings)) {
       const specifier = taken.specifier
       if (!specifier || !ts.isStringLiteralLike(specifier)) continue
@@ -322,9 +323,8 @@ export function importsOf(source: ts.SourceFile): readonly Import[] {
         ...(read.length === 0 || taken.typeOnly ? {} : { loadTime: read })
       })
     }
-    ts.forEachChild(node, visit)
+    pushChildren(pending, node, child => child)
   }
-  visit(source)
   return imports
 }
 

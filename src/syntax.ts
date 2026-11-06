@@ -37,3 +37,18 @@ export function parseScript(
     scriptKinds[language]
   )
 }
+
+/**
+ * Pushes the children of `node` onto `stack`, each as `wrap` gives it, so that
+ * they pop in source order. A walk that keeps its own stack this way has no
+ * depth limit, where recursion overflows on a tree thousands of levels deep.
+ */
+export function pushChildren<T>(stack: T[], node: ts.Node, wrap: (child: ts.Node) => T): void {
+  const start = stack.length
+  ts.forEachChild(node, child => {
+    stack.push(wrap(child))
+  })
+  for (let low = start, high = stack.length - 1; low < high; low++, high--) {
+    ;[stack[low], stack[high]] = [stack[high]!, stack[low]!]
+  }
+}
