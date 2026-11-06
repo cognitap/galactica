@@ -314,156 +314,264 @@ function ownerOf(node: Body): string | undefined {
   return undefined
 }
 
+interface DeferredReads {
+  readonly load: Set<string>
+  readonly later: Map<string, Set<string>>
+}
+
+const deferredReads = (): DeferredReads => ({ load: new Set(), later: new Map() })
+
+function readState() {
+  return {
+    code: deferredReads(),
+    metadata: deferredReads(),
+    calls: deferredReads(),
+    values: new Set<string>(),
+    metadataValues: new Set<string>(),
+    wholeCalls: new Set<ts.Expression>(),
+    jsx: false,
+    fragment: false
+  }
+}
+
+type ReadState = ReturnType<typeof readState>
+type Pending = (ts.Node | (() => void))[]
+
+/** Nested declarations hide tracked names until the pending walk leaves their scope. */
+function scopesOf(tracked: ReadonlySet<string>, pending: Pending) {
+  const hiding: ReadonlySet<string>[] = []
+  return {
+    isHidden: (name: string) => hiding.some(names => names.has(name)),
+    enter(node: ts.Node, visit: () => void) {
+      let names: Set<string> | undefined
+      declaredIn(node, name => {
+        if (tracked.has(name)) (names ??= new Set()).add(name)
+      })
+      if (names) {
+        hiding.push(names)
+        pending.push(() => hiding.pop())
+      }
+      visit()
+    }
+  }
+}
+
+interface Walk {
+  readonly bindings: ReadonlyMap<string, Bound>
+  readonly owners: ReadonlySet<string>
+  readonly boundCalls: ReadonlySet<ts.Node>
+  readonly reads: ReadState
+  readonly scopes: ReturnType<typeof scopesOf>
+  runs: Runs
+}
+
+/** A read happens now, or belongs to a declaration whose body may be called later. */
+function note(name: string, runs: Runs, reads: DeferredReads): void {
+  if (runs.at === 'load') reads.load.add(name)
+  else if (runs.owner !== undefined) {
+    const names = reads.later.get(runs.owner) ?? new Set()
+    reads.later.set(runs.owner, names.add(name))
+  }
+}
+
+function recordIdentifier(walk: Walk, id: ts.Identifier): void {
+  const name = id.text
+  if (walk.bindings.has(name) && isReference(id) && !walk.scopes.isHidden(name)) {
+    walk.reads.values.add(name)
+    note(name, walk.runs, walk.reads.code)
+  }
+}
+
+function recordCall(
+  walk: Walk,
+  node: ts.CallExpression | ts.NewExpression | ts.TaggedTemplateExpression
+): void {
+  const callee = unwrap(ts.isTaggedTemplateExpression(node) ? node.tag : node.expression)
+  if (
+    ts.isIdentifier(callee) &&
+    walk.owners.has(callee.text) &&
+    !walk.scopes.isHidden(callee.text)
+  ) {
+    note(callee.text, walk.runs, walk.reads.calls)
+  }
+  if (walk.runs.at === 'load' && isRequireCall(node) && !walk.boundCalls.has(node)) {
+    walk.reads.wholeCalls.add(node.arguments[0]!)
+  }
+}
+
+function recordMetadata(walk: Walk, node: ts.ClassLikeDeclaration): void {
+  for (const type of decoratedTypes(node)) {
+    const name = metadataName(type)
+    if (name === undefined) continue
+    const bound = walk.bindings.get(name)
+    if (bound === undefined || bound.typeOnly || walk.scopes.isHidden(name)) continue
+    walk.reads.metadataValues.add(name)
+    note(name, walk.runs, walk.reads.metadata)
+  }
+}
+
+function recordExports(
+  reads: ReadState,
+  { moduleSpecifier, isTypeOnly, exportClause }: ts.ExportDeclaration
+): void {
+  if (moduleSpecifier || isTypeOnly || !exportClause || !ts.isNamedExports(exportClause)) return
+  for (const element of exportClause.elements) {
+    if (!element.isTypeOnly) reads.values.add((element.propertyName ?? element.name).text)
+  }
+}
+
+/** Computed property names in types keep their imports without reading them at run time. */
+function recordComputedNames(walk: Walk, type: ts.Node): void {
+  const inner: ts.Node[] = [type]
+  const expressions: ts.Node[] = []
+  for (let next = inner.pop(); next !== undefined; next = inner.pop()) {
+    if (ts.isComputedPropertyName(next)) expressions.push(next.expression)
+    else pushChildren(inner, next, child => child)
+  }
+  for (let next = expressions.pop(); next !== undefined; next = expressions.pop()) {
+    if (!ts.isIdentifier(next)) pushChildren(expressions, next, child => child)
+    else if (
+      walk.bindings.has(next.text) &&
+      isReference(next) &&
+      !walk.scopes.isHidden(next.text)
+    ) {
+      walk.reads.values.add(next.text)
+    }
+  }
+}
+
+/** Follow calls between top-level owners once, including recursive call graphs. */
+function propagateCalls({ code, metadata, calls }: ReadState): void {
+  const queue = [...calls.load]
+  for (let owner = queue.pop(); owner !== undefined; owner = queue.pop()) {
+    for (const name of code.later.get(owner) ?? []) code.load.add(name)
+    for (const name of metadata.later.get(owner) ?? []) metadata.load.add(name)
+    for (const callee of calls.later.get(owner) ?? []) {
+      if (calls.load.has(callee)) continue
+      calls.load.add(callee)
+      queue.push(callee)
+    }
+  }
+}
+
+/** Translate local reads to the imported names and JSX facts each specifier needs. */
+function importUses(
+  source: ts.SourceFile,
+  imports: ReadonlyMap<string, Bound>,
+  bindings: ReadonlyMap<string, Bound>,
+  reads: ReadState
+): Uses {
+  const jsxBindings = new Map<ts.Expression, string[]>()
+  if (reads.jsx) {
+    for (const [name, binding] of imports) {
+      if (binding.typeOnly) continue
+      const names = jsxBindings.get(binding.specifier) ?? []
+      names.push(name)
+      jsxBindings.set(binding.specifier, names)
+    }
+  }
+  const pragmas = reads.jsx ? jsxPragmasOf(source) : {}
+
+  const takenBy = (locals: ReadonlySet<string>) => {
+    const taken = new Map<ts.Expression, Set<string>>()
+    for (const name of locals) {
+      const { specifier, taken: exported } = bindings.get(name)!
+      taken.set(specifier, (taken.get(specifier) ?? new Set()).add(exported))
+    }
+    return (specifier: ts.Expression, names: readonly string[]) =>
+      names.filter(name => taken.get(specifier)?.has(name))
+  }
+  const loadTime = takenBy(reads.code.load)
+  const metadataLoadTime = takenBy(reads.metadata.load)
+  const valueOf = new Map<ts.Expression, Use['value']>()
+  for (const [name, { specifier }] of bindings) {
+    if (reads.values.has(name)) valueOf.set(specifier, 'code')
+    else if (reads.metadataValues.has(name))
+      valueOf.set(specifier, valueOf.get(specifier) ?? 'metadata')
+  }
+  return (specifier, names) => {
+    const value = valueOf.get(specifier)
+    const jsxNames = jsxBindings.get(specifier)
+    return {
+      loadTime: reads.wholeCalls.has(specifier) ? names : loadTime(specifier, names),
+      ...(value === undefined ? {} : { value }),
+      metadataLoadTime: metadataLoadTime(specifier, names),
+      ...(jsxNames === undefined
+        ? {}
+        : {
+            jsx: {
+              names: jsxNames,
+              ...pragmas,
+              ...(reads.fragment ? { fragment: true as const } : {})
+            }
+          })
+    }
+  }
+}
+
 export function usesOf(source: ts.SourceFile, imports: ReadonlyMap<string, Bound>): Uses {
   const requires = source.text.includes('require')
   if (imports.size === 0 && !requires) return () => unused
   const required = requires ? requireBindings(source) : new Map<string, Bound & { call: ts.Node }>()
   const bindings = new Map<string, Bound>([...imports, ...required])
-  const boundCalls = new Set([...required.values()].map(({ call }) => call))
   const owners = ownersOf(source)
-  const tracked = new Set([...bindings.keys(), ...owners])
 
-  const read = new Set<string>()
-  const wholeCalls = new Set<ts.Expression>()
-  const started = new Set<string>()
-  const readBy = new Map<string, Set<string>>()
-  const calledBy = new Map<string, Set<string>>()
-  /** Bindings any code reads as values, and those only a decorated signature names. */
-  const values = new Set<string>()
-  const metadata = new Set<string>()
-  const metadataRead = new Set<string>()
-  const metadataBy = new Map<string, Set<string>>()
-  let jsx = false
-  let fragment = false
-
-  let runs = LOAD
-  /**
-   * What the walk has left to do, the next step last: a node to visit, or a
-   * step such as leaving a scope that runs once everything pushed after it
-   * has. A stack, not recursion, so a tree thousands of levels deep cannot
-   * overflow the call stack.
-   */
-  const pending: (ts.Node | (() => void))[] = []
+  // Nodes and scope/phase exit steps share one stack, so deep syntax cannot overflow it.
+  const pending: Pending = []
+  const walk: Walk = {
+    bindings,
+    owners,
+    boundCalls: new Set([...required.values()].map(({ call }) => call)),
+    reads: readState(),
+    scopes: scopesOf(new Set([...bindings.keys(), ...owners]), pending),
+    runs: LOAD
+  }
   const visitChildren = (node: ts.Node) => pushChildren(pending, node, child => child)
-  /** The tracked names each enclosing nested scope declares, for the scopes that declare any. */
-  const hiding: ReadonlySet<string>[] = []
-  const isHidden = (name: string) => hiding.some(names => names.has(name))
-  let hidden: Set<string> | undefined
-  const hide = (name: string) => {
-    if (tracked.has(name)) (hidden ??= new Set()).add(name)
-  }
-  const note = (name: string, load: Set<string>, later: Map<string, Set<string>>) => {
-    if (runs.at === 'load') load.add(name)
-    else if (runs.owner !== undefined) {
-      const names = later.get(runs.owner) ?? new Set()
-      later.set(runs.owner, names.add(name))
-    }
-  }
   /** Visits the children of `node`, those `inside` accepts with `inner`, the rest as before. */
   const split = (node: ts.Node, inner: Runs, inside: (child: ts.Node) => boolean) => {
-    const outer = runs
+    const outer = walk.runs
     pending.push(() => {
-      runs = outer
+      walk.runs = outer
     })
     pushChildren(pending, node, child => () => {
-      runs = inside(child) ? inner : outer
+      walk.runs = inside(child) ? inner : outer
       visit(child)
     })
   }
-  const call = (node: ts.CallExpression | ts.NewExpression | ts.TaggedTemplateExpression) => {
-    const callee = unwrap(ts.isTaggedTemplateExpression(node) ? node.tag : node.expression)
-    if (ts.isIdentifier(callee) && owners.has(callee.text) && !isHidden(callee.text)) {
-      note(callee.text, started, calledBy)
-    }
-    if (runs.at === 'load' && isRequireCall(node) && !boundCalls.has(node)) {
-      wholeCalls.add(node.arguments[0]!)
-    }
-  }
   const body = (node: Body) => {
-    if (runs.at === 'later' || isInvoked(node)) return visitChildren(node)
+    if (walk.runs.at === 'later' || isInvoked(node)) return visitChildren(node)
     const inner: Runs = { at: 'later', owner: ownerOf(node) }
     split(node, inner, child => !ts.isDecorator(child) && child !== node.name)
   }
-  const decorated = (node: ts.ClassLikeDeclaration) => {
-    for (const type of decoratedTypes(node)) {
-      const name = metadataName(type)
-      if (name === undefined) continue
-      const bound = bindings.get(name)
-      if (bound === undefined || bound.typeOnly || isHidden(name)) continue
-      metadata.add(name)
-      note(name, metadataRead, metadataBy)
-    }
-  }
-  const exported = ({ moduleSpecifier, isTypeOnly, exportClause }: ts.ExportDeclaration) => {
-    if (moduleSpecifier || isTypeOnly || !exportClause || !ts.isNamedExports(exportClause)) return
-    for (const element of exportClause.elements) {
-      if (!element.isTypeOnly) values.add((element.propertyName ?? element.name).text)
-    }
-  }
-  /**
-   * A computed property name in a type, as in `{ [Kind.A]: string }`, reads
-   * no value at run time, but keeps its import in TypeScript's output.
-   */
-  const computedNames = (type: ts.Node) => {
-    const inner: ts.Node[] = [type]
-    const expressions: ts.Node[] = []
-    for (let next = inner.pop(); next !== undefined; next = inner.pop()) {
-      if (ts.isComputedPropertyName(next)) expressions.push(next.expression)
-      else pushChildren(inner, next, child => child)
-    }
-    for (let next = expressions.pop(); next !== undefined; next = expressions.pop()) {
-      if (!ts.isIdentifier(next)) pushChildren(expressions, next, child => child)
-      else if (bindings.has(next.text) && isReference(next) && !isHidden(next.text)) {
-        values.add(next.text)
-      }
-    }
-  }
-  const inScope = (node: ts.Node, enter: () => void) => {
-    hidden = undefined
-    declaredIn(node, hide)
-    const names = hidden
-    if (names) {
-      hiding.push(names)
-      pending.push(() => hiding.pop())
-    }
-    enter()
-  }
-
   const visit = (node: ts.Node): void => {
     const { SyntaxKind: Kind } = ts
     switch (node.kind) {
-      case Kind.Identifier: {
-        const name = (node as ts.Identifier).text
-        if (bindings.has(name) && isReference(node as ts.Identifier) && !isHidden(name)) {
-          values.add(name)
-          note(name, read, readBy)
-        }
-        return
-      }
+      case Kind.Identifier:
+        return recordIdentifier(walk, node as ts.Identifier)
       case Kind.ExpressionWithTypeArguments:
         return visit((node as ts.ExpressionWithTypeArguments).expression)
       case Kind.InterfaceDeclaration:
       case Kind.TypeAliasDeclaration:
-        return computedNames(node)
+        return recordComputedNames(walk, node)
       case Kind.ImportDeclaration:
         return
       case Kind.ImportEqualsDeclaration: {
         // `import X = ns.Y` keeps `ns` when X is read as a value, which this walk does not follow.
         const { moduleReference, isTypeOnly } = node as ts.ImportEqualsDeclaration
         if (!isTypeOnly && !ts.isExternalModuleReference(moduleReference)) {
-          values.add(rootOf(moduleReference).text)
+          walk.reads.values.add(rootOf(moduleReference).text)
         }
         return
       }
       case Kind.ExportDeclaration:
-        return exported(node as ts.ExportDeclaration)
+        return recordExports(walk.reads, node as ts.ExportDeclaration)
       case Kind.JsxOpeningElement:
       case Kind.JsxSelfClosingElement:
-        jsx = true
+        walk.reads.jsx = true
         break
       case Kind.JsxOpeningFragment:
-        jsx = true
-        fragment = true
+        walk.reads.jsx = true
+        walk.reads.fragment = true
         break
       case Kind.HeritageClause:
         if ((node as ts.HeritageClause).token === Kind.ImplementsKeyword) return
@@ -475,23 +583,23 @@ export function usesOf(source: ts.SourceFile, imports: ReadonlyMap<string, Bound
         break
       case Kind.ClassDeclaration:
         if (hasModifier(node, Kind.DeclareKeyword)) return
-        decorated(node as ts.ClassDeclaration)
+        recordMetadata(walk, node as ts.ClassDeclaration)
         break
       case Kind.CallExpression:
       case Kind.NewExpression:
       case Kind.TaggedTemplateExpression:
-        call(node as ts.CallExpression | ts.NewExpression | ts.TaggedTemplateExpression)
+        recordCall(walk, node as ts.CallExpression | ts.NewExpression | ts.TaggedTemplateExpression)
         break
       case Kind.FunctionDeclaration:
         if (hasModifier(node, Kind.DeclareKeyword)) return
-        return inScope(node, () => body(node as Body))
+        return walk.scopes.enter(node, () => body(node as Body))
       case Kind.FunctionExpression:
       case Kind.ArrowFunction:
       case Kind.MethodDeclaration:
       case Kind.Constructor:
       case Kind.GetAccessor:
       case Kind.SetAccessor:
-        return inScope(node, () => body(node as Body))
+        return walk.scopes.enter(node, () => body(node as Body))
       case Kind.Block:
       case Kind.ModuleBlock:
       case Kind.CaseBlock:
@@ -499,21 +607,21 @@ export function usesOf(source: ts.SourceFile, imports: ReadonlyMap<string, Bound
       case Kind.ForInStatement:
       case Kind.ForOfStatement:
       case Kind.CatchClause:
-        return inScope(node, () => visitChildren(node))
+        return walk.scopes.enter(node, () => visitChildren(node))
       case Kind.ClassExpression:
-        return inScope(node, () => {
-          decorated(node as ts.ClassExpression)
+        return walk.scopes.enter(node, () => {
+          recordMetadata(walk, node as ts.ClassExpression)
           visitChildren(node)
         })
       case Kind.PropertyDeclaration: {
         const property = node as ts.PropertyDeclaration
-        if (runs.at === 'later' || hasModifier(property, Kind.StaticKeyword)) break
+        if (walk.runs.at === 'later' || hasModifier(property, Kind.StaticKeyword)) break
         const inner: Runs = { at: 'later', owner: topLevelName(property.parent) }
         return split(property, inner, child => child === property.initializer)
       }
       default:
         if (node.kind >= Kind.FirstTypeNode && node.kind <= Kind.LastTypeNode) {
-          return computedNames(node)
+          return recordComputedNames(walk, node)
         }
     }
     visitChildren(node)
@@ -524,56 +632,6 @@ export function usesOf(source: ts.SourceFile, imports: ReadonlyMap<string, Bound
     else visit(next)
   }
 
-  const queue = [...started]
-  for (let owner = queue.pop(); owner !== undefined; owner = queue.pop()) {
-    for (const name of readBy.get(owner) ?? []) read.add(name)
-    for (const name of metadataBy.get(owner) ?? []) metadataRead.add(name)
-    for (const callee of calledBy.get(owner) ?? []) {
-      if (started.has(callee)) continue
-      started.add(callee)
-      queue.push(callee)
-    }
-  }
-
-  const jsxBindings = new Map<ts.Expression, string[]>()
-  if (jsx) {
-    for (const [name, binding] of imports) {
-      if (binding.typeOnly) continue
-      const names = jsxBindings.get(binding.specifier) ?? []
-      names.push(name)
-      jsxBindings.set(binding.specifier, names)
-    }
-  }
-  const pragmas = jsx ? jsxPragmasOf(source) : {}
-
-  const takenBy = (locals: ReadonlySet<string>) => {
-    const taken = new Map<ts.Expression, Set<string>>()
-    for (const name of locals) {
-      const { specifier, taken: exported } = bindings.get(name)!
-      taken.set(specifier, (taken.get(specifier) ?? new Set()).add(exported))
-    }
-    return (specifier: ts.Expression, names: readonly string[]) =>
-      names.filter(name => taken.get(specifier)?.has(name))
-  }
-  const loadTime = takenBy(read)
-  const metadataLoadTime = takenBy(metadataRead)
-  const valueOf = new Map<ts.Expression, Use['value']>()
-  for (const [name, { specifier }] of bindings) {
-    if (values.has(name)) valueOf.set(specifier, 'code')
-    else if (metadata.has(name)) valueOf.set(specifier, valueOf.get(specifier) ?? 'metadata')
-  }
-  return (specifier, names) => {
-    const value = valueOf.get(specifier)
-    const jsxNames = jsxBindings.get(specifier)
-    return {
-      loadTime: wholeCalls.has(specifier) ? names : loadTime(specifier, names),
-      ...(value === undefined ? {} : { value }),
-      metadataLoadTime: metadataLoadTime(specifier, names),
-      ...(jsxNames === undefined
-        ? {}
-        : {
-            jsx: { names: jsxNames, ...pragmas, ...(fragment ? { fragment: true as const } : {}) }
-          })
-    }
-  }
+  propagateCalls(walk.reads)
+  return importUses(source, imports, bindings, walk.reads)
 }
