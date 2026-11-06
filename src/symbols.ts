@@ -8,6 +8,7 @@ import type { SymbolKind } from './contract.ts'
 import { bindingsOf } from './imports.ts'
 import type { SymbolFacts } from './model.ts'
 import { compare } from './model.ts'
+import { firstOf, when } from './syntax.ts'
 
 const maxLength = 160
 
@@ -18,27 +19,6 @@ const fits = (text: string) => collapsed(text).length <= maxLength
 function oneLine(text: string): string {
   const line = collapsed(text)
   return fits(line) ? line : `${line.slice(0, maxLength - 1)}…`
-}
-
-type Guard<T extends ts.Node> = (node: ts.Node) => node is T
-
-function when<T extends ts.Node, R>(
-  is: Guard<T>,
-  then: (node: T, scope: Scope) => R
-): (node: ts.Node, scope: Scope) => R | undefined {
-  return (node, scope) => (is(node) ? then(node, scope) : undefined)
-}
-
-function firstOf<R>(
-  rules: readonly ((node: ts.Node, scope: Scope) => R | undefined)[],
-  node: ts.Node,
-  scope: Scope
-): R | undefined {
-  for (const rule of rules) {
-    const result = rule(node, scope)
-    if (result !== undefined) return result
-  }
-  return undefined
 }
 
 type NamedVariable = ts.VariableDeclaration & { readonly name: ts.Identifier }
@@ -370,8 +350,8 @@ const shapeHints = [
   when(ts.isObjectLiteralExpression, () => '{...}'),
   when(ts.isTemplateExpression, () => '`...`'),
   when(ts.isNoSubstitutionTemplateLiteral, () => '`...`'),
-  when(ts.isCallExpression, (call, { source }) => `${flat(call.expression, source)}(...)`),
-  when(ts.isNewExpression, (call, { source }) => `new ${flat(call.expression, source)}(...)`)
+  when(ts.isCallExpression, (call, { source }: Scope) => `${flat(call.expression, source)}(...)`),
+  when(ts.isNewExpression, (call, { source }: Scope) => `new ${flat(call.expression, source)}(...)`)
 ]
 
 function initializerText(head: string, initializer: ts.Expression, scope: Scope): string {
@@ -668,16 +648,14 @@ function exportedChain(
   })
 }
 
-function exportedCommonJs(node: ts.ExpressionStatement, scope: Scope): readonly Exported[] {
-  return exportedChain(node.expression, node, scope)
-}
-
 const statementRules = [
   when(isDeclarationStatement, exportedDeclaration),
   when(ts.isVariableStatement, exportedVariables),
   when(ts.isExportDeclaration, exportedSpecifiers),
   when(ts.isExportAssignment, exportedAssignment),
-  when(ts.isExpressionStatement, exportedCommonJs)
+  when(ts.isExpressionStatement, (node, scope: Scope) =>
+    exportedChain(node.expression, node, scope)
+  )
 ]
 
 function localsOf(statements: readonly ts.Statement[]): readonly Declaration[] {

@@ -8,7 +8,9 @@
 import { lstatSync } from 'node:fs'
 import { dirname, isAbsolute, join, sep } from 'node:path'
 import ts from 'typescript'
+import { frameworkLanguages } from './frameworks.ts'
 import type { Inputs } from './inputs.ts'
+import { isRecord } from './json.ts'
 import { parseRepoPath, toRepoPath, type RepoPath } from './model.ts'
 import { isWithin } from './paths.ts'
 import { missingFile, readProblem, readRepositoryFile } from './safe-read.ts'
@@ -39,7 +41,7 @@ export interface Build {
   readonly rootDir: string
 }
 
-export interface Config {
+interface Config {
   readonly path: RepoPath
   readonly parsed: ts.ParsedCommandLine
   /** Present when the outDir lies inside the repository and apart from the config's sources. */
@@ -48,9 +50,11 @@ export interface Config {
 
 // Without these, a config's file list never includes framework files, so they
 // would fall through to the defaults and lose the project's path aliases.
-const frameworkExtensions: readonly ts.FileExtensionInfo[] = ['.vue', '.svelte', '.astro'].map(
-  extension => ({ extension, isMixedContent: true, scriptKind: ts.ScriptKind.Deferred })
-)
+const frameworkExtensions: readonly ts.FileExtensionInfo[] = frameworkLanguages.map(language => ({
+  extension: `.${language}`,
+  isMixedContent: true,
+  scriptKind: ts.ScriptKind.Deferred
+}))
 
 interface Parsed {
   readonly config: Config
@@ -58,7 +62,7 @@ interface Parsed {
   readonly references: readonly string[]
 }
 
-export interface CompilerSettings {
+interface CompilerSettings {
   /** The config that applies to the absolute `file`, or undefined when the defaults do. */
   readonly configOf: (file: string) => Config | undefined
   /** The config at the absolute `configFile`, whether or not it applies to any file. */
@@ -87,7 +91,8 @@ type MatchFiles = (
 // The glob matcher behind `ts.sys.readDirectory`, which the public typings leave out.
 const { matchFiles } = ts as unknown as { readonly matchFiles: MatchFiles }
 
-const canonicalFileName = ts.sys.useCaseSensitiveFileNames
+/** A file name as the file system compares it, so TypeScript caches each file once. */
+export const canonicalFileName = ts.sys.useCaseSensitiveFileNames
   ? (name: string) => name
   : (name: string) => name.toLowerCase()
 
@@ -204,10 +209,7 @@ export function compilerSettings(
     if (!subpath) {
       const manifest = readJson(inputs, root, parseRepoPath(`${member.dir}/package.json`), [])
       subpath =
-        typeof manifest === 'object' &&
-        manifest !== null &&
-        'tsconfig' in manifest &&
-        typeof manifest.tsconfig === 'string'
+        isRecord(manifest) && typeof manifest.tsconfig === 'string'
           ? manifest.tsconfig
           : 'tsconfig.json'
     }

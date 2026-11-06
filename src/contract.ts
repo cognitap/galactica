@@ -117,7 +117,7 @@ export interface Failure {
 }
 
 /** A completed HTML write. The path is absolute; bytes is the exact UTF-8 size. */
-export interface HtmlWritten extends Envelope<'html'> {
+interface HtmlWritten extends Envelope<'html'> {
   readonly path: string
   readonly bytes: number
 }
@@ -126,7 +126,7 @@ export interface HtmlWritten extends Envelope<'html'> {
  * Installed skill files, in installation order. Paths are relative to the selected root.
  * When every file is kept, this object is still returned and the exit code is 1.
  */
-export interface SkillInstalled extends Envelope<'init'> {
+interface SkillInstalled extends Envelope<'init'> {
   readonly files: readonly {
     readonly path: string
     readonly status: 'created' | 'updated' | 'unchanged' | 'kept'

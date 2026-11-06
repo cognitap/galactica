@@ -6,7 +6,7 @@
 
 import { compare } from './model.ts'
 
-export type Successors<T> = (node: T) => readonly T[]
+type Successors<T> = (node: T) => readonly T[]
 
 /** Successors from (from, to) pairs, each list sorted and without repeats. */
 export function adjacency<T extends string>(pairs: Iterable<readonly [T, T]>): Successors<T> {

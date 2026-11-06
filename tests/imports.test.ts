@@ -3,7 +3,7 @@ import { test } from 'node:test'
 import ts from 'typescript'
 import { asCompiled, importsOf, resolutionModeOf } from '../src/imports.ts'
 import { parseRepoPath } from '../src/model.ts'
-import type { ScriptLanguage } from '../src/source-file.ts'
+import type { ScriptLanguage } from '../src/frameworks.ts'
 import { parseScript } from '../src/syntax.ts'
 
 const parse = (lines: readonly string[], kind = ts.ScriptKind.TS) =>

@@ -15,10 +15,12 @@ import { join } from 'node:path'
 import { performance } from 'node:perf_hooks'
 import ts from 'typescript'
 import { resolveBarrels } from './barrels.ts'
-import { currentStamp, readCache, writeCache, type Cache, type CacheEntry } from './cache.ts'
-import { compilerOptionsOf, discover, type DiscoveredModule, type Warning } from './discovery.ts'
-import { extract, hashOf } from './extraction.ts'
-import { compilerOf, unreadWarnings, type Unread } from './frameworks.ts'
+import type { CacheEntry } from './cache-schema.ts'
+import { currentStamp, readCache, writeCache, type Cache } from './cache.ts'
+import type { Warning } from './compiler-settings.ts'
+import { compilerOptionsOf, discover, type DiscoveredModule } from './discovery.ts'
+import { extract } from './extraction.ts'
+import { compilerOf, isScriptLanguage, unreadWarnings, type Unread } from './frameworks.ts'
 import { importResolver, type ImportResolver } from './import-resolution.ts'
 import { asCompiled, resolutionModeOf } from './imports.ts'
 import { plainInputs, type Inputs } from './inputs.ts'
@@ -27,6 +29,7 @@ import {
   compare,
   compareEdges,
   MODEL_FORMAT,
+  sha256,
   type Config,
   type Edge,
   type Model,
@@ -35,7 +38,6 @@ import {
 } from './model.ts'
 import { unreadable } from './repository-files.ts'
 import { readRepositoryFile } from './safe-read.ts'
-import { isScriptLanguage } from './source-file.ts'
 
 /** What a caller reports about a run. It stays out of the `Model`. */
 export interface Summary {
@@ -133,13 +135,13 @@ function entryOf(
     fileExists: inputs.fileExists,
     readFile: file => readFileSync(file)
   })
-  const hash = hashOf(bytes)
+  const hash = sha256(bytes)
   if (cached?.hash === hash) return [{ ...cached, mtimeMs, size }, 'reread']
   const extraction = timed(clock, 'parse', () => extract(path, language, bytes, load))
   return [{ hash, mtimeMs, size, ...extraction }, 'parsed']
 }
 
-export interface Options {
+interface Options {
   /** The folder of the cache. Without one, every module is parsed and nothing is written. */
   readonly cache?: string
   /** What the analysis reads, recorded or not. The machine as it is by default. */

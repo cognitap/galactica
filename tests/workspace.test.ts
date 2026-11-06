@@ -1,9 +1,13 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
+import ts from 'typescript'
 import { discover, type Discovery } from '../src/discovery.ts'
 import { emptyConfig, parseRepoPath, type Model } from '../src/model.ts'
 import { packageOf, pnpmWorkspacePatterns } from '../src/workspace.ts'
+import { plainInputs } from '../src/inputs.ts'
 import { repository } from './temp-repository.ts'
+
+const machine = plainInputs(ts.sys)
 
 const membership = (discovery: Discovery) =>
   Object.fromEntries(discovery.modules.map(module => [module.path, module.package]))
@@ -51,7 +55,7 @@ test('pnpm-workspace.yaml names the packages, by their package.json name', t => 
     'packages/api/package.json': { name: '@acme/api' },
     'packages/api/index.ts': ''
   })
-  const discovery = discover(root, emptyConfig)
+  const discovery = discover(root, emptyConfig, machine)
   assert.deepEqual(discovery.packages, {
     '@acme/api': { dir: 'packages/api' },
     '@acme/ui': { dir: 'packages/ui' }
@@ -69,7 +73,9 @@ test('package.json workspaces names the packages, as a list or as { packages }',
       'packages/ui/package.json': { name: '@acme/ui' },
       'packages/ui/index.ts': ''
     })
-    assert.deepEqual(discover(root, emptyConfig).packages, { '@acme/ui': { dir: 'packages/ui' } })
+    assert.deepEqual(discover(root, emptyConfig, machine).packages, {
+      '@acme/ui': { dir: 'packages/ui' }
+    })
   }
 })
 
@@ -80,7 +86,7 @@ test('a pnpm-workspace.yaml it cannot read is a warning, and workspaces applies 
     'libs/a/package.json': { name: 'a' },
     'libs/a/index.ts': ''
   })
-  const discovery = discover(root, emptyConfig)
+  const discovery = discover(root, emptyConfig, machine)
   assert.deepEqual(discovery.packages, { a: { dir: 'libs/a' } })
   assert.deepEqual(discovery.warnings, [
     { path: 'pnpm-workspace.yaml', message: 'packages: packages must be a sequence' }
@@ -94,7 +100,7 @@ test('a pnpm-workspace.yaml without packages leaves workspaces to decide', t => 
     'packages/ui/package.json': { name: '@acme/ui' },
     'src/main.ts': ''
   })
-  const discovery = discover(root, emptyConfig)
+  const discovery = discover(root, emptyConfig, machine)
   assert.deepEqual(discovery.packages, { root: { dir: '.' } })
   assert.deepEqual(discovery.warnings, [])
 })
@@ -110,7 +116,7 @@ test('negated patterns exclude, and ** matches packages at any depth', t => {
     'packages/legacy/old/package.json': { name: 'old' },
     'packages/legacy/old/index.ts': ''
   })
-  const discovery = discover(root, emptyConfig)
+  const discovery = discover(root, emptyConfig, machine)
   assert.deepEqual(discovery.packages, {
     root: { dir: '.' },
     ui: { dir: 'packages/libraries/ui' },
@@ -126,7 +132,7 @@ test('a member without a name is skipped with a warning', t => {
     'packages/named/index.ts': '',
     'packages/unnamed/package.json': { private: true }
   })
-  const discovery = discover(root, emptyConfig)
+  const discovery = discover(root, emptyConfig, machine)
   assert.deepEqual(discovery.packages, { named: { dir: 'packages/named' } })
   assert.deepEqual(discovery.warnings, [
     {
@@ -146,7 +152,7 @@ test('a module belongs to the innermost package that contains it', t => {
     'packages/application/package.json': { name: 'application' },
     'packages/application/index.ts': ''
   })
-  assert.deepEqual(membership(discover(root, emptyConfig)), {
+  assert.deepEqual(membership(discover(root, emptyConfig, machine)), {
     'packages/app/plugins/auth/index.ts': 'auth',
     'packages/app/src/main.ts': 'app',
     'packages/application/index.ts': 'application'
@@ -160,7 +166,7 @@ test('the root is a package when a module lies outside every workspace package',
     'packages/ui/index.ts': '',
     'scripts/release.ts': ''
   })
-  const discovery = discover(root, emptyConfig)
+  const discovery = discover(root, emptyConfig, machine)
   assert.deepEqual(discovery.packages, { root: { dir: '.' }, ui: { dir: 'packages/ui' } })
   assert.deepEqual(membership(discovery), {
     'packages/ui/index.ts': 'ui',
@@ -175,7 +181,7 @@ test('the root is no package when every module lies in a workspace package', t =
     'packages/ui/index.ts': '',
     'README.md': ''
   })
-  assert.deepEqual(discover(root, emptyConfig).packages, { ui: { dir: 'packages/ui' } })
+  assert.deepEqual(discover(root, emptyConfig, machine).packages, { ui: { dir: 'packages/ui' } })
 })
 
 test('packageOf picks the longest directory prefix, and the root contains every path', () => {

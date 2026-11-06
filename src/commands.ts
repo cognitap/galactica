@@ -38,9 +38,9 @@ export const commandOptions = {
   all: { type: 'boolean', value: '', summary: 'List every module of each area in overview' }
 } as const
 
-export type CommandOption = keyof typeof commandOptions
+type CommandOption = keyof typeof commandOptions
 
-export interface CommandSpec {
+interface CommandSpec {
   /** The positional argument's name in the usage text. Absent when the command takes none. */
   readonly argument?: string
   readonly options: readonly CommandOption[]

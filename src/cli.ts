@@ -1,8 +1,8 @@
 /** Route validated input, obtain the repository only when needed, and render the result. */
 
-import { readFileSync, statSync } from 'node:fs'
+import { statSync } from 'node:fs'
 import { join } from 'node:path'
-import { cacheDirectory } from './cache.ts'
+import { cacheDirectory, galacticaVersion } from './cache.ts'
 import { parseInput, usage } from './cli-input.ts'
 import { commandTable, type Repository } from './commands.ts'
 import { ConfigError, loadConfig } from './config.ts'
@@ -11,12 +11,7 @@ import { graphOf } from './graph.ts'
 import { analyze } from './model-cache.ts'
 import { render } from './render.ts'
 
-function readVersion(): string {
-  const pkg = JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8'))
-  return pkg.version
-}
-
-export interface Result {
+interface Result {
   readonly code: number
   readonly stdout: string
   readonly stderr: string
@@ -68,7 +63,7 @@ function resultOf(output: Output | Failure, json: boolean): Result {
 export async function run(argv: readonly string[], cwd: string): Promise<Result> {
   const parsed = parseInput(argv, cwd)
   if ('info' in parsed)
-    return { code: 0, stdout: parsed.info === 'help' ? usage() : readVersion(), stderr: '' }
+    return { code: 0, stdout: parsed.info === 'help' ? usage() : galacticaVersion(), stderr: '' }
   if ('error' in parsed)
     return parsed.command === undefined
       ? failure(parsed.error)
@@ -77,7 +72,7 @@ export async function run(argv: readonly string[], cwd: string): Promise<Result>
   if (command === 'init' || command === 'html') {
     const { installAgents, writeHtml } = await import('./cli-writers.ts')
     let written
-    if (command === 'init') written = installAgents(parsed, cwd, readVersion())
+    if (command === 'init') written = installAgents(parsed, cwd, galacticaVersion())
     else {
       const repository = await analyzed(root, noCache)
       if ('problem' in repository) return resultOf(usageFailure(command, repository.problem), json)

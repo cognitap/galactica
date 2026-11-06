@@ -10,6 +10,8 @@ import { emptyConfig, parseRepoPath } from '../src/model.ts'
 import { analyzeRepository } from '../src/analysis.ts'
 import { repository, type Files } from './temp-repository.ts'
 
+const machine = plainInputs(ts.sys)
+
 /** Where each specifier leads from `from`, resolved in the given mode. */
 function resolved(
   t: TestContext,
@@ -18,10 +20,10 @@ function resolved(
   specifiers: readonly string[],
   mode?: ts.ResolutionMode
 ): Readonly<Record<string, Resolution>> {
-  const discovery = discover(repository(t, files), emptyConfig)
+  const discovery = discover(repository(t, files), emptyConfig, machine)
   const module = discovery.modules.find(({ path }) => path === from)
   assert.ok(module, `${from} is no module`)
-  const resolver = importResolver(discovery)
+  const resolver = importResolver(discovery, machine)
   return Object.fromEntries(
     specifiers.map(specifier => [specifier, resolver.resolve(module, specifier, mode)])
   )
@@ -101,8 +103,8 @@ test('the module format decides the resolution mode, so require resolves as Comm
     'src/main.mjs': '',
     'src/math.js': ''
   }
-  const discovery = discover(repository(t, files), emptyConfig)
-  const resolver = importResolver(discovery)
+  const discovery = discover(repository(t, files), emptyConfig, machine)
+  const resolver = importResolver(discovery, machine)
   const formats = Object.fromEntries(
     discovery.modules.map(module => [module.path, resolver.formatOf(module)])
   )
@@ -274,8 +276,8 @@ test('a workspace package resolves to its source, and its failure is final', t =
     'packages/core/src/index.ts': '',
     'packages/core/src/hidden.ts': ''
   }
-  const discovery = discover(repository(t, files), emptyConfig)
-  const resolver = importResolver(discovery)
+  const discovery = discover(repository(t, files), emptyConfig, machine)
+  const resolver = importResolver(discovery, machine)
   const main = discovery.modules.find(({ path }) => path === 'packages/app/src/main.ts')!
   assert.deepEqual(resolver.resolve(main, '@mono/core', undefined), {
     kind: 'module',
@@ -520,9 +522,9 @@ test('a missing paths target falls back to its npm package (DEV-723)', t => {
 test('imports through a symlinked folder reach the discovered source (DEV-724)', t => {
   const root = repository(t, { 'src/main.ts': '', 'src/actual/a.ts': '' })
   symlinkSync(join(root, 'src/actual'), join(root, 'src/alias'), 'dir')
-  const discovery = discover(root, emptyConfig)
+  const discovery = discover(root, emptyConfig, machine)
   const main = discovery.modules.find(module => module.path === 'src/main.ts')!
-  assert.deepEqual(importResolver(discovery).resolve(main, './alias/a', undefined), {
+  assert.deepEqual(importResolver(discovery, machine).resolve(main, './alias/a', undefined), {
     kind: 'module',
     path: 'src/actual/a.ts'
   })
@@ -556,9 +558,9 @@ test('unknown files and source omitted from discovery stay unresolved (DEV-724)'
     'src/styles.css': '',
     'src/data.json': '{}'
   })
-  const discovery = discover(root, { ...emptyConfig, exclude: ['src/hidden.ts'] })
+  const discovery = discover(root, { ...emptyConfig, exclude: ['src/hidden.ts'] }, machine)
   const main = discovery.modules.find(module => module.path === 'src/main.ts')!
-  const resolver = importResolver(discovery)
+  const resolver = importResolver(discovery, machine)
   assert.deepEqual(
     Object.fromEntries(
       ['./hidden', './template.unknown', './styles.css', './data.json'].map(specifier => [
@@ -579,9 +581,9 @@ test('a source symlink that escapes the repository stays unresolved', t => {
   const outside = repository(t, { 'outside.ts': '' })
   const root = repository(t, { 'src/main.ts': '' })
   symlinkSync(outside, join(root, 'src/alias'), 'dir')
-  const discovery = discover(root, emptyConfig)
+  const discovery = discover(root, emptyConfig, machine)
   const main = discovery.modules.find(module => module.path === 'src/main.ts')!
-  assert.deepEqual(importResolver(discovery).resolve(main, './alias/outside', undefined), {
+  assert.deepEqual(importResolver(discovery, machine).resolve(main, './alias/outside', undefined), {
     kind: 'unresolved',
     specifier: './alias/outside'
   })

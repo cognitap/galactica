@@ -23,7 +23,7 @@ import { adjacency, layersOf, stronglyConnected } from './strongly-connected.ts'
 export type Placed = Pick<ModuleNode, 'facts' | 'package' | 'area' | 'kind'>
 export type Nodes = ReadonlyMap<RepoPath, Placed>
 
-export interface Dependency {
+interface Dependency {
   readonly from: RepoPath
   readonly to: RepoPath
   readonly source: Placed
@@ -53,7 +53,7 @@ interface Link extends ClosingEdge {
   readonly areas: readonly [AreaPath, AreaPath]
 }
 
-export interface AreaLayers {
+interface AreaLayers {
   readonly areas: Graph['areas']
   readonly areaCycles: Graph['areaCycles']
 }

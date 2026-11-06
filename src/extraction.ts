@@ -4,13 +4,17 @@
  * as the bytes, and so their hash, are the same.
  */
 
-import { createHash } from 'node:crypto'
 import type { Language } from './contract.ts'
-import { scriptBlocksOf, type FrameworkLanguage, type ScriptBlock } from './frameworks.ts'
+import {
+  isScriptLanguage,
+  scriptBlocksOf,
+  type FrameworkLanguage,
+  type ScriptBlock,
+  type ScriptLanguage
+} from './frameworks.ts'
 import { importsOf, type Import } from './imports.ts'
 import { compare, type RepoPath, type SymbolFacts } from './model.ts'
 import { symbolsOf } from './symbols.ts'
-import { isScriptLanguage, type ScriptLanguage } from './source-file.ts'
 import { parseScript } from './syntax.ts'
 
 export interface Extraction {
@@ -19,9 +23,6 @@ export interface Extraction {
   /** Why the file could not be read, by the framework's compiler or by TypeScript. It then has no imports. */
   readonly failure?: string
 }
-
-export const hashOf = (bytes: Uint8Array): string =>
-  createHash('sha256').update(bytes).digest('hex')
 
 function withoutLoadTime(imported: Import): Import {
   const { loadTime: _, metadataLoadTime: __, ...rest } = imported
@@ -39,7 +40,7 @@ function componentOf(path: RepoPath): SymbolFacts {
   return { name, kind: 'component', line: 1, default: true, signature: `component ${name}` }
 }
 
-function blockExtraction(path: RepoPath, block: ScriptBlock, loads: boolean): Extraction {
+function blockExtraction(path: RepoPath, block: ScriptBlock): Extraction {
   const source = parseScript(path, block.language, block.text)
   const shift = <T extends { readonly line: number }>(item: T): T => ({
     ...item,
@@ -48,7 +49,9 @@ function blockExtraction(path: RepoPath, block: ScriptBlock, loads: boolean): Ex
   // The file's default export is its component, whatever a block exports as default.
   const symbols = block.exports ? symbolsOf(source).filter(symbol => !symbol.default) : []
   // The markup can read a block's bindings, which the block's own syntax tree does not show.
-  const imports = loads ? importsOf(source, false) : importsOf(source, false).map(withoutLoadTime)
+  const imports = block.loads
+    ? importsOf(source, false)
+    : importsOf(source, false).map(withoutLoadTime)
   return { symbols: symbols.map(shift), imports: imports.map(shift) }
 }
 
@@ -68,12 +71,7 @@ function frameworkExtraction(
   } catch (error) {
     return { symbols: [component], imports: [], failure: firstLineOf(error) }
   }
-  // Only a Vue `<script>` or a Svelte module script runs as the module loads.
-  // `<script setup>`, a Svelte instance script and Astro frontmatter run per
-  // component instance or render.
-  const extractions = blocks.map(block =>
-    blockExtraction(path, block, block.exports && language !== 'astro')
-  )
+  const extractions = blocks.map(block => blockExtraction(path, block))
   const symbols = [component, ...extractions.flatMap(extraction => extraction.symbols)]
   return {
     symbols: symbols.sort((a, b) => a.line - b.line || compare(a.name, b.name)),

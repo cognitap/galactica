@@ -1,9 +1,13 @@
 import assert from 'node:assert/strict'
 import { test, type TestContext } from 'node:test'
+import ts from 'typescript'
 import { discover } from '../src/discovery.ts'
 import { emptyConfig, type PackageName, type RepoPath } from '../src/model.ts'
 import { splitSpecifier, workspaceResolver } from '../src/package-resolution.ts'
+import { plainInputs } from '../src/inputs.ts'
 import { repository, type Files } from './temp-repository.ts'
+
+const machine = plainInputs(ts.sys)
 
 /** A workspace with one package, `pkg` in `packages/pkg`, whose package.json adds `manifest`. */
 function workspace(t: TestContext, manifest: object, files: Files) {
@@ -14,7 +18,7 @@ function workspace(t: TestContext, manifest: object, files: Files) {
       Object.entries(files).map(([path, text]) => [`packages/pkg/${path}`, text])
     )
   })
-  return workspaceResolver(discover(root, emptyConfig))
+  return workspaceResolver(discover(root, emptyConfig, machine), machine)
 }
 
 /** Each specifier's module path, existing file, or unresolved reason. */
@@ -88,7 +92,7 @@ test('a subpath map resolves each subpath, scoped names included', t => {
     'packages/api/index.ts': '',
     'packages/api/src/client.ts': ''
   })
-  const resolver = workspaceResolver(discover(root, emptyConfig))
+  const resolver = workspaceResolver(discover(root, emptyConfig, machine), machine)
   assert.deepEqual(resolver.resolve('@acme/api'), { kind: 'module', path: 'packages/api/index.ts' })
   assert.deepEqual(resolver.resolve('@acme/api/client'), {
     kind: 'module',
@@ -317,12 +321,12 @@ test('a build config that owns no module maps its outDir back to source', t => {
     'src/motion/index.ts': '',
     'tests/package.test.ts': ''
   })
-  const discovery = discover(root, emptyConfig)
+  const discovery = discover(root, emptyConfig, machine)
   assert.deepEqual(
     new Set(discovery.modules.map(module => module.config)),
     new Set(['tsconfig.json'])
   )
-  const resolver = workspaceResolver(discovery)
+  const resolver = workspaceResolver(discovery, machine)
   assert.deepEqual(
     ['@acme/lib', '@acme/lib/motion', '@acme/lib/gone'].map(specifier =>
       resolver.resolve(specifier)
@@ -441,7 +445,9 @@ test('the root package resolves its own name only when it has exports', t => {
     'src/utils.ts': ''
   })
   assert.deepEqual(
-    workspaceResolver(discover(exporting, emptyConfig)).resolve('@acme/self/utils'),
+    workspaceResolver(discover(exporting, emptyConfig, machine), machine).resolve(
+      '@acme/self/utils'
+    ),
     {
       kind: 'module',
       path: 'src/utils.ts'
@@ -449,12 +455,15 @@ test('the root package resolves its own name only when it has exports', t => {
   )
   const plain = repository(t, { 'package.json': { name: 'plain' }, 'src/utils.ts': '' })
   assert.equal(
-    workspaceResolver(discover(plain, emptyConfig)).resolve('plain/src/utils.ts'),
+    workspaceResolver(discover(plain, emptyConfig, machine), machine).resolve('plain/src/utils.ts'),
     undefined
   )
   const unnamed = repository(t, { 'index.ts': '' })
-  const [fallbackName] = Object.keys(discover(unnamed, emptyConfig).packages)
-  assert.equal(workspaceResolver(discover(unnamed, emptyConfig)).resolve(fallbackName!), undefined)
+  const [fallbackName] = Object.keys(discover(unnamed, emptyConfig, machine).packages)
+  assert.equal(
+    workspaceResolver(discover(unnamed, emptyConfig, machine), machine).resolve(fallbackName!),
+    undefined
+  )
 })
 
 /** `target` under `depth` levels of the `import` condition, as package.json text, since `JSON.stringify` overflows at such depths. */
@@ -468,7 +477,7 @@ test('exports conditions nested thousands deep leave the import unresolved with 
     'packages/pkg/index.ts': '',
     'packages/pkg/src/a.ts': ''
   })
-  const resolver = workspaceResolver(discover(root, emptyConfig))
+  const resolver = workspaceResolver(discover(root, emptyConfig, machine), machine)
   assert.deepEqual(resolver.resolve('pkg'), { kind: 'unresolved', reason: 'too-deep' })
   assert.deepEqual(resolver.resolve('pkg/shallow'), {
     kind: 'module',

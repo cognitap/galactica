@@ -7,24 +7,23 @@
 
 import { lstatSync } from 'node:fs'
 import { join, posix, relative } from 'node:path'
-import ts from 'typescript'
 import type { Warning } from './compiler-settings.ts'
 import type { Discovery } from './discovery.ts'
-import { plainInputs, type Inputs } from './inputs.ts'
-import { isRecord } from './json.ts'
+import type { Inputs } from './inputs.ts'
+import { isRecord, type UnknownRecord } from './json.ts'
 import { parseRepoPath, toRepoPath, type PackageName, type RepoPath } from './model.ts'
 import { isWithin } from './paths.ts'
 import { nameOf, readJson } from './workspace.ts'
 
-export type UnresolvedReason = 'blocked' | 'no-export' | 'missing' | 'build-output' | 'too-deep'
+type UnresolvedReason = 'blocked' | 'no-export' | 'missing' | 'build-output' | 'too-deep'
 
-export type WorkspaceResolution =
+type WorkspaceResolution =
   | { readonly kind: 'module'; readonly path: RepoPath }
   | { readonly kind: 'file'; readonly path: RepoPath }
   | { readonly kind: 'unresolved'; readonly reason: UnresolvedReason }
 
 /** A public specifier of a package and the module it reaches. */
-export interface Entry {
+interface Entry {
   readonly specifier: string
   readonly path: RepoPath
 }
@@ -80,6 +79,8 @@ const conditions: readonly string[] = [
   'node',
   'default'
 ]
+
+const scriptExtension = /(\.d)?\.[cm]?[jt]sx?$/
 
 /** Folders bundlers write to. A target under one that is no module is build output. */
 const outDirs: ReadonlySet<string> = new Set(['dist', 'build', 'lib', 'out', 'esm', 'cjs'])
@@ -140,7 +141,7 @@ export function sourceCandidates(path: string): readonly string[] {
 function bundledSources(target: string, packageName: string, subpath: string): readonly string[] {
   const [outDir, ...parts] = target.split('/')
   if (outDir === undefined || !outDirs.has(outDir) || parts.length === 0) return []
-  const file = parts.pop()!.replace(/(\.d)?\.[cm]?[jt]sx?$/, '')
+  const file = parts.pop()!.replace(scriptExtension, '')
   const sources = [[...parts, file].join('/')]
   while (parts[0] !== undefined && formatDirs.has(parts[0])) {
     parts.shift()
@@ -193,40 +194,50 @@ function resolveTarget(
   return firstModule(options, option => resolveTarget(option, star, locate, depth + 1))
 }
 
+/**
+ * What `*` stands for when `text` matches `pattern`, a key with exactly one
+ * `*`, as `exports`, `imports` and tsconfig `paths` keys match: by its prefix
+ * and suffix. Undefined when the pattern has no single `*` or does not match.
+ */
+export function starIn(pattern: string, text: string): string | undefined {
+  const [prefix, suffix, ...more] = pattern.split('*')
+  if (prefix === undefined || suffix === undefined || more.length > 0) return undefined
+  const fits =
+    text.length >= prefix.length + suffix.length && text.startsWith(prefix) && text.endsWith(suffix)
+  return fits ? text.slice(prefix.length, text.length - suffix.length) : undefined
+}
+
+/** An `exports` value whose keys are subpaths, as opposed to conditions or a single target. */
+const isSubpathMap = (exports: unknown): exports is UnknownRecord =>
+  isRecord(exports) && Object.keys(exports).every(key => key.startsWith('.'))
+
 /** The exports entry for `subpath` and the text its `*` stands for, by the package.json exports rules. */
 function exportsEntry(
   exports: unknown,
   subpath: string
 ): { readonly target: unknown; readonly star: string } | undefined {
-  const isSubpathMap = isRecord(exports) && Object.keys(exports).every(key => key.startsWith('.'))
-  const map: Readonly<Record<string, unknown>> = isSubpathMap ? exports : { '.': exports }
-  return subpathEntry(map, subpath)
+  return subpathEntry(isSubpathMap(exports) ? exports : { '.': exports }, subpath)
 }
 
-/** Exact keys win, then the longest wildcard prefix and suffix. */
+/** Exact keys win, then the longest wildcard prefix and suffix. `*` stands for at least one character. */
 function subpathEntry(
-  map: Readonly<Record<string, unknown>>,
+  map: UnknownRecord,
   subpath: string
 ): { readonly target: unknown; readonly star: string } | undefined {
   if (Object.hasOwn(map, subpath) && !subpath.includes('*'))
     return { target: map[subpath], star: '' }
   const matches = Object.keys(map).flatMap(key => {
-    const [prefix, suffix, ...more] = key.split('*')
-    if (prefix === undefined || suffix === undefined || more.length > 0) return []
-    const fits =
-      subpath.length >= key.length && subpath.startsWith(prefix) && subpath.endsWith(suffix)
-    return fits
-      ? [{ key, prefix, star: subpath.slice(prefix.length, subpath.length - suffix.length) }]
-      : []
+    const star = starIn(key, subpath)
+    return star ? [{ key, star }] : []
   })
   const best = matches.sort(
-    (a, b) => b.prefix.length - a.prefix.length || b.key.length - a.key.length
+    (a, b) => b.key.indexOf('*') - a.key.indexOf('*') || b.key.length - a.key.length
   )[0]
   return best && { target: map[best.key], star: best.star }
 }
 
 /** Package-relative or external targets of a private import in its nearest package scope. */
-export function packageImports(root: string, inputs: Inputs, warnings: Warning[] = []) {
+export function packageImports(root: string, inputs: Inputs, warnings: Warning[]) {
   interface Scope {
     readonly dir: RepoPath
     readonly imports: unknown
@@ -318,10 +329,7 @@ export function splitSpecifier(
  * TypeScript allow self-reference only then. Reads each package.json once,
  * when the resolver is made.
  */
-export function workspaceResolver(
-  discovery: Discovery,
-  inputs: Inputs = plainInputs(ts.sys)
-): WorkspaceResolver {
+export function workspaceResolver(discovery: Discovery, inputs: Inputs): WorkspaceResolver {
   const modules: ReadonlySet<string> = new Set(discovery.modules.map(module => module.path))
   const manifests = new Map(
     Object.entries(discovery.packages).flatMap(([name, { dir }]) => {
@@ -426,9 +434,7 @@ export function workspaceResolver(
   }
 
   const subpathKeys = (exports: unknown): readonly string[] =>
-    isRecord(exports) && Object.keys(exports).every(key => key.startsWith('.'))
-      ? Object.keys(exports)
-      : ['.']
+    isSubpathMap(exports) ? Object.keys(exports) : ['.']
 
   const specifierOf = (name: string, subpath: string) =>
     subpath === '.' ? name : `${name}${subpath.slice(1)}`
@@ -494,8 +500,6 @@ export function workspaceResolver(
   }
 }
 
-const scriptExtension = /(\.d)?\.[cm]?[jt]sx?$/
-
 /** The subpaths a module may be imported by, shortest first: its folder for an index, then without its extension. */
 function ownPaths(relativePath: string): readonly string[] {
   const stem = relativePath.replace(scriptExtension, '')
@@ -531,11 +535,7 @@ function patternStars(target: unknown, relativePath: string): readonly string[] 
       { path: relativePath.replace(scriptExtension, ''), end: suffix.replace(scriptExtension, '') }
     ]
     return prefixes.flatMap(start =>
-      forms.flatMap(({ path, end }) =>
-        path.length > start.length + end.length && path.startsWith(start) && path.endsWith(end)
-          ? [path.slice(start.length, path.length - end.length)]
-          : []
-      )
+      forms.flatMap(({ path, end }) => starIn(`${start}*${end}`, path) || [])
     )
   })
   return [...new Set(stars)]

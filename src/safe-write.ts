@@ -21,7 +21,7 @@ export class SymlinkRefused extends Error {
   }
 }
 
-export interface FileWrite {
+interface FileWrite {
   /** Absolute, below the folder written to. */
   readonly path: string
   readonly text: string
