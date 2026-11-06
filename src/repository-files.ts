@@ -6,8 +6,8 @@
  */
 
 import { spawnSync } from 'node:child_process'
-import { existsSync, readdirSync, realpathSync } from 'node:fs'
-import { join, relative } from 'node:path'
+import { existsSync, lstatSync, readdirSync, realpathSync, statSync } from 'node:fs'
+import { isAbsolute, join, posix, relative, sep } from 'node:path'
 import type { Inputs } from './inputs.ts'
 import { parseRepoPath, type RepoPath } from './model.ts'
 
@@ -122,6 +122,42 @@ function walkedFiles(root: string, listing: Listing, dir = ''): readonly string[
 const fromDisk: Listing = {
   gitListing,
   readdir: path => readdirSync(path, { withFileTypes: true })
+}
+
+/**
+ * Why the module at `path` is not read, or undefined when it is: when it is
+ * no regular file within `root` once its links
+ * are followed. A link to `/dev/zero` would never finish reading, and a link
+ * out of the root would put a file from elsewhere on the machine into the
+ * output. A link within the root is read from its target, as the
+ * repository holds those bytes anyway.
+ */
+export function unreadable(root: string): (path: RepoPath) => string | undefined {
+  const realRoot = realpathSync.native(root)
+  const within = (path: string) => {
+    const inside = relative(realRoot, realpathSync.native(join(root, path)))
+    return inside.split(sep)[0] !== '..' && !isAbsolute(inside)
+  }
+  // A folder can be a link too, when an index that came with an archive lists
+  // files under a path the work tree links elsewhere.
+  const folders = new Map<string, boolean>([['.', true]])
+  const folderWithin = (folder: string): boolean => {
+    let inside = folders.get(folder)
+    if (inside === undefined) {
+      inside =
+        folderWithin(posix.dirname(folder)) &&
+        (!lstatSync(join(root, folder)).isSymbolicLink() || within(folder))
+      folders.set(folder, inside)
+    }
+    return inside
+  }
+  return path => {
+    const link = lstatSync(join(root, path))
+    const inside = link.isSymbolicLink() ? within(path) : folderWithin(posix.dirname(path))
+    if (!inside) return 'links outside the repository'
+    const stat = link.isSymbolicLink() ? statSync(join(root, path)) : link
+    return stat.isFile() ? undefined : 'is not a regular file'
+  }
 }
 
 /** Every file under `root` outside the skipped directories, unsorted. */
