@@ -156,6 +156,7 @@ export function analyzeRepository(
   const counts: Record<Source, number> = { reused: 0, reread: 0, parsed: 0 }
   const entries = new Map<RepoPath, CacheEntry>()
   const unread: Unread[] = []
+  const unparsed: Warning[] = []
   for (const module of discovery.modules) {
     const { path, language } = module
     const compiler = compilerOf(language)
@@ -172,6 +173,11 @@ export function analyzeRepository(
     const { failure } = entry
     if (compiler && (!compiler.load || failure !== undefined)) {
       unread.push({ path, language, compiler, ...(failure === undefined ? {} : { failure }) })
+    } else if (failure !== undefined) {
+      unparsed.push({
+        path,
+        message: `could not read the file (${failure}), so it has no symbols or imports`
+      })
     }
   }
   const changed = counts.reread + counts.parsed > 0 || cached.size !== entries.size
@@ -211,9 +217,12 @@ export function analyzeRepository(
       modules
     },
     summary: {
-      warnings: [...discovery.warnings, ...resolver.warnings(), ...unreadWarnings(unread)].sort(
-        (a, b) => compare(a.path, b.path) || compare(a.message, b.message)
-      ),
+      warnings: [
+        ...discovery.warnings,
+        ...resolver.warnings(),
+        ...unreadWarnings(unread),
+        ...unparsed
+      ].sort((a, b) => compare(a.path, b.path) || compare(a.message, b.message)),
       unresolved: edges.filter(edge => edge.to.kind === 'unresolved').length,
       skipped,
       modules: counts,

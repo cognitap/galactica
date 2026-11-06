@@ -4,6 +4,10 @@
 
 ## Unreleased
 
+- A file nested too deeply for TypeScript to parse, such as a chain of thousands of `else if`, no longer crashes every command. Its module stays, with no symbols or imports, and the analysis adds one warning that names the file.
+- A deeply nested expression, such as a 3,000-term string concatenation or the 1,500-term sum in microsoft/TypeScript's `binderBinaryExpressionStress.ts`, is read in full instead of crashing with `RangeError: Maximum call stack size exceeded`. Galactica now maps microsoft/TypeScript.
+- A workspace `package.json` whose `exports` nests conditions or fallbacks more than 32 levels deep leaves the import unresolved with a warning, instead of crashing.
+- An import that passes through more than 100 barrels points at its first barrel instead of crashing.
 - Read JavaScript aliases from `jsconfig.json` when no `tsconfig.json` is present in the same folder.
 - Resolve workspace package tsconfig extensions before installing dependencies.
 - Suppress TypeScript deprecation and output-layout migration notices that do not affect the map.
