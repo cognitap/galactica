@@ -1,8 +1,17 @@
 import assert from 'node:assert/strict'
 import { spawnSync } from 'node:child_process'
-import { existsSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import {
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readdirSync,
+  readFileSync,
+  rmSync,
+  symlinkSync,
+  writeFileSync
+} from 'node:fs'
 import { tmpdir } from 'node:os'
-import { join, relative } from 'node:path'
+import { dirname, join, relative } from 'node:path'
 import { after, test, type TestContext } from 'node:test'
 import { commands } from '../src/contract.ts'
 import { gitlab, invalidConfigs, validConfigs } from './config-examples.ts'
@@ -564,6 +573,95 @@ test('init --root installs into that directory and prints paths from the current
   assert.equal(status, 0)
   assert.equal(stdout, written.map(path => `created ../../${path}\n`).join(''))
   assert.ok(existsSync(join(root, skillPaths[0]!)))
+})
+
+/** A repository and a folder outside it holding `outside.txt`, which a link in the repository can point at. */
+function besideOutside(t: TestContext) {
+  const root = repository(t, { 'package.json': {}, 'src/a.ts': 'export const a = 1' })
+  const outside = repository(t, { 'outside.txt': 'Not Galactica.\n' })
+  return { root, outside, untouched: () => filesUnder(outside).join() === 'outside.txt' }
+}
+
+function link(root: string, path: string, target: string) {
+  mkdirSync(dirname(join(root, path)), { recursive: true })
+  symlinkSync(target, join(root, path))
+}
+
+test('init refuses a skill file that is a symbolic link, dangling or not, and writes nothing', t => {
+  for (const force of [[], ['--force']]) {
+    for (const target of ['outside.txt', 'created.txt']) {
+      const { root, outside, untouched } = besideOutside(t)
+      link(root, skillPaths[1]!, join(outside, target))
+      const { status, stdout, stderr } = galactica(root, 'init', ...force)
+      assert.equal(status, 1)
+      assert.equal(stdout, '')
+      assert.equal(stderr, `galactica: refused to write ${skillPaths[1]}: it is a symbolic link\n`)
+      assert.ok(untouched(), `${target} ${force}`)
+      assert.equal(readFileSync(join(outside, 'outside.txt'), 'utf8'), 'Not Galactica.\n')
+      assert.deepEqual(filesUnder(root), ['package.json', 'src/a.ts'])
+    }
+  }
+})
+
+test('init refuses to write through a linked folder such as .claude -> ~/.claude', t => {
+  const { root, outside, untouched } = besideOutside(t)
+  link(root, '.cursor', outside)
+  const { status, stderr } = galactica(root, 'init')
+  assert.equal(status, 1)
+  assert.equal(stderr, `galactica: refused to write ${rulePath}: .cursor is a symbolic link\n`)
+  assert.ok(untouched())
+  assert.deepEqual(readdirSync(root).toSorted(), ['.cursor', 'package.json', 'src'])
+})
+
+test('init installs nothing when one of its files cannot be written', t => {
+  const root = repository(t, { 'package.json': {}, '.cursor': 'a file, not a folder' })
+  const { status, stdout, stderr } = galactica(root, 'init')
+  assert.equal(status, 1)
+  assert.equal(stdout, '')
+  assert.match(stderr, /^galactica: could not install the skill: /)
+  assert.deepEqual(readdirSync(root).toSorted(), ['.cursor', 'package.json'])
+})
+
+test('html refuses a page path that is a symbolic link, by default or with --out', t => {
+  const { root, outside, untouched } = besideOutside(t)
+  link(root, 'galactica.html', join(outside, 'outside.txt'))
+  const byDefault = galactica(root, 'html')
+  assert.equal(byDefault.status, 1)
+  assert.equal(byDefault.stdout, '')
+  assert.equal(
+    byDefault.stderr,
+    'galactica: refused to write galactica.html: it is a symbolic link\n'
+  )
+
+  const elsewhere = repository(t, {})
+  link(elsewhere, 'map.html', join(outside, 'outside.txt'))
+  const out = join(elsewhere, 'map.html')
+  const explicit = galactica(root, 'html', '--out', out)
+  assert.equal(explicit.status, 1)
+  assert.match(
+    explicit.stderr,
+    /^galactica: refused to write \S+\/map\.html: it is a symbolic link\n$/
+  )
+  assert.ok(untouched())
+  assert.equal(readFileSync(join(outside, 'outside.txt'), 'utf8'), 'Not Galactica.\n')
+})
+
+test('html refuses a linked folder inside the repository, and writes through one outside it', t => {
+  const { root, outside, untouched } = besideOutside(t)
+  link(root, 'docs', outside)
+  const inside = galactica(root, 'html', '--out', 'docs/map.html')
+  assert.equal(inside.status, 1)
+  assert.equal(
+    inside.stderr,
+    'galactica: refused to write docs/map.html: docs is a symbolic link\n'
+  )
+  assert.ok(untouched())
+
+  const elsewhere = repository(t, {})
+  link(elsewhere, 'linked', outside)
+  const chosen = galactica(root, 'html', '--out', join(elsewhere, 'linked', 'map.html'))
+  assert.equal(chosen.status, 0)
+  assert.match(readFileSync(join(outside, 'map.html'), 'utf8'), /^<!doctype html>/)
 })
 
 test('init takes no argument, no flag of another command and no empty --command', () => {
