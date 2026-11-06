@@ -5,7 +5,7 @@
  */
 
 import ts from 'typescript'
-import { isRequireCall, usesOf } from './load-time.ts'
+import { isRequireCall, usesOf, type JSXRead } from './load-time.ts'
 import { parseRepoPath, type Edge } from './model.ts'
 import type { ScriptLanguage } from './source-file.ts'
 import { parseScript, pushChildren } from './syntax.ts'
@@ -33,6 +33,8 @@ export interface Import extends Omit<Edge, 'to' | 'via'> {
   readonly elided?: 'unless-verbatim' | 'unless-metadata'
   /** The `names` a decorated signature names in load-time code, which `emitDecoratorMetadata` reads then. */
   readonly metadataLoadTime?: readonly string[]
+  /** JSX factory candidates, resolved against compiler options after extraction is cached. */
+  readonly jsx?: JSXRead
 }
 
 /** What an import takes, before its line is known. */
@@ -354,7 +356,10 @@ export function importsOf(source: ts.SourceFile, elides: boolean): readonly Impo
         dynamic: taken.dynamic,
         ...(read.length === 0 || taken.typeOnly ? {} : { loadTime: read }),
         ...(elided === undefined ? {} : { elided }),
-        ...(metadataLoadTime.length === 0 ? {} : { metadataLoadTime })
+        ...(metadataLoadTime.length === 0 ? {} : { metadataLoadTime }),
+        ...(elided === undefined || taken.typeOnly || use?.jsx === undefined
+          ? {}
+          : { jsx: use.jsx })
       })
     }
     pushChildren(pending, node, child => child)
@@ -378,11 +383,18 @@ const emitsMetadata = (options: ts.CompilerOptions) =>
  * at load time when the output emits that metadata.
  */
 export function asCompiled(
-  { elided, metadataLoadTime, ...imported }: Import,
+  { elided, metadataLoadTime, jsx, ...imported }: Import,
   options: ts.CompilerOptions
-): Omit<Import, 'elided' | 'metadataLoadTime'> {
+): Omit<Import, 'elided' | 'metadataLoadTime' | 'jsx'> {
   const metadata = emitsMetadata(options)
-  const kept = keepsImports(options) || (elided === 'unless-metadata' && metadata)
+  const factory = (jsx?.factory ?? options.jsxFactory ?? 'React').split('.')[0]
+  const fragmentFactory = (jsx?.fragmentFactory ?? options.jsxFragmentFactory ?? 'React').split(
+    '.'
+  )[0]
+  const jsxRead = jsx?.names.some(
+    name => name === factory || (jsx.fragment && name === fragmentFactory)
+  )
+  const kept = keepsImports(options) || (elided === 'unless-metadata' && metadata) || jsxRead
   if (elided !== undefined && !kept) return { ...imported, typeOnly: true }
   if (!metadata || metadataLoadTime === undefined) return imported
   return { ...imported, loadTime: sortedNames([...(imported.loadTime ?? []), ...metadataLoadTime]) }

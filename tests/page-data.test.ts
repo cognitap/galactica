@@ -5,7 +5,8 @@ import { graphOf } from '../src/graph.ts'
 import { emptyConfig, type RepoPath } from '../src/model.ts'
 import { pageData, type PageData, type PageRelations } from '../src/page-data.ts'
 import { indexesOf } from '../src/page/indexes.js'
-import { deps, uses } from '../src/queries.ts'
+import { deps, depsOf, uses, usesOf } from '../src/queries.ts'
+import { areaSubject, moduleSubject, type Resolved } from '../src/subjects.ts'
 import { defines, edge, modelOf } from './models.ts'
 
 const areaPaths = (page: PageData, indexes: readonly number[]) =>
@@ -262,6 +263,83 @@ test('an area at a package directory answers for the area, not for the package',
   assert.deepEqual(modulePaths(appPage, relations(root).uses), ['src/app/main.ts'])
   assert.deepEqual(root.usedBy, [])
   assert.notDeepEqual(relations(root), cliRelations('.'))
+})
+
+test('page test reach reads the graph a bounded number of times (DEV-730)', () => {
+  const specs = Object.fromEntries([
+    ...Array.from({ length: 120 }, (_, index) => [
+      `src/m${index}.ts`,
+      { edges: index === 0 ? [] : [edge(`src/m${index - 1}.ts`)] }
+    ]),
+    ...Array.from({ length: 20 }, (_, index) => [
+      `tests/m${index}.test.ts`,
+      { edges: [edge('src/m119.ts')] }
+    ])
+  ])
+  const graph = graphOf(modelOf(specs), emptyConfig)
+  const incoming = new Map(graph.incoming)
+  const get = incoming.get.bind(incoming)
+  let reads = 0
+  incoming.get = path => {
+    reads++
+    return get(path)
+  }
+  const page = pageData({ ...graph, incoming })
+  const first = page.modules.find(module => module.path === 'src/m0.ts')!
+  assert.equal(indexesOf(first.usedByTests).length, 20)
+  assert.ok(
+    reads < graph.modules.size * 20,
+    `page made ${reads} incoming lookups for ${graph.modules.size} modules`
+  )
+})
+
+test('batched page relations match commands through cycles, barrels and more than 64 tests', () => {
+  const graph = graphOf(
+    modelOf({
+      'src/a.ts': { edges: [edge('src/b.ts', { typeOnly: true }), edge('src/cycle.test.ts')] },
+      'src/b.ts': { edges: [edge('src/a.ts')] },
+      'src/lone.ts': {},
+      'src/index.ts': {
+        edges: [edge('src/a.ts', { form: 'reexport' }), edge('src/lone.ts', { form: 'reexport' })]
+      },
+      'src/consumer.ts': { edges: [edge('src/a.ts', { via: ['src/index.ts' as RepoPath] })] },
+      'src/cycle.test.ts': { edges: [edge('src/a.ts')] },
+      'tests/outer.test.ts': { edges: [edge('src/cycle.test.ts')] },
+      'src/view.stories.tsx': { edges: [edge('src/b.ts')] },
+      'tests/story.test.ts': { edges: [edge('src/view.stories.tsx')] },
+      ...Object.fromEntries(
+        Array.from({ length: 70 }, (_, index) => [
+          `tests/case${index}.test.ts`,
+          { edges: [edge('src/consumer.ts')] }
+        ])
+      )
+    }),
+    emptyConfig
+  )
+  const page = pageData(graph)
+  const index = new Map(page.modules.map((module, index) => [module.path, index]))
+  const indexes = (modules: readonly { readonly path: string }[]) =>
+    modules.map(module => index.get(module.path)!).sort((a, b) => a - b)
+  const expected = (resolved: Resolved): Relations => {
+    const answer = usesOf(graph, resolved, 1)
+    return {
+      usedBy: indexes(answer.modules),
+      usedByTests: indexes(answer.tests),
+      uses: indexes(depsOf(graph, resolved, 1).modules)
+    }
+  }
+  for (const module of page.modules)
+    assert.deepEqual(
+      relations(module),
+      expected(moduleSubject(graph, module.path as RepoPath)),
+      module.path
+    )
+  for (const area of page.areas)
+    assert.deepEqual(
+      relations(area),
+      expected(areaSubject(graph, area.path as Parameters<typeof areaSubject>[1])),
+      area.path
+    )
 })
 
 test('the page carries the source its links are built from, or null', () => {

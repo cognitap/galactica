@@ -43,10 +43,23 @@ const plural = (count: number, one: string, many = `${one}s`) =>
 const listOr = (values: readonly string[], none: string) =>
   values.length === 0 ? none : values.join(', ')
 
+function specifierText(specifier: string): string {
+  const text = specifier.replace(/\s+/g, ' ')
+  return text.length > 120 ? `${text.slice(0, 119)}…` : text
+}
+
 function symbolLine(path: string, symbol: SymbolRef): string {
   const kind = symbol.default ? `default ${symbol.kind}` : symbol.kind
   const doc = symbol.doc === undefined ? '' : `  // ${symbol.doc}`
-  return `${path}:${symbol.line}  ${kind}  ${symbol.signature}${doc}`
+  const declared =
+    /^(?:(?:async|abstract|declare)\s+)*(?:const enum|function\*?|class|interface|type|enum|const|let|var|component)\s+([\p{ID_Start}$_][\p{ID_Continue}$\u200C\u200D]*)/u.exec(
+      symbol.signature
+    )?.[1]
+  const alias =
+    !symbol.default && declared !== undefined && declared !== symbol.name
+      ? `${symbol.name} (alias of ${declared}): `
+      : ''
+  return `${path}:${symbol.line}  ${kind}  ${alias}${symbol.signature}${doc}`
 }
 
 function reachedLine({ distance, path, names }: Reached): string {
@@ -80,10 +93,18 @@ function renderOverview({
   packages,
   cycles,
   unresolved,
+  unresolvedImports,
   warnings
 }: Overview): readonly string[] {
   const areas = packages.flatMap(pkg => pkg.areas)
   const modules = packages.reduce((sum, pkg) => sum + pkg.modules, 0)
+  if (modules === 0)
+    return [
+      'No JavaScript or TypeScript modules found under the repository root.',
+      ...(warnings.length === 0
+        ? []
+        : [`${plural(warnings.length, 'warning')}, overview --json lists them`])
+    ]
   const layered = packages.flatMap(pkg => {
     const layers = [...new Set(pkg.areas.map(area => area.layer))]
     return [
@@ -112,6 +133,24 @@ function renderOverview({
     })
   return reportLines([
     `${plural(packages.length, 'package')}, ${plural(modules, 'module')}, ${plural(areas.length, 'area')}`,
+    ...(unresolved === 0
+      ? []
+      : [
+          `${plural(unresolved, 'unresolved import')} by likely cause: ${(
+            [
+              ['build', 'build/generated'],
+              ['virtual', 'virtual/scheme'],
+              ['url', 'URL'],
+              ['missing', 'missing/unmapped']
+            ] as const
+          )
+            .map(
+              ([cause, label]) =>
+                `${label}: ${unresolvedImports.filter(entry => entry.cause === cause).length}`
+            )
+            .join(', ')}`,
+          'overview --json lists every unresolved import with file and line'
+        ]),
     ...layered,
     'most imported:',
     ...capped(ranked),
@@ -223,7 +262,7 @@ function renderDeps({
       ? ['unresolved: none']
       : [
           'unresolved:',
-          ...capped(unresolved.map(({ from, specifier }) => `${from}  ${specifier}`))
+          ...capped(unresolved.map(({ from, specifier }) => `${from}  ${specifierText(specifier)}`))
         ]),
     ...cycleLines(cycles, subject)
   ]
@@ -311,7 +350,7 @@ function renderHealth({
       ? `at least ${OVERSIZED.modules} source modules and ${OVERSIZED.times} times the median area of their package`
       : `more than ${areaModules} source modules, by health.areaModules`
   return [
-    `${plural(cycles.length, 'import cycle')}, ${plural(oversizedAreas.length, 'oversized area')}, ${plural(internalImports.length, 'internal import')}`,
+    `${plural(cycles.length, 'import cycle')}, ${plural(oversizedAreas.length, 'oversized area')}, ${plural(internalImports.length, 'cross-package private import')}`,
     ...(cycles.length === 0
       ? ['import cycles: none']
       : ['import cycles, with the imports to break:', ...capped(cycles.flatMap(healthCycleLines))]),
@@ -327,9 +366,9 @@ function renderHealth({
           )
         ]),
     ...(internalImports.length === 0
-      ? ["imports into another package's internals: none"]
+      ? ['cross-package private imports: none']
       : [
-          "imports into another package's internals:",
+          'cross-package private imports:',
           ...capped(internalImports.map(finding => `  ${internalLine(finding)}`))
         ]),
     ...(cycles.length === 0

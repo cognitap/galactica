@@ -19,6 +19,7 @@ export const commands = [
   'health'
 ] as const
 export type Command = (typeof commands)[number]
+export type WriterCommand = 'html' | 'init'
 
 export const moduleKinds = ['source', 'test', 'story', 'config'] as const
 export type ModuleKind = (typeof moduleKinds)[number]
@@ -49,7 +50,7 @@ export const languages = [
 ] as const
 export type Language = (typeof languages)[number]
 
-interface Envelope<C extends Command> {
+interface Envelope<C extends Command | WriterCommand> {
   readonly schemaVersion: typeof SCHEMA_VERSION
   readonly command: C
 }
@@ -62,10 +63,12 @@ export interface ModuleRef {
 }
 
 export interface SymbolRef {
+  /** Exported name, which can be an alias of the declaration named in signature. */
   readonly name: string
   readonly kind: SymbolKind
   readonly line: number
   readonly default: boolean
+  /** Original declaration signature, preserved when name is an export alias. */
   readonly signature: string
   /** First sentence of the doc comment. Omitted when the symbol has none. */
   readonly doc?: string
@@ -105,12 +108,41 @@ export interface Warning {
 
 export interface Failure {
   readonly schemaVersion: typeof SCHEMA_VERSION
-  readonly command: Command
+  readonly command: Command | WriterCommand
   readonly error: {
-    /** usage also covers unsupported Deno roots (deno.json or deno.jsonc). */
+    /** usage also covers unsupported Deno roots and writer argument, config or write failures. */
     readonly code: 'not-found' | 'ambiguous' | 'usage'
     readonly message: string
   }
+}
+
+/** A completed HTML write. The path is absolute; bytes is the exact UTF-8 size. */
+export interface HtmlWritten extends Envelope<'html'> {
+  readonly path: string
+  readonly bytes: number
+}
+
+/**
+ * Installed skill files, in installation order. Paths are relative to the selected root.
+ * When every file is kept, this object is still returned and the exit code is 1.
+ */
+export interface SkillInstalled extends Envelope<'init'> {
+  readonly files: readonly {
+    readonly path: string
+    readonly status: 'created' | 'updated' | 'unchanged' | 'kept'
+  }[]
+}
+
+export type WriterOutput = HtmlWritten | SkillInstalled
+
+/** One unresolved import from any mapped module, including tests and stories. */
+export interface UnresolvedImport {
+  readonly from: string
+  readonly line: number
+  /** Complete source specifier; text output may shorten it. */
+  readonly specifier: string
+  /** Likely cause inferred from the specifier, not a diagnosis of the filesystem or build. */
+  readonly cause: 'build' | 'virtual' | 'url' | 'missing'
 }
 
 export interface Overview extends Envelope<'overview'> {
@@ -137,6 +169,8 @@ export interface Overview extends Envelope<'overview'> {
   readonly cycles: number
   /** Imports without a mapped module, known asset/declaration or external package, including unsupported files. */
   readonly unresolved: number
+  /** Every unresolved import, sorted by from, line, then specifier. Its length equals unresolved. */
+  readonly unresolvedImports: readonly UnresolvedImport[]
   /**
    * Analysis problems, sorted by path, then message. Compiler deprecation and
    * output-layout migration notices and valid package.json metadata exports are omitted.
@@ -175,7 +209,10 @@ export interface CycleImport {
   readonly break: boolean
 }
 
-/** Source and config modules that import each other in a loop, leaving out type-only imports and re-exports. */
+/**
+ * Source and config modules that import each other in a loop, leaving out type-only imports and re-exports.
+ * Imports read by JSX factories selected through pragmas or compiler options count as runtime imports.
+ */
 export interface Cycle {
   /** In dependency order: every import goes down this list, except those marked `break`. */
   readonly modules: readonly string[]
@@ -210,7 +247,11 @@ export interface Deps extends Envelope<'deps'> {
   readonly packages: readonly string[]
   /** npm package names imported inside the subject, including missing paths-alias targets. Sorted. */
   readonly external: readonly string[]
-  /** Unmapped imports, including unsupported files and excluded source. Sorted by `from`, then `specifier`. */
+  /**
+   * Unmapped imports from the subject's starting modules, deduplicated by from/specifier.
+   * Package and area subjects start from source/config only, not their tests or stories.
+   * Sorted by `from`, then `specifier`; overview.unresolvedImports gives the repository-wide list with lines.
+   */
   readonly unresolved: readonly { readonly from: string; readonly specifier: string }[]
   /** The cycles a module of the subject is in, ordered as `cycles` orders them. */
   readonly cycles: readonly Cycle[]

@@ -1,16 +1,16 @@
 # JSON output
 
-For agent and tool authors. Every command except `html` and `init` prints one JSON object with `--json`. The types are in `src/contract.ts`. Fields not documented here are not part of the contract.
+For agent and tool authors. Every command prints one JSON object with `--json`, including `html` and `init` results and failures. The types are in `src/contract.ts`. Fields not documented here are not part of the contract.
 
 ## Rules
 
 - Every object has `schemaVersion` and `command`. `schemaVersion` is one number for the whole contract. It increases when any field of any command is removed, renamed or changes meaning. A new optional field does not increase it.
-- Paths are relative to the repository root, use forward slashes and have no leading `./`. An area is named by its directory path. A package is named by its `package.json` name.
-- Arrays are sorted as stated below, and the same repository gives byte-identical output. There are no timestamps.
+- Analysis paths and installed skill paths are relative to the repository root, use forward slashes and have no leading `./`. The `html` result instead reports its absolute output path in the operating system’s path format. An area is named by its directory path. A package is named by its `package.json` name.
+- Arrays are sorted as stated below, and the same analysis inputs give byte-identical output. There are no timestamps. Writer results reflect the chosen output path or installation statuses.
 - `uses` and `deps` accept a module path, a package name, a package directory or an area path. Galactica tries them in that order and takes the first kind that matches, so a package directory that is also an area names the package. `outline` accepts only a module path.
 - A path reads from the current directory and from the repository root. When the two readings name different subjects of the same kind, the command reports `ambiguous`.
 - An area or a package stands for its source and config modules, for both `uses` and `deps`. Its tests and stories use it like any other test or story, so what they import is not a dependency of the subject. Its tests are listed in `uses` `tests`, and its stories in `uses` `modules`.
-- A command that cannot answer prints a failure object and exits with code 1. A successful command exits with code 0. An unknown command or no command prints usage and no JSON.
+- A command that cannot answer prints a failure object and exits with code 1. A successful command exits with code 0. An unknown command or no command prints one line pointing to `--help`, without JSON. `init` also exits 1 when every file was kept; it returns its normal files object in that case.
 
 ```json
 {
@@ -20,13 +20,24 @@ For agent and tool authors. Every command except `html` and `init` prints one JS
 }
 ```
 
-`error.code` is `not-found`, `ambiguous` or `usage`. `not-found` means no module, package or area matches, and its message names up to three paths that end with the given text. `usage` means an option the command does not take, a missing or extra argument, a `--depth` below 1, a `--root` that is no directory, or an invalid `galactica.config.json`, whose message starts with `galactica.config.json:` and names the key.
+`error.code` is `not-found`, `ambiguous` or `usage`. `not-found` means no module, package or area matches, and its message names up to three paths that end with the given text. `usage` means an option the command does not take, a missing or extra argument, a `--depth` below 1, a `--root` that is no directory, or an invalid `galactica.config.json`, whose message starts with `galactica.config.json:` and names the key. For `html` and `init`, `usage` also covers a refused or failed write; `command` is the writer’s name. JSON failures go to stdout with empty stderr. Close option typos suggest the known option in the message.
 
 ## overview
 
 Packages are sorted by name. Areas are sorted by layer, lowest first, then by path. Layer 0 depends on no other area in its package, and areas in one import cycle share a layer. `all` is true when `--all` was given. `top` lists the most imported source and config modules of the area, never tests or stories, so an area of only tests and stories has an empty `top`. It is sorted by `importers` descending, then path. It holds five entries, or all of them with `--all`. `importers` counts the modules other than tests and stories that import the module itself. An import through a barrel counts for the module that defines the name, not for the barrel. `exports` lists the names the module exports, in line order. `cycles` counts import cycles among source and config modules, which the `cycles` command lists.
 
 `unresolved` counts imports with no mapped module, known non-module file or external package. Existing workspace JSON, assets and declarations are treated like their relative imports and create no module edge. Existing unsupported files and source omitted from the map remain unresolved. Symlink and case variants that the filesystem resolves point to the discovered module. Private package `imports` mappings include framework files and extensionless scripts under bundler resolution.
+
+`unresolvedImports` lists every such import across all mapped source, config, test and story modules. It is uncapped and sorted by `from`, then `line`, then `specifier`; its length equals the unchanged numeric `unresolved` field. Each entry has the module's `from` path, the import's one-based `line`, its full `specifier` and a likely `cause` inferred from the specifier:
+
+| Cause     | Likely meaning                                                                                                             |
+| --------- | -------------------------------------------------------------------------------------------------------------------------- |
+| `build`   | A target under a build/generated directory, a framework `$types` file or a native `.node` binary that may need generating. |
+| `virtual` | A scheme such as `astro:` or `jsr:`, or a bundler virtual specifier beginning with NUL.                                    |
+| `url`     | An HTTP(S), data, file, blob or FTP URL.                                                                                   |
+| `missing` | Another missing, excluded, unsupported or otherwise unmapped target, including an unresolved alias.                        |
+
+These groups are hints, not a diagnosis of the build or filesystem. A file grouped as missing may exist outside the mapped modules. Text shows the group counts near the top and points to the complete JSON list. For example: `{"from":"src/main.ts","line":3,"specifier":"astro:content","cause":"virtual"}`. This field is additive; `schemaVersion` and the existing count keep their types.
 
 `warnings` lists every problem the analysis worked around, sorted by `path`, then `message`. `path` is the file the problem is in, such as a `package.json` without a name, a second package with a name another package already has, or a `tsconfig.json` or `jsconfig.json` TypeScript reports an error in. TypeScript deprecation and output-layout migration notices are omitted because they do not affect reading the map. A valid `"./package.json": "./package.json"` metadata export does not warn. `message` is one line, and names files under the root by their path from the root. An ignored workspace or config glob also adds a warning: `path` names `pnpm-workspace.yaml`, `package.json` or `galactica.config.json`, and `message` names the pattern or config key and the reason it was ignored. A config that is not a regular file inside the repository after following links, or is over 10 MB, is skipped with a warning naming the file and refusal reason. A required unsafe `galactica.config.json` instead returns the existing `usage` failure. The text of `overview` gives only their number. Galactica 0.1.0 printed no `warnings`.
 
@@ -55,6 +66,7 @@ Packages are sorted by name. Areas are sorted by layer, lowest first, then by pa
   ],
   "cycles": 2,
   "unresolved": 0,
+  "unresolvedImports": [],
   "warnings": [
     {
       "path": "packages/legacy/package.json",
@@ -99,7 +111,7 @@ Packages are sorted by name. Areas are sorted by layer, lowest first, then by pa
 
 `galactica outline src/cn.ts --json`
 
-`symbols` lists the exported declarations of one module in line order. `kind` is one of `function`, `class`, `component`, `type`, `interface`, `enum` or `const`. A module `kind` is one of `source`, `test`, `story` or `config`.
+`symbols` lists the exported declarations of one module in line order. A symbol’s `name` is its exported name; `signature` retains the original declaration name. Text explicitly labels an alias, for example `Root (alias of Slot): const Slot = createSlot(...)`, in both `outline` and `where`; these JSON fields are unchanged. `kind` is one of `function`, `class`, `component`, `type`, `interface`, `enum` or `const`. A module `kind` is one of `source`, `test`, `story` or `config`.
 
 ```json
 {
@@ -171,6 +183,8 @@ The subject has one of three shapes: `{ "kind": "module", "path", "package" }`, 
 
 `modules` lists the workspace modules the subject depends on within `--depth`, sorted by `distance`, then path. It excludes modules inside the subject. An import through a barrel reaches both the barrel and the module that defines the name, so `deps` and `uses` agree at distance 1. The walk goes on from the defining module only, not from the barrel. `packages` lists the workspace packages those modules belong to, except the subject's own, sorted. `external` lists the npm package names the subject imports, without subpaths or versions, sorted. `unresolved` lists imports inside the subject with no mapped module, known asset/declaration or external package, sorted by `from`, then `specifier`.
 
+For a package or area, starting modules are source and config only: its tests and stories, including fixtures classified as tests, are not starting points. A module subject starts from that exact file even when it is a test or story. `external` and `unresolved` cover the starting modules only, not all transitive dependencies; `unresolved` deduplicates by `from` and `specifier` and does not include a line. Use `overview.unresolvedImports` to list every unresolved import with its line across all mapped modules. Specifiers over 120 characters are shortened in text only; JSON always keeps them complete.
+
 When a `paths` alias reaches no file, an npm-shaped specifier falls back to its package name in `deps.external`; a workspace package still resolves through its own exports, and private or non-package aliases stay unresolved. These resolution fixes keep the existing JSON fields and schema version.
 
 ```json
@@ -200,7 +214,7 @@ When a `paths` alias reaches no file, an npm-shaped specifier falls back to its 
 
 `galactica cycles --json`
 
-`cycles` lists each import cycle among source and config modules: modules that import each other in a loop, so that none of them loads before the others. Type-only imports load nothing and do not count: those written `import type`, and in TypeScript those whose names the module uses only as types, which TypeScript leaves out of its output unless `verbatimModuleSyntax` keeps them or `emitDecoratorMetadata` reads them. Re-exports do not count either, since an import through a barrel points at the module that defines the name. Each cycle is all the modules that reach each other, so one cycle can hold several loops. The list holds as many cycles as `overview` counts. Cycles with an import used at load time come first. Within each group, cycles are sorted by their first module in path order.
+`cycles` lists each import cycle among source and config modules: modules that import each other in a loop, so that none of them loads before the others. Type-only imports load nothing and do not count: those written `import type`, and in TypeScript those whose names the module uses only as types, which TypeScript leaves out of its output unless `verbatimModuleSyntax` keeps them or `emitDecoratorMetadata` reads them. JSX reads the factory selected by a pragma or `jsxFactory`, and fragments also read the factory selected by `jsxFragmentFactory`; those imports still count as runtime imports. Re-exports do not count either, since an import through a barrel points at the module that defines the name. Each cycle is all the modules that reach each other, so one cycle can hold several loops. The list holds as many cycles as `overview` counts. Cycles with an import used at load time come first. Within each group, cycles are sorted by their first module in path order.
 
 `imports` lists every import from one module of the cycle to another, sorted by `from`, `line`, then `to`. `line` is the line of the import in `from`. `names` lists what it takes, as `to` exports them: `"*"` for a namespace import or a `require()` whose result is used whole, and none for a side-effect import. `via` lists the barrels it passes through, importer side first.
 
@@ -245,7 +259,7 @@ When a `paths` alias reaches no file, an npm-shaped specifier falls back to its 
 
 `galactica health --json`
 
-`health` lists concrete findings about the structure, in three kinds, and has no score. It exits with code 0 whatever it finds.
+`health` lists concrete findings about the structure, in three kinds, and has no score. Its text calls `internalImports` “cross-package private imports”; the JSON field keeps its name and meaning. It exits with code 0 whatever it finds.
 
 `cycles` lists every import cycle, as the `cycles` command lists them, in the same order.
 
@@ -277,3 +291,31 @@ When a `paths` alias reaches no file, an npm-shaped specifier falls back to its 
 ```
 
 A root containing `deno.json` or `deno.jsonc` is unsupported. Analysis commands return the existing failure envelope with `error.code: "usage"`, a message naming the Deno config and explaining the unsupported workspace and import-map resolution, and exit code 1. No fields or schema version change.
+
+## html
+
+`galactica html --out /tmp/map.html --json` writes the page, then returns:
+
+```json
+{ "schemaVersion": 1, "command": "html", "path": "/tmp/map.html", "bytes": 123456 }
+```
+
+`path` is the absolute path written and `bytes` is the exact UTF-8 size. Relative `--out` and the default `galactica.html` resolve from the current directory. The text form prints an explicitly absolute output path as absolute and, for the default output, suggests `--out` or `.gitignore`. No page is embedded in JSON.
+
+## init
+
+`galactica init --json` returns the three installed skill paths and their statuses in installation order:
+
+```json
+{
+  "schemaVersion": 1,
+  "command": "init",
+  "files": [
+    { "path": ".agents/skills/galactica/SKILL.md", "status": "created" },
+    { "path": ".claude/skills/galactica/SKILL.md", "status": "created" },
+    { "path": ".cursor/rules/galactica.mdc", "status": "created" }
+  ]
+}
+```
+
+Paths are relative to the selected root. Status is `created`, `updated`, `unchanged` or `kept` (edited by the user and preserved). If every file is `kept`, the exit code is 1 and this same files object is returned. Argument, config and write failures instead return the existing failure shape with `command: "init"`, `error.code: "usage"` and exit code 1. HTML failures use the same shape with `command: "html"`. These writer forms are additive and keep `schemaVersion: 1`.

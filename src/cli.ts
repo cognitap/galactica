@@ -1,11 +1,18 @@
 import { spawn } from 'node:child_process'
 import { readFileSync, statSync } from 'node:fs'
-import { dirname, join, relative, resolve } from 'node:path'
+import { dirname, isAbsolute, join, relative, resolve } from 'node:path'
 import { parseArgs, type ParseArgsOptionsConfig } from 'node:util'
 import { cacheDirectory } from './cache.ts'
 import { commandOptions, commandTable, type Input, type Repository } from './commands.ts'
 import { ConfigError, loadConfig } from './config.ts'
-import { SCHEMA_VERSION, type Command, type Failure, type Output } from './contract.ts'
+import {
+  SCHEMA_VERSION,
+  type Command,
+  type Failure,
+  type Output,
+  type WriterCommand,
+  type WriterOutput
+} from './contract.ts'
 import { pageSourceOf } from './git-source.ts'
 import { graphOf } from './graph.ts'
 import { htmlOf } from './html.ts'
@@ -82,7 +89,10 @@ function usage(): string {
   ]
   const optionRows: readonly Row[] = [
     ['--root <dir>', 'Repository to map (default: current directory)'],
-    ['--json', 'Print the JSON object documented in docs/json-output.md'],
+    [
+      '--json',
+      'Print the JSON object documented at https://github.com/cognitap/galactica/blob/main/docs/json-output.md'
+    ],
     ['--no-cache', 'Analyze every file, without reading or writing the cache'],
     ...flags.map((option): Row => [
       `--${option}${optionValue(option)}`,
@@ -118,11 +128,49 @@ export interface Result {
 const isCommand = (name: string | undefined): name is Command =>
   name !== undefined && Object.hasOwn(commandTable, name)
 
-const usageFailure = (command: Command, message: string): Failure => ({
+const usageFailure = (command: Failure['command'], message: string): Failure => ({
   schemaVersion: SCHEMA_VERSION,
   command,
   error: { code: 'usage', message }
 })
+
+/** Edit distance for a short command-line option, without loading analysis code. */
+function distance(a: string, b: string): number {
+  let previous = Array.from({ length: b.length + 1 }, (_, index) => index)
+  for (let row = 1; row <= a.length; row++) {
+    const next = [row]
+    for (let column = 1; column <= b.length; column++)
+      next.push(
+        Math.min(
+          previous[column]! + 1,
+          next[column - 1]! + 1,
+          previous[column - 1]! + (a[row - 1] === b[column - 1] ? 0 : 1)
+        )
+      )
+    previous = next
+  }
+  return previous[b.length]!
+}
+
+function parseProblem(error: unknown): string {
+  const message = (error as Error).message.replace(/\s*\n\s*/g, ' ')
+  const unknown = /^Unknown option '([^']+)'/.exec(message)?.[1]
+  if (unknown === undefined) return message
+  const known = Object.entries(options).flatMap(([name, option]) => [
+    `--${name}`,
+    ...('short' in option ? [`-${option.short}`] : [])
+  ])
+  const closest = known
+    .map(name => ({
+      name,
+      score:
+        Math.abs(name.length - unknown.length) > 2
+          ? Infinity
+          : distance(unknown.toLowerCase(), name)
+    }))
+    .sort((a, b) => a.score - b.score || (a.name < b.name ? -1 : a.name > b.name ? 1 : 0))[0]!
+  return `unknown option ${unknown}; ${closest.score <= 2 ? `did you mean ${closest.name}?` : 'run --help for options'}`
+}
 
 function insideRoot(root: string, cwd: string): RepoPath | undefined {
   try {
@@ -167,7 +215,7 @@ function inputOf(command: Command, argv: readonly string[], cwd: string) {
   try {
     parsed = parseArgs({ args: [...argv], options, allowPositionals: true, strict: true })
   } catch (error) {
-    return usageFailure(command, (error as Error).message)
+    return usageFailure(command, parseProblem(error))
   }
   const { values, positionals } = parsed
   const foreign = flags.find(
@@ -231,12 +279,10 @@ function writerInput(
   try {
     parsed = parseArgs({ args: [...argv], options, allowPositionals: true, strict: true })
   } catch (error) {
-    return failure((error as Error).message)
+    return failure(parseProblem(error))
   }
   const { values, positionals } = parsed
-  const foreign = [...flags, 'json' as const].find(
-    option => values[option] !== undefined && !own.includes(option)
-  )
+  const foreign = flags.find(option => values[option] !== undefined && !own.includes(option))
   if (foreign !== undefined) return failure(`${name} takes no --${foreign}`)
   if (positionals.length > 1) {
     return failure(`${name} takes no argument, got ${positionals.length - 1}`)
@@ -254,8 +300,12 @@ function openInBrowser(path: string): void {
   child.unref()
 }
 
-/** Writes the HTML page. It has no `--json` form, since its output is the file. */
-async function html(argv: readonly string[], cwd: string): Promise<Result> {
+interface WriterResult extends Result {
+  readonly output?: WriterOutput
+}
+
+/** Writes the HTML page and records its machine-readable result. */
+async function html(argv: readonly string[], cwd: string): Promise<WriterResult> {
   const input = writerInput('html', htmlFlags, argv, cwd)
   if ('code' in input) return input
   const { values, root } = input
@@ -276,15 +326,29 @@ async function html(argv: readonly string[], cwd: string): Promise<Result> {
   }
   if (values.open) openInBrowser(out)
   const size = Math.round(Buffer.byteLength(page) / 1024)
-  const shown = relative(cwd, out)
-  return { code: 0, stdout: `wrote ${shown} (${size.toLocaleString('en')} KB)`, stderr: '' }
+  const shown = values.out !== undefined && isAbsolute(values.out) ? out : relative(cwd, out)
+  const hint =
+    values.out === undefined
+      ? '\nUse --out <file> to write elsewhere, or add galactica.html to .gitignore.'
+      : ''
+  return {
+    code: 0,
+    stdout: `wrote ${shown} (${size.toLocaleString('en')} KB)${hint}`,
+    stderr: '',
+    output: {
+      schemaVersion: SCHEMA_VERSION,
+      command: 'html',
+      path: out,
+      bytes: Buffer.byteLength(page)
+    }
+  }
 }
 
 /**
  * Installs the agent skill. Agents run it unattended, so an edited file is
  * reported rather than asked about, and it fails only when every file was kept.
  */
-function init(argv: readonly string[], cwd: string): Result {
+function init(argv: readonly string[], cwd: string): WriterResult {
   const input = writerInput('init', initFlags, argv, cwd)
   if ('code' in input) return input
   const { values, root } = input
@@ -305,7 +369,19 @@ function init(argv: readonly string[], cwd: string): Result {
       : `${status} ${shown}`
   })
   const allKept = installed.every(({ status }) => status === 'kept')
-  return { code: allKept ? 1 : 0, stdout: lines.join('\n'), stderr: '' }
+  return {
+    code: allKept ? 1 : 0,
+    stdout: lines.join('\n'),
+    stderr: '',
+    output: { schemaVersion: SCHEMA_VERSION, command: 'init', files: installed }
+  }
+}
+
+async function written(name: WriterCommand, argv: readonly string[], cwd: string): Promise<Result> {
+  const { output, ...result } = name === 'html' ? await html(argv, cwd) : init(argv, cwd)
+  if (!argv.includes('--json')) return result
+  const json = output ?? usageFailure(name, result.stderr.replace(/^galactica: /, ''))
+  return { code: result.code, stdout: JSON.stringify(json, null, 2), stderr: '' }
 }
 
 export async function run(argv: readonly string[], cwd: string): Promise<Result> {
@@ -318,11 +394,10 @@ export async function run(argv: readonly string[], cwd: string): Promise<Result>
   if (values.help) return { code: 0, stdout: usage(), stderr: '' }
   if (values.version) return { code: 0, stdout: readVersion(), stderr: '' }
   const [name] = positionals
-  if (name === 'html') return html(argv, cwd)
-  if (name === 'init') return init(argv, cwd)
+  if (name === 'html' || name === 'init') return written(name, argv, cwd)
   if (!isCommand(name)) {
     const problem = name === undefined ? 'no command given' : `unknown command ${name}`
-    return { code: 1, stdout: '', stderr: `galactica: ${problem}\n\n${usage()}` }
+    return failure(`${problem}; run --help for commands`)
   }
   const parsed = inputOf(name, argv, cwd)
   const json = 'error' in parsed ? argv.includes('--json') : parsed.json

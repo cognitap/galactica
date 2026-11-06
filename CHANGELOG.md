@@ -4,6 +4,24 @@
 
 ## Unreleased
 
+- Lead the README with a real Immich map, a CLI excerpt, agent/human views, a glossary, tool comparisons and the measured benchmark's limits; move reference details below the pitch.
+- **Breaking:** `--json` help links to its reference on GitHub. Before: `docs/json-output.md`, absent from the npm package. After: `https://github.com/cognitap/galactica/blob/main/docs/json-output.md`.
+- Add repository topics and a homepage pointing to the README; verify that published releases have their version-specific notes.
+- **Breaking:** Empty and non-JavaScript/TypeScript repositories get an explicit `overview` message. Before: `1 package, 0 modules, 0 areas`. After: `No JavaScript or TypeScript modules found under the repository root.` Exit code stays 0.
+- **Breaking:** Unknown options get a concise message and a nearby suggestion. Before: Node's raw `parseArgs` prose. After: `unknown option --jsno; did you mean --json?`.
+- **Breaking:** Missing or unknown commands point to help in one line. Before: a full usage dump. After: `unknown command overveiw; run --help for commands`.
+- **Breaking:** `health` text calls its findings `cross-package private imports` instead of `internal imports`; JSON keeps `internalImports` unchanged.
+- **Breaking:** `html` prints an explicitly absolute `--out` as an absolute path. Before: `wrote ../../tmp/map.html`. After: `wrote /tmp/map.html`.
+- **Breaking:** The default HTML write adds a hint. Before: only `wrote galactica.html`. After: also suggests `--out <file>` or adding `galactica.html` to `.gitignore`.
+- Add `html --json` and `init --json` reports for successful writes, installation statuses and failures, using schema version 1; existing analysis JSON stays unchanged.
+- **Breaking:** `outline` and `where` text name export aliases. Before: `Root` and `Slot` both looked like `const Slot`. After: the alias says `Root (alias of Slot)`; JSON preserves the exported name and original declaration signature.
+- Add `overview --json` `unresolvedImports`, the complete list with file, line, full specifier and likely cause, including tests and stories; keep the existing numeric `unresolved` count.
+- **Breaking:** `overview` text shows likely unresolved causes near the top. Before: only `9 unresolved imports`. After: counts for build/generated, virtual/scheme, URL and missing/unmapped imports, with a pointer to the complete JSON list.
+- **Breaking:** Shorten specifiers in `deps` text to at most 120 characters. Before: a long data URL printed in full. After: its first 119 characters and `…`; JSON keeps the complete specifier.
+- Speed up workspace package lookup for warm commands by indexing package directories and reusing folder ownership.
+- Generate large HTML maps faster by computing test reach once for the graph instead of walking every module's transitive importers separately.
+- Prune untracked build output and dependency folders inside Git before listing their files, keeping the same mapped modules and ignore rules.
+- Keep imports used by JSX factories named in `jsxFactory` or `jsxFragmentFactory` in runtime cycles, including factories selected only by `tsconfig.json`.
 - State the Node.js 24.1.0 minimum at the start of the README, before installation.
 - **Breaking:** Repository configuration follows the same regular-file, root and 10 MB policy as source. Before: linked or oversized configs could hang analysis or read outside content. After: unsafe optional configs are skipped with warnings, and an unsafe `galactica.config.json` fails clearly.
 - `init` refuses to read an existing skill file over 10 MB and writes none of its files when that check fails.

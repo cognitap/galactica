@@ -498,6 +498,45 @@ test('an import is type-only exactly when TypeScript leaves it out of its output
   }
 })
 
+test('configured JSX factories stay runtime imports exactly as TypeScript emits them (DEV-735)', () => {
+  const cases = [
+    { text: "import { h } from './b'; export const a = <div />", jsxFactory: 'h' },
+    { text: "import create from './b'; export const a = <div />", jsxFactory: 'create' },
+    { text: "import { h as create } from './b'; export const a = <div />", jsxFactory: 'create' },
+    { text: "import type { h } from './b'; export const a = <div />", jsxFactory: 'h' },
+    { text: "import * as UI from './b'; export const a = <div />", jsxFactory: 'UI.h' },
+    {
+      text: "import { Fragment } from './b'; export const a = <><div /></>",
+      jsxFactory: 'h',
+      jsxFragmentFactory: 'Fragment'
+    },
+    {
+      text: "import * as UI from './b'; export const a = <><div /></>",
+      jsxFactory: 'h',
+      jsxFragmentFactory: 'UI.Fragment'
+    },
+    { text: "import { h } from './b'; export const a = 1", jsxFactory: 'h' },
+    {
+      text: "import { Fragment } from './b'; export const a = <div />",
+      jsxFactory: 'h',
+      jsxFragmentFactory: 'Fragment'
+    },
+    {
+      text: "/** @jsx custom */ import { h } from './b'; export const a = <div />",
+      jsxFactory: 'h'
+    },
+    { text: "import React from './b'; export const a = <div />", jsxFactory: 'h' },
+    { text: "import { h } from './b'; export const a = () => <div />", jsxFactory: 'h' }
+  ]
+  for (const { text, ...factories } of cases) {
+    const options = { module: ts.ModuleKind.CommonJS, jsx: ts.JsxEmit.React, ...factories }
+    const { outputText } = ts.transpileModule(text, { compilerOptions: options, fileName: 'a.tsx' })
+    const kept = /['"]\.\/b['"]/.test(outputText)
+    const imported = importsOf(parse([text], ts.ScriptKind.TSX), true)[0]!
+    assert.equal(asCompiled(imported, options).typeOnly, !kept, text)
+  }
+})
+
 test('decorator metadata reads the types of decorated signatures at load time, when emitted', () => {
   const metadata = { experimentalDecorators: true, emitDecoratorMetadata: true }
   const loadTimes = (options: ts.CompilerOptions, lines: readonly string[]) =>

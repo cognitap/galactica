@@ -26,7 +26,7 @@ import type { Extraction } from './extraction.ts'
 import type { Import, ImportSyntax } from './imports.ts'
 import { compare, type RepoPath, type SymbolFacts } from './model.ts'
 
-export const CACHE_FORMAT = 5
+export const CACHE_FORMAT = 6
 
 export interface CacheEntry extends Extraction {
   readonly hash: string
@@ -182,6 +182,16 @@ export function symbolOf(value: unknown): SymbolFacts | undefined {
 export const isRenames = (value: unknown): value is Readonly<Record<string, string>> =>
   isRecord(value) && Object.values(value).every(isString)
 
+function isJSX(value: unknown): value is NonNullable<Import['jsx']> {
+  return (
+    isRecord(value) &&
+    isStrings(value.names) &&
+    (value.factory === undefined || isString(value.factory)) &&
+    (value.fragmentFactory === undefined || isString(value.fragmentFactory)) &&
+    (value.fragment === undefined || value.fragment === true)
+  )
+}
+
 function importOf(value: unknown): Import | undefined {
   if (!isRecord(value)) return undefined
   const {
@@ -196,7 +206,8 @@ function importOf(value: unknown): Import | undefined {
     dynamic,
     loadTime,
     elided,
-    metadataLoadTime
+    metadataLoadTime,
+    jsx
   } = value
   if (!isString(specifier) || !isSyntax(syntax) || !isLine(line) || !isForm(form)) return undefined
   if (!isStrings(names) || typeof typeOnly !== 'boolean' || typeof dynamic !== 'boolean') {
@@ -209,6 +220,7 @@ function importOf(value: unknown): Import | undefined {
     return undefined
   }
   if (metadataLoadTime !== undefined && !isStrings(metadataLoadTime)) return undefined
+  if (jsx !== undefined && !isJSX(jsx)) return undefined
   return {
     specifier,
     syntax,
@@ -221,7 +233,8 @@ function importOf(value: unknown): Import | undefined {
     dynamic,
     ...(loadTime === undefined ? {} : { loadTime }),
     ...(elided === undefined ? {} : { elided }),
-    ...(metadataLoadTime === undefined ? {} : { metadataLoadTime })
+    ...(metadataLoadTime === undefined ? {} : { metadataLoadTime }),
+    ...(jsx === undefined ? {} : { jsx })
   }
 }
 

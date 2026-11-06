@@ -180,7 +180,10 @@ try {
   assert.match(skill, /`npx --prefix \/ @cognitap\/galactica overview`/)
   assert.ok(skill.includes(`galactica-version: "${version}"`), 'stamps the package version')
 
-  assert.match(galactica('html'), /^wrote .*galactica\.html \(\d+ KB\)$/)
+  assert.match(
+    galactica('html'),
+    /^wrote .*galactica\.html \(\d+ KB\)\nUse --out <file> to write elsewhere, or add galactica\.html to \.gitignore\.$/
+  )
   const page = readFileSync(join(repository, 'galactica.html'), 'utf8')
   assert.match(page, /<style>/, 'inlines the page stylesheet')
   assert.match(page, /src\/Card\.svelte/)
