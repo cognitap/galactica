@@ -271,3 +271,7 @@ node /path/to/galactica/dist/bin.js overview --root /path/to/repository
 ```
 
 `pnpm check` runs format, lint, typecheck and the tests, and then installs the packed package in a throwaway repository and runs it there. [RELEASE_POLICY.md](RELEASE_POLICY.md) describes how a version is released.
+
+`pnpm test:coverage` builds and runs the existing Node test suite with coverage. It fails below aggregate floors of 90% lines, 85% branches and 90% functions. CI runs this through `pnpm check` and uploads `coverage/`, including when a floor fails. The directory contains an HTML report (`coverage/lcov-report/index.html`), LCOV and a JSON summary.
+
+Coverage includes every production TypeScript module under `src/`, even modules no test loads, and the pure page helpers `search.js`, `links.js` and `indexes.js`. Build source maps merge CLI subprocess coverage from `dist/` into the same source files, so each module is counted once. Tests, fixtures, dependencies and build copies of the plain page scripts are outside the report. The browser-executed `src/page/page.js` is also outside this Node percentage; `tests/page.test.ts` checks its behavior in Chrome.
