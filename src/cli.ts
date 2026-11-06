@@ -9,7 +9,7 @@ import { SCHEMA_VERSION, type Command, type Failure, type Output } from './contr
 import { pageSourceOf } from './git-source.ts'
 import { graphOf } from './graph.ts'
 import { htmlOf } from './html.ts'
-import { toRepoPath, type Config, type RepoPath } from './model.ts'
+import { toRepoPath, type RepoPath } from './model.ts'
 import { analyze } from './model-cache.ts'
 import { render } from './render.ts'
 import { templateProblem } from './source-links.ts'
@@ -135,7 +135,7 @@ function insideRoot(root: string, cwd: string): RepoPath | undefined {
 async function analyzed(
   root: string,
   noCache: boolean | undefined
-): Promise<(Repository & { readonly config: Config }) | { readonly problem: string }> {
+): Promise<Repository | { readonly problem: string }> {
   try {
     const config = loadConfig(root)
     const options = noCache ? {} : { cache: cacheDirectory(root) }

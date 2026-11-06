@@ -18,7 +18,7 @@ export class ConfigError extends Error {
   }
 }
 
-const keys = ['$schema', 'include', 'exclude', 'kinds', 'areas', 'sourceUrl'] as const
+const keys = ['$schema', 'include', 'exclude', 'kinds', 'areas', 'sourceUrl', 'health'] as const
 
 const choices = (names: readonly string[]) => `${names.slice(0, -1).join(', ')} or ${names.at(-1)}`
 
@@ -95,6 +95,26 @@ function sourceUrlAt(value: unknown): string {
   return template
 }
 
+const healthKeys = ['areaModules'] as const
+
+function healthAt(value: unknown): NonNullable<Config['health']> {
+  const health = objectAt('health', value)
+  const unknown = Object.keys(health).find(key => !(healthKeys as readonly string[]).includes(key))
+  if (unknown !== undefined) {
+    throw new ConfigError(`health.${unknown}`, `unknown key; expected ${healthKeys.join(', ')}`)
+  }
+  const { areaModules } = health
+  if (areaModules === undefined) return {}
+  if (typeof areaModules !== 'number') expect('health.areaModules', 'a number', areaModules)
+  if (!Number.isInteger(areaModules) || areaModules < 1) {
+    throw new ConfigError(
+      'health.areaModules',
+      `expected a whole number of at least 1, got ${areaModules}`
+    )
+  }
+  return { areaModules }
+}
+
 function parseConfig(raw: unknown): Config {
   if (!isObject(raw)) expect(undefined, 'an object', raw)
   const unknown = Object.keys(raw).find(key => !(keys as readonly string[]).includes(key))
@@ -109,7 +129,8 @@ function parseConfig(raw: unknown): Config {
     exclude: raw.exclude === undefined ? [] : globsAt('exclude', raw.exclude),
     kinds: raw.kinds === undefined ? {} : kindsAt(raw.kinds),
     areas: raw.areas === undefined ? [] : areasAt(raw.areas),
-    ...(raw.sourceUrl === undefined ? {} : { sourceUrl: sourceUrlAt(raw.sourceUrl) })
+    ...(raw.sourceUrl === undefined ? {} : { sourceUrl: sourceUrlAt(raw.sourceUrl) }),
+    ...(raw.health === undefined ? {} : { health: healthAt(raw.health) })
   }
 }
 

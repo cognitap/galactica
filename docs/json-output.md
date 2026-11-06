@@ -232,3 +232,38 @@ The subject has one of three shapes: `{ "kind": "module", "path", "package" }`, 
   ]
 }
 ```
+
+## health
+
+`galactica health --json`
+
+`health` lists concrete findings about the structure, in three kinds, and has no score. It exits with code 0 whatever it finds.
+
+`cycles` lists every import cycle, as the `cycles` command lists them, in the same order.
+
+`oversizedAreas` lists the areas that hold far more source modules than the other areas of their package, sorted by path. `modules` counts an area's source modules, so tests, stories and config modules do not count. `median` is the median of `modules` over the areas of the package that hold at least one source module. An area is oversized when it has at least 20 source modules and at least 5 times `median`. When `galactica.config.json` sets `health.areaModules`, that number replaces the rule: an area is oversized when it has more source modules than `areaModules`, which the output then repeats. `areaModules` is omitted when the config does not set it.
+
+`internalImports` lists each import, in a source or config module, that reaches into another workspace package's internals, sorted by `from`, `line`, then `specifier`. Tests and stories are left out, since a test of internals imports them on purpose. `reach` is `relative` for a relative specifier that resolves to a module of another package, when that package's directory does not hold the importer, so an import up into files at the root of the repository is no finding. It is `unlisted` for a bare specifier that names a subpath of another workspace package that its `exports` does not list, or maps to `null`, whether a `paths` alias resolves it or it resolves to nothing. A package without `exports` lists every subpath. `package` is the package reached into. `to` is the module the specifier resolves to, before any barrel, and is omitted when it resolves to none. `names` lists what the import takes, as the defining modules export them: `"*"` for a namespace import and none for a side-effect import. `instead` is a public specifier of the package that gives the same import: an entry the package lists, its name or a subpath of `exports` without a `*`, that reaches the same module, else such an entry that exports each name from the same definition, else a `*` subpath of `exports`, or the module's own path for a package without `exports`, that resolves to the same module. A namespace or side-effect import only takes the same module. `instead` is omitted when no public specifier gives the import.
+
+```json
+{
+  "schemaVersion": 1,
+  "command": "health",
+  "cycles": [],
+  "oversizedAreas": [
+    { "path": "packages/ui/src/icons", "package": "@acme/ui", "modules": 187, "median": 4 }
+  ],
+  "internalImports": [
+    {
+      "from": "packages/app/src/main.ts",
+      "line": 1,
+      "specifier": "../../ui/src/button/Button",
+      "names": ["Button"],
+      "reach": "relative",
+      "package": "@acme/ui",
+      "to": "packages/ui/src/button/Button.tsx",
+      "instead": "@acme/ui"
+    }
+  ]
+}
+```

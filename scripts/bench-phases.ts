@@ -42,7 +42,7 @@ const built = graph.graphOf(analyzed, config)
 const graphDone = performance.now()
 const input = { argument: subject, depth: 1, all: false, cwd: model.toRepoPath(root, root) }
 const text = rendering.render(
-  commandTable[command].run({ graph: built, warnings: summary.warnings }, input)
+  commandTable[command].run({ graph: built, config, warnings: summary.warnings }, input)
 )
 const commandDone = performance.now()
 

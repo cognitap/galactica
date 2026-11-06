@@ -6,7 +6,8 @@
 
 import type { Command, Failure, Output, Warning } from './contract.ts'
 import { cycles } from './cycles.ts'
-import type { Graph, RepoPath } from './model.ts'
+import { health } from './health.ts'
+import type { Config, Graph, RepoPath } from './model.ts'
 import { overview } from './overview.ts'
 import { deps, outline, uses, where } from './queries.ts'
 
@@ -19,9 +20,10 @@ export interface Input {
   readonly cwd: RepoPath | undefined
 }
 
-/** What a command answers from: the graph, and the warnings of the analysis that built it. */
+/** What a command answers from: the graph, the config it was built with, and the warnings of the analysis that built it. */
 export interface Repository {
   readonly graph: Graph
+  readonly config: Config
   /** Sorted by path, then message. */
   readonly warnings: readonly Warning[]
 }
@@ -80,5 +82,10 @@ export const commandTable: { readonly [C in Command]: CommandSpec } = {
     options: [],
     summary: 'Each import cycle, which imports run at load time, and where to break it',
     run: ({ graph }) => cycles(graph)
+  },
+  health: {
+    options: [],
+    summary: 'Import cycles, oversized areas and imports that reach into another package',
+    run: ({ graph, config }) => health(graph, config.health?.areaModules)
   }
 }

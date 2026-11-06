@@ -33,6 +33,7 @@ The examples below write `galactica` for `npx @cognitap/galactica`.
 | `uses <file>`    | What depends on this, and which tests should run after I change it? |
 | `deps <file>`    | What does this depend on?                                           |
 | `cycles`         | Which modules import each other in a loop, and where do I cut it?   |
+| `health`         | Is the structure healthy, and which imports should change?          |
 | `html`           | Write the human map as one HTML file.                               |
 | `init`           | Install the agent skill into this repository.                       |
 
@@ -121,6 +122,23 @@ imports (1 to break):
 …
 ```
 
+`health` lists concrete findings about the structure, with no score: every import cycle, as `cycles` lists it with the imports to break; each area that is far larger than the rest of its package; and each import in code other than tests and stories that reaches into another workspace package's internals. An area is oversized when it holds at least 20 source modules, tests, stories and config aside, and at least 5 times the median of its package's areas. `health.areaModules` in the config replaces that rule with a fixed number. An import reaches into another package when it is a relative path into that package's directory, or names a subpath of the package that its `exports` does not list. Each such import shows the specifier to change and, where one exists, the public specifier that gives the same import: the package name or an exported subpath that reaches the same module or exports the same names. `health` always exits with code 0. On [Vitest](https://github.com/vitest-dev/vitest) at `71ad4df`:
+
+```text
+$ galactica health
+4 import cycles, 2 oversized areas, 20 internal imports
+…
+oversized areas (at least 20 source modules and 5 times the median area of their package):
+  packages/browser/src/client/tester/expect  28 source modules, package median 3.5
+  packages/vitest/src/node  31 source modules, package median 5.5
+imports into another package's internals:
+…
+  packages/browser/src/client/orchestrator.ts:16  ../../../vitest/src/utils/tasks.js  generateFileHash  relative path into vitest  use vitest/node
+  packages/browser/src/client/tester/runner.ts:30  ../../../../utils/src/source-map  createStackString, parseStacktrace  relative path into @vitest/utils  use @vitest/utils/source-map
+  packages/browser/src/client/tester/runner.ts:31  ../../../../vitest/src/utils/tasks  getTestName  relative path into vitest  no public entry gives it
+…
+```
+
 `html` writes the map for people to `galactica.html` in the current directory, or to the file `--out` names, and prints the path and size. `--open` opens the file in the default browser. The page is one file that loads nothing from the network, so it opens from disk and can be shared as an attachment. Each package is a section, highest in the dependency order first. Inside it, each area is a box in a row by layer: the bottom row imports no other area, and each row above imports only from rows below, except areas marked as a cycle. A box is wider when its modules export more symbols, and its colour marks its top-level folder. An area of more than eight modules starts collapsed to its counts, and its module count expands it. Each module expands to list its exported symbols with their signatures and docs. The Show buttons filter the map by kind: source and config modules show at first, and tests and stories stay hidden until you show them. A module's kind comes from its name and folder, or from `kinds` in the config. Search still finds what the filter hides, marks it, and shows its kind when you choose it. To leave generated files out of the map, list them in `exclude`. On Radiant, the page is about 440 KB and takes under a second to write.
 
 The search field finds areas, modules and exported symbols as you type. Press `/` to focus it, the arrow keys to move through the matches, Enter to go to one and Escape to close the list or clear the field. Exact matches come first, then names that start with what you typed, then names that contain it. Going to a symbol opens its module.
@@ -167,7 +185,8 @@ Galactica needs no config. To override a default, add `galactica.config.json` to
   "exclude": ["src/generated/**"],
   "kinds": { "source": ["docs/.vitepress/theme/**"] },
   "areas": { "src/components/**": "src/components" },
-  "sourceUrl": "https://gitlab.example.com/group/repo/-/blob/{commit}/{path}#L{line}"
+  "sourceUrl": "https://gitlab.example.com/group/repo/-/blob/{commit}/{path}#L{line}",
+  "health": { "areaModules": 40 }
 }
 ```
 
@@ -176,6 +195,7 @@ Galactica needs no config. To override a default, add `galactica.config.json` to
 - `kinds` maps a kind, `source`, `test`, `story` or `config`, to globs. A module that matches them has that kind, whatever its name and folder say. A module can match the globs of one kind only.
 - `areas` maps a glob to an area path. A module that matches the glob is in that area instead of its folder's area. When a module matches several globs, the first in the file decides. The area path must be inside the module's package. Layers, cycles and the page treat these areas like any other.
 - `sourceUrl` is the link template that `html --source-url` takes, `none` included. `--source-url` wins over it.
+- `health.areaModules` is a whole number. With it, `health` and the page call an area oversized when it holds more source modules than this number, in place of the rule relative to its package.
 
 A glob matches the path from the repository root, with forward slashes, as Node.js `path.matchesGlob` does. `*` matches within one folder and `**` matches any number of folders, but neither matches a name that starts with a dot, so `**/*.tsx` misses `.storybook/preview.tsx` and `.storybook/**` finds it. `include` and `exclude` only narrow the files Galactica already reads. They never add a file that git ignores or a file in `node_modules`, `dist` or another build folder. An import of a module that the config leaves out gets no edge.
 

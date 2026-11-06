@@ -184,6 +184,10 @@ export interface Config {
   readonly areas: readonly AreaRule[]
   /** The link template for `html`, or "none". */
   readonly sourceUrl?: string
+  readonly health?: {
+    /** An area with more source modules than this is oversized, in place of the relative rule. */
+    readonly areaModules?: number
+  }
 }
 
 export interface AreaRule {

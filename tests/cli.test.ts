@@ -155,6 +155,42 @@ test('cycles lists each loop that runs as code, load time first, through barrels
   assert.doesNotMatch(galactica(cycleKinds, 'deps', 'src/types/shape.ts').stdout, /cycle/)
 })
 
+test('health prints its findings and exits 0 whatever it finds', () => {
+  const internal = fixtureRepo('internal-imports')
+  const text = galactica(internal, 'health')
+  assert.equal(text.status, 0)
+  assert.match(text.stdout, /^0 import cycles, 1 oversized area, 7 internal imports$/m)
+  assert.match(
+    text.stdout,
+    /^ {2}packages\/app\/src\/main\.ts:1 {2}\.\.\/\.\.\/core\/src\/math {2}add {2}relative path into @fx\/core {2}use @fx\/core$/m
+  )
+  const json = galactica(internal, 'health', '--json')
+  assert.equal(json.status, 0)
+  const output = JSON.parse(json.stdout)
+  assert.equal(output.command, 'health')
+  assert.equal(output.internalImports.length, 7)
+  const cyclic = galactica(fixtureRepo('cycle-kinds'), 'health')
+  assert.equal(cyclic.status, 0)
+  assert.match(cyclic.stdout, /^3 import cycles, 0 oversized areas, 0 internal imports$/m)
+})
+
+test('health takes health.areaModules from galactica.config.json', t => {
+  const root = repository(t, {
+    'package.json': { name: 'acme' },
+    'galactica.config.json': validConfigs.smallAreas,
+    'src/a.ts': '',
+    'src/b.ts': '',
+    'src/c.ts': ''
+  })
+  const output = JSON.parse(galactica(root, 'health', '--json').stdout)
+  assert.equal(output.areaModules, 2)
+  assert.deepEqual(output.oversizedAreas, [{ path: 'src', package: 'acme', modules: 3, median: 3 }])
+  assert.match(
+    galactica(root, 'health').stdout,
+    /^oversized areas \(more than 2 source modules, by health\.areaModules\):$/m
+  )
+})
+
 test('subjects resolve by package name and directory in a monorepo, from any directory', () => {
   const byName = JSON.parse(galactica(monorepo, 'deps', '@mono/app', '--json').stdout)
   assert.deepEqual(byName.subject, { kind: 'package', name: '@mono/app', dir: 'packages/app' })

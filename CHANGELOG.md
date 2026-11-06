@@ -4,6 +4,9 @@
 
 ## Unreleased
 
+- Add `health`, which lists concrete findings about the structure with no score: each import cycle with the imports to break, each area with at least 20 source modules and 5 times the median area of its package, and each import outside tests and stories that reaches into another workspace package by a relative path or by a subpath its `exports` does not list, with the public specifier to use instead where one exists. It always exits with code 0. On Vitest it finds 4 cycles, 2 oversized areas and 20 such imports.
+- `galactica.config.json` takes `health.areaModules`, a fixed number of source modules above which an area is oversized, in place of the relative rule.
+
 ## 0.1.4
 
 - A workspace import resolves through an export condition the repository defines for its own source, such as Vitest's `__vitest_source__` or TanStack Query's `@tanstack/custom-condition`, when the standard conditions reach no module.
