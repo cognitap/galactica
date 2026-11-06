@@ -2,6 +2,8 @@
 
 Galactica maps a JavaScript or TypeScript repository, for coding agents and for the people who work with them. Both views come from the same analysis, so they never disagree.
 
+Requires **Node.js 24.1.0 or newer**.
+
 - **For agents:** seven commands answer the questions an agent asks while it works, and a skill tells the agent when to ask them.
 - **For humans:** one self-contained HTML page shows where everything lives and what it touches.
 
@@ -240,6 +242,8 @@ Galactica never runs code from the repository it maps, so it is safe to run on a
 
 Galactica itself loads no module from the repository's `node_modules`. It runs git with `core.fsmonitor`, optional index writes and the filter drivers of the repository's own config turned off, so a `.git` folder that came with a download cannot make git run a program. A tool that acts on a file in the repository before Galactica starts, such as a version manager that reads `.nvmrc` or `.tool-versions` and switches Node.js or npm, is outside this guarantee.
 
+Before reading repository content, including compiler configs, workspace manifests and existing installed skill files, Galactica requires a regular file inside the root after following links, of at most 10 MB. Unsafe optional configs are skipped with warnings; an unsafe `galactica.config.json` or an existing skill file that `init` must read fails clearly. An `extends` target outside the root is refused too.
+
 ## Agent benchmark
 
 We ran Claude Code (Sonnet and Opus) 144 times on six tasks in hono, vite and nest: an impact question, two renames, and three edits where the agent names the tests to run. Each task ran without the skill, with it, and with it plus a one-line instruction to use it. Galactica helped on test selection when tests reach the file through a package name or a dev server. With the instruction, accuracy on those two tasks rose from 47% to 78% with Sonnet and from 82% to 100% with Opus. On the other four tasks grep alone scored 100%, and the skill changed the cost per run by between 37% less and about 50% more. Without the instruction, Sonnet rarely loaded the skill. [docs/benchmark.md](docs/benchmark.md) has the method, every number and the caveats, and `pnpm bench:agents` reruns it.
@@ -275,3 +279,13 @@ node /path/to/galactica/dist/bin.js overview --root /path/to/repository
 ```
 
 `pnpm check` runs format, lint, typecheck and the tests, and then installs the packed package in a throwaway repository and runs it there. [RELEASE_POLICY.md](RELEASE_POLICY.md) describes how a version is released.
+
+`pnpm test:coverage` builds and runs the existing Node test suite with coverage. It fails below aggregate floors of 90% lines, 85% branches and 90% functions. CI runs this through `pnpm check` and uploads `coverage/`, including when a floor fails. The directory contains an HTML report (`coverage/lcov-report/index.html`), LCOV and a JSON summary.
+
+Coverage includes every production TypeScript module under `src/`, even modules no test loads, and the pure page helpers `search.js`, `links.js` and `indexes.js`. Build source maps merge CLI subprocess coverage from `dist/` into the same source files, so each module is counted once. Tests, fixtures, dependencies and build copies of the plain page scripts are outside the report. The browser-executed `src/page/page.js` is also outside this Node percentage; `tests/page.test.ts` checks its behavior in Chrome.
+
+`pnpm test:browser` builds and runs the HTML map tests in headless Chrome. Install Google Chrome in its usual location, or set `CHROME_PATH` to the absolute path of its executable. An explicit `CHROME_PATH` takes precedence over automatic discovery. Local runs without Chrome show a skip reason; when `CI` is set, missing Chrome fails the suite. The main CI check verifies Chrome and supplies its path before running `pnpm check`.
+
+CI also runs the Node unit and CLI suites on the latest patches of Node 24 and 26 on Linux. The primary check uses the development version in `.nvmrc` for coverage, browser tests and package-install smoke tests; benchmarks run once in their own job. The required `Checks` job fails if either compatibility job fails. Node 22 remains unsupported; [DEV-733](https://linear.app/cognitap/issue/DEV-733) tracks that decision.
+
+`pnpm test:node` runs just the Node unit and CLI suites using the pinned development toolchain. To check another supported Node version locally, run `pnpm build`, select that version on `PATH` (for example, `nvm use 24`), then run `node scripts/test-node.ts`. Run this last command directly: pnpm pins script runtimes through `devEngines` and `pnpm-workspace.yaml`. The test script prints the actual executable and version, and uses that executable for the test runner.

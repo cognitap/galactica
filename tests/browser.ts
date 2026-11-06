@@ -5,16 +5,25 @@ import { join } from 'node:path'
 import type { TestContext } from 'node:test'
 import { pathToFileURL } from 'node:url'
 
-const candidates = [
-  process.env['CHROME_PATH'],
-  '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',
-  '/usr/bin/google-chrome',
-  '/usr/bin/google-chrome-stable',
-  '/usr/bin/chromium',
-  '/usr/bin/chromium-browser'
-]
+const configured = process.env['CHROME_PATH']
+const candidates =
+  configured === undefined
+    ? [
+        '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',
+        '/usr/bin/google-chrome',
+        '/usr/bin/google-chrome-stable',
+        '/usr/bin/chromium',
+        '/usr/bin/chromium-browser'
+      ]
+    : [configured]
 
 export const chrome = candidates.find(path => path !== undefined && existsSync(path))
+
+if (chrome === undefined && process.env['CI']) {
+  throw new Error(
+    'Browser tests require Chrome in CI. Install Chrome and set CHROME_PATH to its executable.'
+  )
+}
 
 /** Long enough for a cold Chrome on a loaded CI runner, short enough that a hang fails the test instead of the job. */
 const patience = 30_000
