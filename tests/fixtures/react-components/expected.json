@@ -1,5 +1,5 @@
 {
-  "format": 2,
+  "format": 3,
   "repository": { "name": "react-components" },
   "packages": {
     "react-components": { "dir": "." }

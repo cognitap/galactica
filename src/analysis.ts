@@ -20,6 +20,7 @@ import { currentStamp, readCache, writeCache, type Cache, type CacheEntry } from
 import { extract, hashOf } from './extraction.ts'
 import { compilerOf, unreadWarnings, type Unread } from './frameworks.ts'
 import { importResolver, type ImportResolver } from './import-resolution.ts'
+import { reachFinder, withInstead } from './internal-imports.ts'
 import { plainInputs, type Inputs } from './inputs.ts'
 import { resolutionModeOf } from './imports.ts'
 import {
@@ -90,7 +91,8 @@ function resolveModule(
   module: DiscoveredModule,
   { hash, symbols, imports }: CacheEntry,
   options: ts.CompilerOptions,
-  resolver: ImportResolver
+  resolver: ImportResolver,
+  reachOf: ReturnType<typeof reachFinder>
 ): Analyzed {
   const { path } = module
   const { language, format } = isScriptLanguage(module.language)
@@ -101,8 +103,9 @@ function resolveModule(
   for (const { specifier, syntax, resolutionMode, ...taken } of imports) {
     const mode = resolutionModeOf({ syntax, resolutionMode }, language, format, options)
     const to = resolver.resolve(module, specifier, mode)
+    const internal = reachOf(module, specifier, to)
     if (to.kind === 'file') skipped.push(extensionOf(to.path))
-    else edges.push({ to, ...taken, via: [] })
+    else edges.push({ to, ...taken, via: [], ...(internal === undefined ? {} : { internal }) })
   }
   edges.sort(compareEdges)
   return { facts: { path, hash, symbols, edges }, skipped }
@@ -174,13 +177,15 @@ export function analyzeRepository(
   const changed = counts.reread + counts.parsed > 0 || cached.size !== entries.size
   if (store && changed) writeCache(store.directory, store.stamp, entries)
   const resolver = importResolver(discovery, inputs)
+  const reachOf = reachFinder(discovery, resolver.workspace)
   const analyzed = timed(clock, 'resolution', () =>
     discovery.modules.map(module =>
       resolveModule(
         module,
         entries.get(module.path)!,
         compilerOptionsOf(discovery, module),
-        resolver
+        resolver,
+        reachOf
       )
     )
   )
@@ -190,7 +195,12 @@ export function analyzeRepository(
     skipped[extension] = (skipped[extension] ?? 0) + 1
   }
   const modules = timed(clock, 'barrels', () =>
-    resolveBarrels(Object.fromEntries(analyzed.map(({ facts }) => [facts.path, facts])))
+    resolveBarrels(
+      withInstead(
+        Object.fromEntries(analyzed.map(({ facts }) => [facts.path, facts])),
+        resolver.workspace
+      )
+    )
   )
   const edges = Object.values(modules).flatMap(facts => facts.edges)
   return {

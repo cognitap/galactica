@@ -1,5 +1,5 @@
 {
-  "format": 2,
+  "format": 3,
   "repository": { "name": "bundled-packages" },
   "packages": {
     "@demo/app": { "dir": "packages/app" },

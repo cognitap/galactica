@@ -50,7 +50,7 @@ export function parseRepoPath(raw: string): RepoPath {
   return normalize(slashed)
 }
 
-export const MODEL_FORMAT = 2
+export const MODEL_FORMAT = 3
 
 export interface Model {
   readonly format: typeof MODEL_FORMAT
@@ -118,6 +118,21 @@ export interface Edge {
    * If one of them changes, this edge may resolve differently.
    */
   readonly via: readonly RepoPath[]
+  /** Set when the import reaches into another workspace package's internals. */
+  readonly internal?: Internal
+}
+
+/** How an import reaches past another workspace package's public entries. */
+export interface Internal {
+  readonly specifier: string
+  /**
+   * `relative` is a relative path into the other package's directory.
+   * `unlisted` names a subpath of the package that its `exports` does not list.
+   */
+  readonly reach: 'relative' | 'unlisted'
+  readonly package: PackageName
+  /** A specifier of the package's public entries that gives the same import, absent when none does. */
+  readonly instead?: string
 }
 
 /** Code-unit order, the same on every machine and locale. */
@@ -169,6 +184,10 @@ export interface Config {
   readonly areas: readonly AreaRule[]
   /** The link template for `html`, or "none". */
   readonly sourceUrl?: string
+  readonly health?: {
+    /** An area with more source modules than this is oversized, in place of the relative rule. */
+    readonly areaModules?: number
+  }
 }
 
 export interface AreaRule {

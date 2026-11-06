@@ -37,8 +37,15 @@ export function schemaErrors(root: Schema, value: unknown): readonly string[] {
         case '$ref':
           check(resolve(rule as string), value, at)
           break
-        case 'type':
-          if (typeOf(value) !== rule) fail(`expected ${rule as string}, got ${typeOf(value)}`)
+        case 'type': {
+          const actual = Number.isInteger(value) && rule === 'integer' ? 'integer' : typeOf(value)
+          if (actual !== rule) fail(`expected ${rule as string}, got ${actual}`)
+          break
+        }
+        case 'minimum':
+          if (typeof value === 'number' && value < (rule as number)) {
+            fail(`less than ${rule as number}`)
+          }
           break
         case 'pattern':
           if (typeof value === 'string' && !new RegExp(rule as string).test(value)) {

@@ -1,0 +1,653 @@
+{
+  "format": 3,
+  "repository": { "name": "internal-imports" },
+  "packages": {
+    "@fx/app": { "dir": "packages/app" },
+    "@fx/big": { "dir": "packages/big" },
+    "@fx/core": { "dir": "packages/core" },
+    "@fx/plain": { "dir": "packages/plain" },
+    "internal-imports": { "dir": "." }
+  },
+  "modules": {
+    "packages/app/src/main.test.ts": {
+      "path": "packages/app/src/main.test.ts",
+      "symbols": [
+        {
+          "name": "checked",
+          "kind": "const",
+          "line": 3,
+          "default": false,
+          "signature": "const checked"
+        }
+      ],
+      "edges": [
+        {
+          "to": { "kind": "module", "path": "packages/core/src/internal/secret.ts" },
+          "line": 1,
+          "form": "import",
+          "names": ["secret"],
+          "typeOnly": false,
+          "dynamic": false,
+          "loadTime": ["secret"],
+          "via": [],
+          "internal": {
+            "specifier": "../../core/src/internal/secret",
+            "reach": "relative",
+            "package": "@fx/core"
+          }
+        }
+      ]
+    },
+    "packages/app/src/main.ts": {
+      "path": "packages/app/src/main.ts",
+      "symbols": [
+        {
+          "name": "shown",
+          "kind": "const",
+          "line": 12,
+          "default": false,
+          "signature": "const shown = [...]"
+        }
+      ],
+      "edges": [
+        {
+          "to": { "kind": "module", "path": "packages/core/src/math.ts" },
+          "line": 1,
+          "form": "import",
+          "names": ["add"],
+          "typeOnly": false,
+          "dynamic": false,
+          "loadTime": ["add"],
+          "via": [],
+          "internal": {
+            "specifier": "../../core/src/math",
+            "reach": "relative",
+            "package": "@fx/core",
+            "instead": "@fx/core"
+          }
+        },
+        {
+          "to": { "kind": "module", "path": "packages/core/src/format.ts" },
+          "line": 2,
+          "form": "import",
+          "names": ["format"],
+          "typeOnly": false,
+          "dynamic": false,
+          "loadTime": ["format"],
+          "via": [],
+          "internal": {
+            "specifier": "../../core/src/format",
+            "reach": "relative",
+            "package": "@fx/core",
+            "instead": "@fx/core/format"
+          }
+        },
+        {
+          "to": { "kind": "module", "path": "packages/core/src/internal/secret.ts" },
+          "line": 3,
+          "form": "import",
+          "names": ["secret"],
+          "typeOnly": false,
+          "dynamic": false,
+          "loadTime": ["secret"],
+          "via": [],
+          "internal": {
+            "specifier": "../../core/src/internal/secret",
+            "reach": "relative",
+            "package": "@fx/core"
+          }
+        },
+        {
+          "to": { "kind": "module", "path": "packages/core/src/icons/star.ts" },
+          "line": 4,
+          "form": "import",
+          "names": ["star"],
+          "typeOnly": false,
+          "dynamic": false,
+          "loadTime": ["star"],
+          "via": [],
+          "internal": {
+            "specifier": "../../core/src/icons/star",
+            "reach": "relative",
+            "package": "@fx/core",
+            "instead": "@fx/core/icons/star"
+          }
+        },
+        {
+          "to": { "kind": "module", "path": "packages/plain/src/text/slug.ts" },
+          "line": 5,
+          "form": "import",
+          "names": ["slug"],
+          "typeOnly": false,
+          "dynamic": false,
+          "loadTime": ["slug"],
+          "via": [],
+          "internal": {
+            "specifier": "../../plain/src/text/slug",
+            "reach": "relative",
+            "package": "@fx/plain",
+            "instead": "@fx/plain/src/text/slug"
+          }
+        },
+        {
+          "to": { "kind": "module", "path": "packages/plain/src/text/pad.ts" },
+          "line": 6,
+          "form": "import",
+          "names": ["pad"],
+          "typeOnly": false,
+          "dynamic": false,
+          "loadTime": ["pad"],
+          "via": []
+        },
+        {
+          "to": { "kind": "module", "path": "packages/core/src/format.ts" },
+          "line": 7,
+          "form": "import",
+          "names": ["format"],
+          "typeOnly": false,
+          "dynamic": false,
+          "loadTime": ["format"],
+          "via": [],
+          "internal": {
+            "specifier": "@fx/core/src/format",
+            "reach": "unlisted",
+            "package": "@fx/core",
+            "instead": "@fx/core/format"
+          }
+        },
+        {
+          "to": { "kind": "unresolved", "specifier": "@fx/core/internal/gone" },
+          "line": 8,
+          "form": "import",
+          "names": ["gone"],
+          "typeOnly": false,
+          "dynamic": false,
+          "loadTime": ["gone"],
+          "via": [],
+          "internal": {
+            "specifier": "@fx/core/internal/gone",
+            "reach": "unlisted",
+            "package": "@fx/core"
+          }
+        },
+        {
+          "to": { "kind": "module", "path": "scripts/shared.ts" },
+          "line": 9,
+          "form": "import",
+          "names": ["banner"],
+          "typeOnly": false,
+          "dynamic": false,
+          "loadTime": ["banner"],
+          "via": []
+        },
+        {
+          "to": { "kind": "module", "path": "packages/core/src/math.ts" },
+          "line": 10,
+          "form": "import",
+          "names": ["add"],
+          "typeOnly": false,
+          "dynamic": false,
+          "loadTime": ["add"],
+          "via": ["packages/core/src/index.ts"]
+        }
+      ]
+    },
+    "packages/big/src/one/a.ts": {
+      "path": "packages/big/src/one/a.ts",
+      "symbols": [
+        {
+          "name": "oneA",
+          "kind": "const",
+          "line": 1,
+          "default": false,
+          "signature": "const oneA = 1"
+        }
+      ],
+      "edges": []
+    },
+    "packages/big/src/one/b.ts": {
+      "path": "packages/big/src/one/b.ts",
+      "symbols": [
+        {
+          "name": "oneB",
+          "kind": "const",
+          "line": 1,
+          "default": false,
+          "signature": "const oneB = 2"
+        }
+      ],
+      "edges": []
+    },
+    "packages/big/src/two/a.ts": {
+      "path": "packages/big/src/two/a.ts",
+      "symbols": [
+        {
+          "name": "twoA",
+          "kind": "const",
+          "line": 1,
+          "default": false,
+          "signature": "const twoA = 1"
+        }
+      ],
+      "edges": []
+    },
+    "packages/big/src/two/b.ts": {
+      "path": "packages/big/src/two/b.ts",
+      "symbols": [
+        {
+          "name": "twoB",
+          "kind": "const",
+          "line": 1,
+          "default": false,
+          "signature": "const twoB = 2"
+        }
+      ],
+      "edges": []
+    },
+    "packages/big/src/widgets/w01.test.ts": {
+      "path": "packages/big/src/widgets/w01.test.ts",
+      "symbols": [
+        {
+          "name": "checked",
+          "kind": "const",
+          "line": 3,
+          "default": false,
+          "signature": "const checked"
+        }
+      ],
+      "edges": [
+        {
+          "to": { "kind": "module", "path": "packages/big/src/widgets/w01.ts" },
+          "line": 1,
+          "form": "import",
+          "names": ["widget01"],
+          "typeOnly": false,
+          "dynamic": false,
+          "loadTime": ["widget01"],
+          "via": []
+        }
+      ]
+    },
+    "packages/big/src/widgets/w01.ts": {
+      "path": "packages/big/src/widgets/w01.ts",
+      "symbols": [
+        {
+          "name": "widget01",
+          "kind": "const",
+          "line": 1,
+          "default": false,
+          "signature": "const widget01 = 01"
+        }
+      ],
+      "edges": []
+    },
+    "packages/big/src/widgets/w02.ts": {
+      "path": "packages/big/src/widgets/w02.ts",
+      "symbols": [
+        {
+          "name": "widget02",
+          "kind": "const",
+          "line": 1,
+          "default": false,
+          "signature": "const widget02 = 02"
+        }
+      ],
+      "edges": []
+    },
+    "packages/big/src/widgets/w03.ts": {
+      "path": "packages/big/src/widgets/w03.ts",
+      "symbols": [
+        {
+          "name": "widget03",
+          "kind": "const",
+          "line": 1,
+          "default": false,
+          "signature": "const widget03 = 03"
+        }
+      ],
+      "edges": []
+    },
+    "packages/big/src/widgets/w04.ts": {
+      "path": "packages/big/src/widgets/w04.ts",
+      "symbols": [
+        {
+          "name": "widget04",
+          "kind": "const",
+          "line": 1,
+          "default": false,
+          "signature": "const widget04 = 04"
+        }
+      ],
+      "edges": []
+    },
+    "packages/big/src/widgets/w05.ts": {
+      "path": "packages/big/src/widgets/w05.ts",
+      "symbols": [
+        {
+          "name": "widget05",
+          "kind": "const",
+          "line": 1,
+          "default": false,
+          "signature": "const widget05 = 05"
+        }
+      ],
+      "edges": []
+    },
+    "packages/big/src/widgets/w06.ts": {
+      "path": "packages/big/src/widgets/w06.ts",
+      "symbols": [
+        {
+          "name": "widget06",
+          "kind": "const",
+          "line": 1,
+          "default": false,
+          "signature": "const widget06 = 06"
+        }
+      ],
+      "edges": []
+    },
+    "packages/big/src/widgets/w07.ts": {
+      "path": "packages/big/src/widgets/w07.ts",
+      "symbols": [
+        {
+          "name": "widget07",
+          "kind": "const",
+          "line": 1,
+          "default": false,
+          "signature": "const widget07 = 07"
+        }
+      ],
+      "edges": []
+    },
+    "packages/big/src/widgets/w08.ts": {
+      "path": "packages/big/src/widgets/w08.ts",
+      "symbols": [
+        {
+          "name": "widget08",
+          "kind": "const",
+          "line": 1,
+          "default": false,
+          "signature": "const widget08 = 08"
+        }
+      ],
+      "edges": []
+    },
+    "packages/big/src/widgets/w09.ts": {
+      "path": "packages/big/src/widgets/w09.ts",
+      "symbols": [
+        {
+          "name": "widget09",
+          "kind": "const",
+          "line": 1,
+          "default": false,
+          "signature": "const widget09 = 09"
+        }
+      ],
+      "edges": []
+    },
+    "packages/big/src/widgets/w10.ts": {
+      "path": "packages/big/src/widgets/w10.ts",
+      "symbols": [
+        {
+          "name": "widget10",
+          "kind": "const",
+          "line": 1,
+          "default": false,
+          "signature": "const widget10 = 10"
+        }
+      ],
+      "edges": []
+    },
+    "packages/big/src/widgets/w11.ts": {
+      "path": "packages/big/src/widgets/w11.ts",
+      "symbols": [
+        {
+          "name": "widget11",
+          "kind": "const",
+          "line": 1,
+          "default": false,
+          "signature": "const widget11 = 11"
+        }
+      ],
+      "edges": []
+    },
+    "packages/big/src/widgets/w12.ts": {
+      "path": "packages/big/src/widgets/w12.ts",
+      "symbols": [
+        {
+          "name": "widget12",
+          "kind": "const",
+          "line": 1,
+          "default": false,
+          "signature": "const widget12 = 12"
+        }
+      ],
+      "edges": []
+    },
+    "packages/big/src/widgets/w13.ts": {
+      "path": "packages/big/src/widgets/w13.ts",
+      "symbols": [
+        {
+          "name": "widget13",
+          "kind": "const",
+          "line": 1,
+          "default": false,
+          "signature": "const widget13 = 13"
+        }
+      ],
+      "edges": []
+    },
+    "packages/big/src/widgets/w14.ts": {
+      "path": "packages/big/src/widgets/w14.ts",
+      "symbols": [
+        {
+          "name": "widget14",
+          "kind": "const",
+          "line": 1,
+          "default": false,
+          "signature": "const widget14 = 14"
+        }
+      ],
+      "edges": []
+    },
+    "packages/big/src/widgets/w15.ts": {
+      "path": "packages/big/src/widgets/w15.ts",
+      "symbols": [
+        {
+          "name": "widget15",
+          "kind": "const",
+          "line": 1,
+          "default": false,
+          "signature": "const widget15 = 15"
+        }
+      ],
+      "edges": []
+    },
+    "packages/big/src/widgets/w16.ts": {
+      "path": "packages/big/src/widgets/w16.ts",
+      "symbols": [
+        {
+          "name": "widget16",
+          "kind": "const",
+          "line": 1,
+          "default": false,
+          "signature": "const widget16 = 16"
+        }
+      ],
+      "edges": []
+    },
+    "packages/big/src/widgets/w17.ts": {
+      "path": "packages/big/src/widgets/w17.ts",
+      "symbols": [
+        {
+          "name": "widget17",
+          "kind": "const",
+          "line": 1,
+          "default": false,
+          "signature": "const widget17 = 17"
+        }
+      ],
+      "edges": []
+    },
+    "packages/big/src/widgets/w18.ts": {
+      "path": "packages/big/src/widgets/w18.ts",
+      "symbols": [
+        {
+          "name": "widget18",
+          "kind": "const",
+          "line": 1,
+          "default": false,
+          "signature": "const widget18 = 18"
+        }
+      ],
+      "edges": []
+    },
+    "packages/big/src/widgets/w19.ts": {
+      "path": "packages/big/src/widgets/w19.ts",
+      "symbols": [
+        {
+          "name": "widget19",
+          "kind": "const",
+          "line": 1,
+          "default": false,
+          "signature": "const widget19 = 19"
+        }
+      ],
+      "edges": []
+    },
+    "packages/big/src/widgets/w20.ts": {
+      "path": "packages/big/src/widgets/w20.ts",
+      "symbols": [
+        {
+          "name": "widget20",
+          "kind": "const",
+          "line": 1,
+          "default": false,
+          "signature": "const widget20 = 20"
+        }
+      ],
+      "edges": []
+    },
+    "packages/core/src/format.ts": {
+      "path": "packages/core/src/format.ts",
+      "symbols": [
+        {
+          "name": "format",
+          "kind": "function",
+          "line": 1,
+          "default": false,
+          "signature": "function format(text: string)"
+        }
+      ],
+      "edges": []
+    },
+    "packages/core/src/icons/star.ts": {
+      "path": "packages/core/src/icons/star.ts",
+      "symbols": [
+        {
+          "name": "star",
+          "kind": "const",
+          "line": 1,
+          "default": false,
+          "signature": "const star = '*'"
+        }
+      ],
+      "edges": []
+    },
+    "packages/core/src/index.ts": {
+      "path": "packages/core/src/index.ts",
+      "symbols": [],
+      "edges": [
+        {
+          "to": { "kind": "module", "path": "packages/core/src/math.ts" },
+          "line": 1,
+          "form": "reexport",
+          "names": ["add"],
+          "typeOnly": false,
+          "dynamic": false,
+          "via": []
+        }
+      ]
+    },
+    "packages/core/src/internal/secret.ts": {
+      "path": "packages/core/src/internal/secret.ts",
+      "symbols": [
+        {
+          "name": "secret",
+          "kind": "const",
+          "line": 1,
+          "default": false,
+          "signature": "const secret = 'hidden'"
+        }
+      ],
+      "edges": []
+    },
+    "packages/core/src/math.ts": {
+      "path": "packages/core/src/math.ts",
+      "symbols": [
+        {
+          "name": "add",
+          "kind": "function",
+          "line": 1,
+          "default": false,
+          "signature": "const add = (a: number, b: number) =>"
+        }
+      ],
+      "edges": []
+    },
+    "packages/plain/src/index.ts": {
+      "path": "packages/plain/src/index.ts",
+      "symbols": [],
+      "edges": [
+        {
+          "to": { "kind": "module", "path": "packages/plain/src/text/pad.ts" },
+          "line": 1,
+          "form": "reexport",
+          "names": ["pad"],
+          "typeOnly": false,
+          "dynamic": false,
+          "via": []
+        }
+      ]
+    },
+    "packages/plain/src/text/pad.ts": {
+      "path": "packages/plain/src/text/pad.ts",
+      "symbols": [
+        {
+          "name": "pad",
+          "kind": "function",
+          "line": 1,
+          "default": false,
+          "signature": "const pad = (text: string) =>"
+        }
+      ],
+      "edges": []
+    },
+    "packages/plain/src/text/slug.ts": {
+      "path": "packages/plain/src/text/slug.ts",
+      "symbols": [
+        {
+          "name": "slug",
+          "kind": "function",
+          "line": 1,
+          "default": false,
+          "signature": "const slug = (text: string) =>"
+        }
+      ],
+      "edges": []
+    },
+    "scripts/shared.ts": {
+      "path": "scripts/shared.ts",
+      "symbols": [
+        {
+          "name": "banner",
+          "kind": "const",
+          "line": 1,
+          "default": false,
+          "signature": "const banner = 'internal-imports'"
+        }
+      ],
+      "edges": []
+    }
+  }
+}

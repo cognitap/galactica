@@ -64,6 +64,18 @@
       "description": "Where html links source, with {commit}, {path} and {line}, or \"none\" to turn links off. --source-url wins over it.",
       "type": "string",
       "pattern": "^(?:none|[Hh][Tt][Tt][Pp][Ss]?://[\\s\\S]*\\{path\\}[\\s\\S]*)$"
+    },
+    "health": {
+      "description": "Settings of the health command and the page's Health section.",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "areaModules": {
+          "description": "An area with more source modules than this is oversized. It replaces the default rule: at least 20 source modules and 5 times the median area of the package.",
+          "type": "integer",
+          "minimum": 1
+        }
+      }
     }
   }
 }

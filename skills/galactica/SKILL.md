@@ -31,5 +31,6 @@ Leave an existing import cycle alone unless the task asks you to break it or it 
 ## Other commands
 
 - `npx @cognitap/galactica deps <file>` lists what a file imports, inside the repository and outside it.
+- `npx @cognitap/galactica health` lists import cycles, oversized areas, and imports that reach into another package's internals, each with the public specifier to import instead.
 - `npx @cognitap/galactica outline <file>` lists a file's exported symbols with their lines and signatures, without reading the whole file.
 - `--json` on any of these prints structured output.

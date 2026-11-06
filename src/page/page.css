@@ -85,6 +85,7 @@ code,
 }
 
 .masthead,
+.health,
 main {
   max-width: 96rem;
   margin: 0 auto;
@@ -895,4 +896,129 @@ main {
   .area {
     flex-basis: 100%;
   }
+}
+
+.health {
+  padding-bottom: 2rem;
+  display: grid;
+  gap: 1rem;
+}
+
+.health h2 {
+  margin: 0;
+  font-size: 1.1rem;
+  font-weight: 620;
+}
+
+#health-toggle {
+  font: inherit;
+  color: inherit;
+  background: none;
+  border: 0;
+  padding: 0;
+  cursor: pointer;
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.25rem 0.75rem;
+  text-align: start;
+}
+
+#health-toggle::before {
+  content: '▸';
+  color: var(--accent);
+}
+
+#health-toggle[aria-expanded='true']::before {
+  content: '▾';
+}
+
+#health-toggle:hover .health-counts {
+  color: var(--text);
+}
+
+.health-counts {
+  color: var(--muted);
+  font-size: 0.9rem;
+  font-weight: 400;
+  font-variant-numeric: tabular-nums;
+}
+
+#health-body {
+  display: grid;
+  gap: 1.25rem;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 1rem 1.2rem;
+}
+
+.health-group {
+  display: grid;
+  gap: 0.4rem;
+}
+
+.health-group h3 {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 620;
+}
+
+.health-count {
+  color: var(--warn);
+  font-variant-numeric: tabular-nums;
+}
+
+.health-note,
+.health-none,
+.health-cycle-modules {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.85rem;
+}
+
+.findings {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 0.3rem;
+}
+
+.health-cycle {
+  display: grid;
+  gap: 0.2rem;
+}
+
+.health-cycle .findings {
+  padding-left: 1rem;
+}
+
+.finding {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.1rem 0.6rem;
+  font-size: 0.88rem;
+}
+
+.finding-select {
+  font: inherit;
+  font-family: var(--mono);
+  font-size: 0.95em;
+  color: var(--accent);
+  background: none;
+  border: 0;
+  padding: 0;
+  cursor: pointer;
+  text-align: start;
+}
+
+.finding-select:hover {
+  text-decoration: underline;
+}
+
+.finding-details,
+.finding-line {
+  color: var(--muted);
 }

@@ -22,7 +22,7 @@ const graph = graphOf(
   emptyConfig
 )
 
-const repository = { graph, warnings: [] }
+const repository = { graph, config: emptyConfig, warnings: [] }
 
 const input = (argument: string, fields: Partial<Input> = {}): Input => ({
   argument,
@@ -72,7 +72,7 @@ test('overview text counts the warnings in one line that points at --json', () =
     { path: 'packages/a/package.json', message: 'a workspace package without a name is skipped' },
     { path: 'tsconfig.json', message: "File '.nuxt/tsconfig.json' not found." }
   ]
-  const output = commandTable.overview.run({ graph, warnings }, input(''))
+  const output = commandTable.overview.run({ graph, config: emptyConfig, warnings }, input(''))
   const lines = render(output).split('\n')
   assert.deepEqual(lines.slice(-3, -1), [
     '0 import cycles, 0 unresolved imports',
@@ -132,7 +132,12 @@ test('cycles text lists each cycle, its modules and its imports, those to break 
     emptyConfig
   )
   const run = (command: 'cycles' | 'uses', argument = '') =>
-    render(commandTable[command].run({ graph: cyclic, warnings: [] }, input(argument)))
+    render(
+      commandTable[command].run(
+        { graph: cyclic, config: emptyConfig, warnings: [] },
+        input(argument)
+      )
+    )
   assert.equal(
     run('cycles'),
     [
@@ -162,7 +167,7 @@ test('a long list stops after the limit and points at --json', () => {
   )
   const wide = graphOf(modelOf({ ...specs, 'lib/cn.ts': {} }), emptyConfig)
   const lines = render(
-    commandTable.uses.run({ graph: wide, warnings: [] }, input('lib/cn.ts'))
+    commandTable.uses.run({ graph: wide, config: emptyConfig, warnings: [] }, input('lib/cn.ts'))
   ).split('\n')
   assert.equal(lines.length, 1 + LIST_LIMIT + 2)
   assert.equal(lines.at(-2), '… 3 more, use --json')

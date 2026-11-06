@@ -4,7 +4,8 @@
  * embedded JSON small. The shape is private to the page and is no contract.
  */
 
-import type { ModuleKind, Reached } from './contract.ts'
+import type { InternalImport, ModuleKind, Reached } from './contract.ts'
+import { health } from './health.ts'
 import {
   compare,
   type AreaPath,
@@ -81,6 +82,33 @@ export interface PagePackage {
   readonly moduleCycles: readonly (readonly number[])[]
 }
 
+/** What `health` lists, with modules and areas by index. */
+export interface PageHealth {
+  readonly cycles: readonly {
+    readonly modules: readonly number[]
+    readonly loadTime: boolean
+    /** The imports to break. */
+    readonly breaks: readonly {
+      readonly from: number
+      readonly to: number
+      readonly line: number
+      readonly names: readonly string[]
+    }[]
+  }[]
+  /** `health.areaModules`, or null for the relative rule. */
+  readonly areaModules: number | null
+  readonly oversized: readonly {
+    readonly area: number
+    readonly modules: number
+    readonly median: number
+  }[]
+  readonly internal: readonly (Omit<InternalImport, 'from' | 'to' | 'instead'> & {
+    readonly from: number
+    readonly to: number | null
+    readonly instead: string | null
+  })[]
+}
+
 export interface PageData {
   readonly repository: string
   /** Top-level folders within their packages, the most common first, then by name. */
@@ -91,6 +119,7 @@ export interface PageData {
   readonly modules: readonly PageModule[]
   /** What the page builds links to source from, or null for plain paths. */
   readonly source: PageSource | null
+  readonly health: PageHealth
 }
 
 function relativeTo(dir: string, path: string): string {
@@ -148,7 +177,42 @@ function relationsOf(
   }
 }
 
-export function pageData(graph: Graph, source: PageSource | null = null): PageData {
+function healthOf(
+  graph: Graph,
+  areaModules: number | undefined,
+  areaIndex: ReadonlyMap<string, number>,
+  moduleIndex: ReadonlyMap<string, number>
+): PageHealth {
+  const found = health(graph, areaModules)
+  const at = (path: string) => moduleIndex.get(path)!
+  return {
+    cycles: found.cycles.map(({ modules, loadTime, imports }) => ({
+      modules: modules.map(at),
+      loadTime,
+      breaks: imports
+        .filter(entry => entry.break)
+        .map(({ from, to, line, names }) => ({ from: at(from), to: at(to), line, names }))
+    })),
+    areaModules: found.areaModules ?? null,
+    oversized: found.oversizedAreas.map(({ path, modules, median }) => ({
+      area: areaIndex.get(path)!,
+      modules,
+      median
+    })),
+    internal: found.internalImports.map(({ from, to, instead, ...rest }) => ({
+      ...rest,
+      from: at(from),
+      to: to === undefined ? null : at(to),
+      instead: instead ?? null
+    }))
+  }
+}
+
+export function pageData(
+  graph: Graph,
+  source: PageSource | null = null,
+  areaModules?: number
+): PageData {
   const packageNames = [...graph.packages]
     .sort(([a, { layer: layerA }], [b, { layer: layerB }]) => layerB - layerA || compare(a, b))
     .map(([name]) => name)
@@ -223,5 +287,13 @@ export function pageData(graph: Graph, source: PageSource | null = null): PageDa
     return { name, dir, layer, rows, areaCycles, moduleCycles }
   })
 
-  return { repository: graph.repository.name, folders, packages, areas, modules, source }
+  return {
+    repository: graph.repository.name,
+    folders,
+    packages,
+    areas,
+    modules,
+    source,
+    health: healthOf(graph, areaModules, areaIndex, moduleIndex)
+  }
 }

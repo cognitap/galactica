@@ -10,6 +10,8 @@ import type {
   Cycles,
   Deps,
   Failure,
+  Health,
+  InternalImport,
   Outline,
   Output,
   Overview,
@@ -19,6 +21,7 @@ import type {
   Uses,
   Where
 } from './contract.ts'
+import { OVERSIZED } from './health.ts'
 
 /** Entries a text list shows before it points at `--json`. */
 export const LIST_LIMIT = 50
@@ -206,6 +209,82 @@ function renderCycles({ cycles }: Cycles): readonly string[] {
   ]
 }
 
+/** Imports to break that a cycle of `health` shows before it counts the rest. */
+const BREAKS_SHOWN = 3
+
+function healthCycleLines(cycle: Cycle, index: number): readonly string[] {
+  const shown = cycle.modules.slice(0, MEMBERS_SHOWN).join(', ')
+  const more =
+    cycle.modules.length > MEMBERS_SHOWN ? ` and ${cycle.modules.length - MEMBERS_SHOWN} more` : ''
+  const breaks = cycle.imports.filter(({ break: cut }) => cut)
+  return [
+    `  cycle ${index + 1}: ${plural(cycle.modules.length, 'module')}, ${useLabel(cycle)}: ${shown}${more}`,
+    ...breaks
+      .slice(0, BREAKS_SHOWN)
+      .map(
+        ({ from, line, to, names }) =>
+          `    break ${from}:${line} -> ${to}  ${listOr(names, 'side effect only')}`
+      ),
+    ...(breaks.length > BREAKS_SHOWN ? [`    … ${breaks.length - BREAKS_SHOWN} more to break`] : [])
+  ]
+}
+
+function internalLine({
+  from,
+  line,
+  specifier,
+  names,
+  reach,
+  package: owner,
+  instead
+}: InternalImport): string {
+  return [
+    `${from}:${line}`,
+    specifier,
+    listOr(names, 'side effect only'),
+    reach === 'relative' ? `relative path into ${owner}` : `subpath ${owner} does not export`,
+    instead === undefined ? 'no public entry gives it' : `use ${instead}`
+  ].join('  ')
+}
+
+function renderHealth({
+  cycles,
+  areaModules,
+  oversizedAreas,
+  internalImports
+}: Health): readonly string[] {
+  const rule =
+    areaModules === undefined
+      ? `at least ${OVERSIZED.modules} source modules and ${OVERSIZED.times} times the median area of their package`
+      : `more than ${areaModules} source modules, by health.areaModules`
+  return [
+    `${plural(cycles.length, 'import cycle')}, ${plural(oversizedAreas.length, 'oversized area')}, ${plural(internalImports.length, 'internal import')}`,
+    ...(cycles.length === 0
+      ? ['import cycles: none']
+      : ['import cycles, with the imports to break:', ...capped(cycles.flatMap(healthCycleLines))]),
+    ...(oversizedAreas.length === 0
+      ? [`oversized areas (${rule}): none`]
+      : [
+          `oversized areas (${rule}):`,
+          ...capped(
+            oversizedAreas.map(
+              ({ path, modules, median }) =>
+                `  ${path}  ${plural(modules, 'source module')}, package median ${median}`
+            )
+          )
+        ]),
+    ...(internalImports.length === 0
+      ? ["imports into another package's internals: none"]
+      : [
+          "imports into another package's internals:",
+          ...capped(internalImports.map(finding => `  ${internalLine(finding)}`))
+        ]),
+    ...(cycles.length === 0
+      ? []
+      : ['galactica cycles lists every import of each cycle and how to cut one'])
+  ]
+}
+
 type Renderers = {
   readonly [C in Command]: (output: Extract<Output, { readonly command: C }>) => readonly string[]
 }
@@ -216,7 +295,8 @@ const renderers: Renderers = {
   outline: renderOutline,
   uses: renderUses,
   deps: renderDeps,
-  cycles: renderCycles
+  cycles: renderCycles,
+  health: renderHealth
 }
 
 export function render(result: Output | Failure): string {

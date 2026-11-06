@@ -9,7 +9,15 @@
 
 export const SCHEMA_VERSION = 1
 
-export const commands = ['overview', 'where', 'outline', 'uses', 'deps', 'cycles'] as const
+export const commands = [
+  'overview',
+  'where',
+  'outline',
+  'uses',
+  'deps',
+  'cycles',
+  'health'
+] as const
 export type Command = (typeof commands)[number]
 
 export const moduleKinds = ['source', 'test', 'story', 'config'] as const
@@ -192,4 +200,44 @@ export interface Cycles extends Envelope<'cycles'> {
   readonly cycles: readonly Cycle[]
 }
 
-export type Output = Overview | Where | Outline | Uses | Deps | Cycles
+/** An area that holds far more source modules than the other areas of its package. */
+export interface OversizedArea {
+  readonly path: string
+  readonly package: string
+  /** Its source modules, tests, stories and config aside. */
+  readonly modules: number
+  /** The median of `modules` over the areas of the package that hold a source module. */
+  readonly median: number
+}
+
+/** An import that reaches into another workspace package's internals. */
+export interface InternalImport {
+  readonly from: string
+  /** The line of the import in `from`. */
+  readonly line: number
+  /** As written. */
+  readonly specifier: string
+  /** As the defining modules export them, sorted. "*" for a namespace import, empty for a side-effect import. */
+  readonly names: readonly string[]
+  /** `relative`: a relative path into the package's directory. `unlisted`: a subpath its `exports` does not list. */
+  readonly reach: 'relative' | 'unlisted'
+  /** The package reached into. */
+  readonly package: string
+  /** The module the specifier names. Omitted when it resolves to none. */
+  readonly to?: string
+  /** A public specifier of the package that gives the same import. Omitted when there is none. */
+  readonly instead?: string
+}
+
+export interface Health extends Envelope<'health'> {
+  /** As `cycles` lists them. */
+  readonly cycles: readonly Cycle[]
+  /** `health.areaModules` of galactica.config.json, which replaces the relative rule. Omitted when unset. */
+  readonly areaModules?: number
+  /** Sorted by path. */
+  readonly oversizedAreas: readonly OversizedArea[]
+  /** Sorted by `from`, line, then specifier. */
+  readonly internalImports: readonly InternalImport[]
+}
+
+export type Output = Overview | Where | Outline | Uses | Deps | Cycles | Health

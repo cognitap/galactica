@@ -15,7 +15,8 @@ export const validConfigs = {
     exclude: ['src/generated/**'],
     kinds: { source: ['docs/.vitepress/theme/**'] },
     areas: { 'src/components/**': 'src/components' },
-    sourceUrl: gitlab
+    sourceUrl: gitlab,
+    health: { areaModules: 40 }
   },
   vitepressTheme: { kinds: { source: ['docs/.vitepress/theme/**'] } },
   selection: { include: ['src/**', 'scripts/**'], exclude: ['src/generated/**'] },
@@ -41,7 +42,10 @@ export const validConfigs = {
   kindClash: { kinds: { story: ['**/*.example.tsx'], test: ['src/**'] } },
   sourceUrlNone: { sourceUrl: 'none' },
   rootArea: { areas: { 'src/**': '.' } },
-  trailingSlash: { areas: { 'src/a/**': 'src/a/' } }
+  trailingSlash: { areas: { 'src/a/**': 'src/a/' } },
+  areaModules: { health: { areaModules: 19 } },
+  smallAreas: { health: { areaModules: 2 } },
+  emptyHealth: { health: {} }
 } as const
 
 /** Each with the whole line `loadConfig` fails with. */
@@ -49,7 +53,8 @@ export const invalidConfigs: readonly { readonly config: object; readonly messag
   { config: [], message: 'expected an object, got array' },
   {
     config: { colour: 'blue' },
-    message: 'colour: unknown key; expected $schema, include, exclude, kinds, areas or sourceUrl'
+    message:
+      'colour: unknown key; expected $schema, include, exclude, kinds, areas, sourceUrl or health'
   },
   { config: { $schema: 1 }, message: '$schema: expected a string, got number' },
   { config: { include: 'src/**' }, message: 'include: expected an array of globs, got string' },
@@ -102,6 +107,23 @@ export const invalidConfigs: readonly { readonly config: object; readonly messag
   {
     config: { sourceUrl: 'https://example.com/{commit}' },
     message: 'sourceUrl: a source URL template must contain {path}'
+  },
+  { config: { health: 30 }, message: 'health: expected an object, got number' },
+  {
+    config: { health: { areaSize: 30 } },
+    message: 'health.areaSize: unknown key; expected areaModules'
+  },
+  {
+    config: { health: { areaModules: '30' } },
+    message: 'health.areaModules: expected a number, got string'
+  },
+  {
+    config: { health: { areaModules: 0 } },
+    message: 'health.areaModules: expected a whole number of at least 1, got 0'
+  },
+  {
+    config: { health: { areaModules: 2.5 } },
+    message: 'health.areaModules: expected a whole number of at least 1, got 2.5'
   }
 ]
 

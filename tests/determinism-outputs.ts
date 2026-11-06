@@ -37,6 +37,7 @@ async function both(...args: string[]): Promise<string> {
 const overview: Overview = JSON.parse(await both('overview', '--all'))
 await both('overview')
 await both('cycles')
+await both('health')
 const packages = overview.packages
 const areas = packages.flatMap(({ areas }) => areas)
 const modules = areas

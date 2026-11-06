@@ -30,7 +30,8 @@ test('loadConfig reads every option, area paths normalized and in file order', t
       { glob: 'src/b/**', area: 'src/b' },
       { glob: 'src/a/**', area: 'src/a' }
     ],
-    sourceUrl: gitlab
+    sourceUrl: gitlab,
+    health: { areaModules: 40 }
   })
 })
 

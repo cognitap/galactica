@@ -1,0 +1,6 @@
+{
+  "name": "@fx/plain",
+  "private": true,
+  "type": "module",
+  "main": "src/index.ts"
+}
