@@ -1,7 +1,7 @@
 /**
  * Installs the packed package into a throwaway repository and runs it there,
- * the way a user's `npx @cognitap/galactica` does: only what `files` ships and
- * what `dependencies` and `optionalDependencies` install.
+ * the way a user's `npx --prefix / @cognitap/galactica` does: only what
+ * `files` ships and what `dependencies` and `optionalDependencies` install.
  *
  * node scripts/pack-and-test.ts [<archive>]
  *
@@ -71,7 +71,7 @@ try {
     'created .cursor/rules/galactica.mdc'
   ])
   const skill = readFileSync(join(repository, '.agents/skills/galactica/SKILL.md'), 'utf8')
-  assert.match(skill, /`npx @cognitap\/galactica overview`/)
+  assert.match(skill, /`npx --prefix \/ @cognitap\/galactica overview`/)
   assert.ok(skill.includes(`galactica-version: "${version}"`), 'stamps the package version')
 
   assert.match(galactica('html'), /^wrote .*galactica\.html \(\d+ KB\)$/)
