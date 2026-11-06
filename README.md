@@ -52,7 +52,7 @@ Scope is JavaScript and TypeScript, including Vue, Svelte and Astro script block
 
 On the recorded Nest impact task, every condition covered all required files and tests. The instructed skill cost **15–37% less**. It also improved test selection when Hono imports went through package names. The value is precise questions about the import graph: impact, cycles and package boundaries, with one command and no server.
 
-The [144-run benchmark and reproducible harness](https://github.com/cognitap/galactica/blob/ebc0802464d3aa2115aca8df7e82dba73c6b7d5c/docs/benchmark.md) cover Hono, Vite and Nest, two models, three skill conditions and four runs per cell. Rename accuracy did not improve, and the instructed condition cost more overall. Edits and test lists were graded statically; target tests were not executed, extra tests were not penalized, and the sample is small. The linked report includes every number, the recorded Galactica version and the limits.
+The [144-run benchmark and reproducible harness](docs/benchmark.md) cover Hono, Vite and Nest, two models, three skill conditions and four runs per cell. Rename accuracy did not improve, and the instructed condition cost more overall. Edits and test lists were graded statically; target tests were not executed, extra tests were not penalized, and the sample is small. The linked report includes every number, the recorded Galactica version and the limits.
 
 ## Reference
 

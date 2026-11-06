@@ -41,6 +41,7 @@
     "test:node": "pnpm build && node scripts/test-node.ts",
     "test:package": "pnpm build && node scripts/pack-and-test.ts",
     "bench": "pnpm --silent build && node scripts/bench.ts",
+    "bench:agents": "pnpm --silent build && node bench/agents/run.ts",
     "fixtures:update": "node tests/update-fixtures.ts",
     "lint": "oxlint --deny-warnings",
     "format": "oxfmt",
