@@ -30,7 +30,10 @@ const stamp = {
   build: 'abc',
   typescript: '6.0.3',
   vue: '3.5.44',
-  svelte: 'missing'
+  svelte: 'missing',
+  mdx: '3.1.1',
+  marko: 'missing',
+  markoCompiler: '5.42.18'
 }
 
 const entry: CacheEntry = {
@@ -190,8 +193,17 @@ test('the file holds the format, the stamp and the entries by path, sorted', t =
   const file = JSON.parse(cacheText(directory))
   assert.equal(file.format, CACHE_FORMAT)
   assert.deepEqual(
-    [file.galactica, file.build, file.typescript, file.vue, file.svelte],
-    ['1.2.3', 'abc', '6.0.3', '3.5.44', 'missing']
+    [
+      file.galactica,
+      file.build,
+      file.typescript,
+      file.vue,
+      file.svelte,
+      file.mdx,
+      file.marko,
+      file.markoCompiler
+    ],
+    ['1.2.3', 'abc', '6.0.3', '3.5.44', 'missing', '3.1.1', 'missing', '5.42.18']
   )
   assert.deepEqual(Object.keys(file.modules), ['src/App.vue', 'src/a.ts'])
 })
@@ -204,7 +216,10 @@ test('a cache from another format, Galactica build, TypeScript or compiler versi
     { ...stamp, build: 'abd' },
     { ...stamp, typescript: '6.0.4' },
     { ...stamp, vue: 'missing' },
-    { ...stamp, svelte: '5.57.3' }
+    { ...stamp, svelte: '5.57.3' },
+    { ...stamp, mdx: 'missing' },
+    { ...stamp, marko: '6.4.12' },
+    { ...stamp, markoCompiler: 'missing' }
   ]) {
     assert.equal(readCache(directory, other).size, 0)
   }
@@ -272,4 +287,18 @@ test('the current stamp names this Galactica and TypeScript', () => {
   assert.equal(galactica, version)
   assert.match(build, /^[0-9a-f]{64}$/)
   assert.match(typescript, /^\d+\.\d+\.\d+/)
+})
+
+test('the current stamp names each installed framework compiler', () => {
+  const { vue, svelte, mdx, marko, markoCompiler } = currentStamp()
+  assert.deepEqual(
+    { vue, svelte, mdx, marko, markoCompiler },
+    {
+      vue: '3.5.44',
+      svelte: '5.57.3',
+      mdx: '3.1.1',
+      marko: '6.4.12',
+      markoCompiler: '5.42.18'
+    }
+  )
 })

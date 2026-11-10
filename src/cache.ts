@@ -40,6 +40,10 @@ export interface Stamp {
   /** The versions of the framework compilers, or `missing` when Galactica was installed without one. */
   readonly vue: string
   readonly svelte: string
+  readonly mdx: string
+  /** The Marko translator. `@marko/compiler` cannot read a file without it. */
+  readonly marko: string
+  readonly markoCompiler: string
 }
 
 const here = dirname(fileURLToPath(import.meta.url))
@@ -62,10 +66,28 @@ export const galacticaVersion = () => versionOf(join(here, '..', 'package.json')
 
 const require = createRequire(import.meta.url)
 
-// Read from its package.json, so a warm run knows the stamp without loading the package.
+/**
+ * The installed version, read from the package's own package.json, without
+ * loading the package. A package that exports `./package.json` resolves
+ * directly. One that does not, such as `@mdx-js/mdx`, is found by walking up
+ * from its entry. One with no entry, such as `marko`, exports only subpaths,
+ * so the direct resolution is what reaches it.
+ */
 function dependencyVersion(name: string): string {
   try {
     return versionOf(require.resolve(`${name}/package.json`))
+  } catch {}
+  try {
+    let dir = dirname(require.resolve(name))
+    while (true) {
+      try {
+        const manifest = JSON.parse(readFileSync(join(dir, 'package.json'), 'utf8'))
+        if (manifest.name === name) return String(manifest.version)
+      } catch {}
+      const parent = dirname(dir)
+      if (parent === dir) return 'missing'
+      dir = parent
+    }
   } catch {
     return 'missing'
   }
@@ -77,7 +99,10 @@ export function currentStamp(): Stamp {
     build: buildHash(),
     typescript: dependencyVersion('typescript'),
     vue: dependencyVersion('@vue/compiler-sfc'),
-    svelte: dependencyVersion('svelte')
+    svelte: dependencyVersion('svelte'),
+    mdx: dependencyVersion('@mdx-js/mdx'),
+    marko: dependencyVersion('marko'),
+    markoCompiler: dependencyVersion('@marko/compiler')
   }
 }
 
@@ -136,7 +161,10 @@ export const sameStamp = (file: UnknownRecord, stamp: Stamp) =>
   file.build === stamp.build &&
   file.typescript === stamp.typescript &&
   file.vue === stamp.vue &&
-  file.svelte === stamp.svelte
+  file.svelte === stamp.svelte &&
+  file.mdx === stamp.mdx &&
+  file.marko === stamp.marko &&
+  file.markoCompiler === stamp.markoCompiler
 
 /** The cache in `directory`, empty unless its format and stamp match. An entry that does not parse is left out. */
 export function readCache(directory: string, stamp: Stamp): Cache {

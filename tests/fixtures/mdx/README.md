@@ -1,0 +1,1 @@
+Reading `src/Page.mdx` needs `@mdx-js/mdx`. Galactica reads it with its own copy, from its optional dependency, and never with a compiler the mapped repository installs, so the fixture installs nothing.

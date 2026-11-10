@@ -79,6 +79,9 @@ try {
   assert.ok(shrinkwrap.packages['node_modules/@vue/compiler-sfc'], 'locks the Vue compiler tree')
   assert.ok(!shrinkwrap.packages['node_modules/vue'], 'does not install the Vue runtime')
   assert.ok(shrinkwrap.packages['node_modules/svelte'], 'locks the Svelte compiler tree')
+  assert.ok(shrinkwrap.packages['node_modules/@mdx-js/mdx'], 'locks the MDX compiler tree')
+  assert.ok(shrinkwrap.packages['node_modules/@marko/compiler'], 'locks the Marko compiler tree')
+  assert.ok(shrinkwrap.packages['node_modules/marko'], 'locks the Marko translator')
   for (const [path, entry] of Object.entries(shrinkwrap.packages)) {
     if (path === '') continue
     assert.match(entry.version, /^\d+\.\d+\.\d+/, `${path} has an exact version`)

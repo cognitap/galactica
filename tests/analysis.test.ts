@@ -333,7 +333,10 @@ test('a cache from another Galactica build, TypeScript or compiler version is di
     { build: 'other' },
     { typescript: '1.0.0' },
     { vue: 'missing' },
-    { svelte: '4.2.19' }
+    { svelte: '4.2.19' },
+    { mdx: 'missing' },
+    { marko: 'missing' },
+    { markoCompiler: 'missing' }
   ]) {
     writeFileSync(file, JSON.stringify({ ...written, ...other }))
     const discarded = run()

@@ -68,7 +68,10 @@
     "oxlint": "1.87.0"
   },
   "optionalDependencies": {
+    "@marko/compiler": "5.42.18",
+    "@mdx-js/mdx": "3.1.1",
     "@vue/compiler-sfc": "3.5.44",
+    "marko": "6.4.12",
     "svelte": "5.57.3"
   },
   "devEngines": {

@@ -1,0 +1,97 @@
+{
+  "format": 3,
+  "repository": { "name": "marko" },
+  "packages": {
+    "marko": { "dir": "." }
+  },
+  "modules": {
+    "src/Bar.marko": {
+      "path": "src/Bar.marko",
+      "symbols": [
+        {
+          "name": "Bar",
+          "kind": "component",
+          "line": 1,
+          "default": true,
+          "signature": "component Bar"
+        }
+      ],
+      "edges": [
+        {
+          "to": { "kind": "unresolved", "specifier": "./secret" },
+          "line": 1,
+          "form": "import",
+          "names": ["secret"],
+          "typeOnly": false,
+          "dynamic": false,
+          "via": []
+        }
+      ]
+    },
+    "src/Widget.marko": {
+      "path": "src/Widget.marko",
+      "symbols": [
+        {
+          "name": "Widget",
+          "kind": "component",
+          "line": 1,
+          "default": true,
+          "signature": "component Widget"
+        },
+        {
+          "name": "title",
+          "kind": "const",
+          "line": 3,
+          "default": false,
+          "signature": "const title: Kind"
+        }
+      ],
+      "edges": [
+        {
+          "to": { "kind": "module", "path": "src/format.ts" },
+          "line": 1,
+          "form": "import",
+          "names": ["formatCount"],
+          "typeOnly": false,
+          "dynamic": false,
+          "via": []
+        },
+        {
+          "to": { "kind": "module", "path": "src/kind.ts" },
+          "line": 2,
+          "form": "import",
+          "names": ["Kind"],
+          "typeOnly": true,
+          "dynamic": false,
+          "via": []
+        }
+      ]
+    },
+    "src/format.ts": {
+      "path": "src/format.ts",
+      "symbols": [
+        {
+          "name": "formatCount",
+          "kind": "function",
+          "line": 1,
+          "default": false,
+          "signature": "function formatCount(count: number): string"
+        }
+      ],
+      "edges": []
+    },
+    "src/kind.ts": {
+      "path": "src/kind.ts",
+      "symbols": [
+        {
+          "name": "Kind",
+          "kind": "type",
+          "line": 1,
+          "default": false,
+          "signature": "type Kind = 'widget'"
+        }
+      ],
+      "edges": []
+    }
+  }
+}

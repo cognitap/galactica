@@ -3,3 +3,6 @@ engineStrict: true
 strictDepBuilds: true
 allowBuilds:
   esbuild: true
+minimumReleaseAgeExclude:
+  - '@marko/compiler@5.42.18'
+  - marko@6.4.12
