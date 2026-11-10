@@ -1,6 +1,6 @@
 {
   "name": "@cognitap/galactica",
-  "version": "0.2.3",
+  "version": "0.2.4",
   "description": "Trace JavaScript and TypeScript imports, find the tests a change can affect, and explore the dependency graph offline.",
   "keywords": [
     "agent-skills",
