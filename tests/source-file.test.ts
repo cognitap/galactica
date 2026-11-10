@@ -19,6 +19,8 @@ test('files with other extensions, and declaration files, are no modules', () =>
     'README.md',
     'package.json',
     'src/style.css',
+    'src/app.component.html',
+    'src/template.html',
     'Makefile',
     'src/env.d.ts',
     'src/env.d.mts',
@@ -97,7 +99,7 @@ for (const folder of [
   '__mocks__'
 ]) {
   test(`${folder} contains tests, including framework files`, () => {
-    for (const extension of ['ts', 'js', 'vue', 'svelte', 'astro']) {
+    for (const extension of ['ts', 'js', 'vue', 'svelte', 'astro', 'mdx', 'marko']) {
       assert.equal(kind(`src/${folder}/nested/component.${extension}`), 'test')
     }
   })

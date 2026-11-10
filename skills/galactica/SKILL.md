@@ -1,6 +1,6 @@
 ---
 name: galactica
-description: "Use before changing a JS/TS file: every importer, including package-name imports grep misses, which tests to run, and whether the edit closes an import cycle. Also use when asked what imports or depends on a file, why one file reaches another, which tests cover it, whether files form an import cycle, or where an exported symbol is defined, and run its overview when you don't know where to start. Covers Vue, Svelte and Astro files too."
+description: "Use before changing a JS/TS file: every importer, including package-name imports grep misses, which tests to run, and whether the edit closes an import cycle. Also use when asked what imports or depends on a file, why one file reaches another, which tests cover it, whether files form an import cycle, or where an exported symbol is defined, and run its overview when you don't know where to start. Covers Vue, Svelte, Astro, MDX and Marko files too."
 ---
 
 # Galactica

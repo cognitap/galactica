@@ -6,11 +6,14 @@ Galactica reads source statically with the TypeScript compiler API. It never run
 
 ## Languages and frameworks
 
-- JavaScript and TypeScript, including JSX and CommonJS.
-- Vue, Svelte and Astro files. Each one exports its component, named after the file.
+- JavaScript and TypeScript, including JSX and CommonJS. A Solid component in `.jsx` is read the same way.
+- Vue, Svelte, Astro, MDX and Marko files. Each one exports its component, named after the file.
   - Galactica reads the imports and exports of a Vue file's `<script>` and `<script setup>`, and of a Svelte file's instance and module scripts. It uses its own `@vue/compiler-sfc` and `svelte/compiler`, installed as optional dependencies. Because it reads only script blocks, Vue 2 components and Svelte 4 syntax work too. Only `<script>` and a Svelte module script can export.
+  - An MDX file's import and export statements are JavaScript, read with Galactica's own `@mdx-js/mdx`. A TypeScript statement such as `import type` fails the file. An import inside a fenced code block is text.
+  - A Marko file's import and export statements, and its `import()` calls, are read with Galactica's own `@marko/compiler` and `marko`. The compiler is given a filesystem that refuses every read and Galactica's own translator, so a custom tag is not resolved to a file. An explicit import is an edge.
   - A file whose compiler is missing, because Galactica was installed with `--omit=optional`, or fails on it, keeps its component and has no imports.
   - An Astro file's frontmatter is read as text, with no compiler. The `<script>` tags in its body are not read.
+- An Angular component class in a `.ts` file is read like any TypeScript. Its template, usually `.component.html`, has no module imports, so `.html` files are not modules.
 
 Impact follows imports between files. For symbol-level references and refactoring, use a language service.
 

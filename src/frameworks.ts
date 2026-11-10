@@ -11,6 +11,8 @@ import type { Warning } from './compiler-settings.ts'
 import type { Language } from './contract.ts'
 import type { RepoPath } from './model.ts'
 
+const require = createRequire(import.meta.url)
+
 export interface ScriptBlock {
   readonly text: string
   /** The lines of the file before the block's text, which every line read from the block is shifted by. */
@@ -113,6 +115,180 @@ const fence = /^﻿?\s*---\r?\n/
 const closingFence = /^---\r?$/m
 
 /**
+ * One import or export statement. The markup can read its bindings, so the
+ * block does not decide which of them run at load time.
+ */
+function statementBlock(text: string, line: number): ScriptBlock {
+  return { text, offset: line - 1, language: 'ts', exports: true, loads: false }
+}
+
+interface MdxNode {
+  readonly type?: unknown
+  readonly value?: unknown
+  readonly position?: { readonly start?: { readonly line?: unknown } }
+}
+
+interface MdxCompiler {
+  readonly createProcessor: () => {
+    readonly parse: (text: string) => { readonly children?: readonly MdxNode[] }
+  }
+}
+
+/**
+ * Each ESM statement. The compiled JavaScript is not used: it adds a runtime
+ * import and moves the lines. An import inside a fenced code block is not one
+ * of these nodes.
+ */
+function mdxBlocks(text: string, _path: RepoPath, compiler: unknown): readonly ScriptBlock[] {
+  const children = (compiler as MdxCompiler).createProcessor().parse(text).children
+  if (!Array.isArray(children)) throw new Error('@mdx-js/mdx returned no document')
+  return children.flatMap(node => {
+    if (node.type !== 'mdxjsEsm' || typeof node.value !== 'string') return []
+    const line = node.position?.start?.line
+    if (typeof line !== 'number')
+      throw new Error('@mdx-js/mdx returned a statement with no position')
+    return [statementBlock(node.value, line)]
+  })
+}
+
+interface MarkoNode {
+  readonly type: string
+  readonly loc?: {
+    readonly start?: { readonly line?: number; readonly index?: number }
+    readonly end?: { readonly index?: number }
+  } | null
+  readonly [key: string]: unknown
+}
+
+interface MarkoCompiler {
+  readonly compileSync: (
+    text: string,
+    filename: string,
+    options: {
+      readonly ast: true
+      readonly code: false
+      readonly errorRecovery: true
+      readonly output: 'migrate'
+      readonly translator: unknown
+      readonly fileSystem: {
+        readonly readFileSync: (path: string) => never
+        readonly statSync: (path: string) => never
+        readonly readdirSync: (path: string) => never
+      }
+      readonly babelConfig: {
+        readonly babelrc: false
+        readonly configFile: false
+        readonly browserslistConfigFile: false
+      }
+    }
+  ) => { readonly ast: { readonly program?: MarkoNode } | null }
+}
+
+const markoStatements = new Set([
+  'ImportDeclaration',
+  'ExportNamedDeclaration',
+  'ExportAllDeclaration',
+  'ExportDefaultDeclaration',
+  'ImportExpression'
+])
+
+/** A filename outside any repository. The compiler asks its filesystem about the parents. */
+const markoFilename = '/virtual/component.marko'
+
+function refuse(path: string): never {
+  throw Object.assign(new Error(`ENOENT: ${path}`), { code: 'ENOENT' })
+}
+
+const closedFileSystem = {
+  readFileSync: refuse,
+  statSync: refuse,
+  readdirSync: refuse
+}
+
+function isMarkoNode(value: unknown): value is MarkoNode {
+  return (
+    typeof value === 'object' && value !== null && 'type' in value && typeof value.type === 'string'
+  )
+}
+
+function statementOf(source: string, node: MarkoNode): ScriptBlock {
+  const start = node.loc?.start
+  const end = node.loc?.end?.index
+  if (
+    typeof start?.index !== 'number' ||
+    typeof start.line !== 'number' ||
+    typeof end !== 'number' ||
+    end < start.index
+  ) {
+    throw new Error('@marko/compiler returned a statement with no position')
+  }
+  return statementBlock(source.slice(start.index, end), start.line)
+}
+
+function markoBlocksIn(source: string, node: MarkoNode, seen: WeakSet<object>): ScriptBlock[] {
+  if (seen.has(node)) return []
+  seen.add(node)
+  if (markoStatements.has(node.type)) return [statementOf(source, node)]
+  const blocks: ScriptBlock[] = []
+  for (const value of Object.values(node)) {
+    if (isMarkoNode(value)) blocks.push(...markoBlocksIn(source, value, seen))
+    else if (Array.isArray(value)) {
+      for (const child of value) {
+        if (isMarkoNode(child)) blocks.push(...markoBlocksIn(source, child, seen))
+      }
+    }
+  }
+  return blocks
+}
+
+function markoFailure(error: unknown): string {
+  if (
+    typeof error === 'object' &&
+    error !== null &&
+    'label' in error &&
+    typeof error.label === 'string'
+  ) {
+    const line = error.label.split('\n').find(item => item.trim().length > 0)
+    if (line !== undefined) return line.trim()
+  }
+  const message = error instanceof Error ? error.message : String(error)
+  return (
+    message
+      .split('\n')
+      .find(item => item.trim().length > 0)
+      ?.trim() ?? message
+  )
+}
+
+/**
+ * The migrate tree, which is the parse before tags are resolved. Compiling
+ * would read the working directory for a translator, a config and every
+ * custom tag. Galactica passes its own translator and a filesystem that
+ * refuses every read, so a custom tag is not an import. An explicit import,
+ * and an `import()` call, is. The translator is resolved and then required,
+ * so the built module does not import an optional package.
+ */
+function markoBlocks(text: string, _path: RepoPath, compiler: unknown): readonly ScriptBlock[] {
+  let result: ReturnType<MarkoCompiler['compileSync']>
+  try {
+    result = (compiler as MarkoCompiler).compileSync(text, markoFilename, {
+      ast: true,
+      code: false,
+      errorRecovery: true,
+      output: 'migrate',
+      translator: require(require.resolve('marko/translator')),
+      fileSystem: closedFileSystem,
+      babelConfig: { babelrc: false, configFile: false, browserslistConfigFile: false }
+    })
+  } catch (error) {
+    throw new Error(markoFailure(error))
+  }
+  const program = result.ast?.program
+  if (program === undefined) throw new Error('@marko/compiler returned no syntax tree')
+  return markoBlocksIn(text, program, new WeakSet())
+}
+
+/**
  * The frontmatter, read as text. It is all the extraction reads, so
  * Galactica ships no Astro compiler for it.
  */
@@ -137,7 +313,9 @@ function astroBlocks(text: string): readonly ScriptBlock[] {
 const frameworks = {
   vue: { compiler: '@vue/compiler-sfc', blocks: vueBlocks },
   svelte: { compiler: 'svelte/compiler', blocks: svelteBlocks },
-  astro: { blocks: astroBlocks }
+  astro: { blocks: astroBlocks },
+  mdx: { compiler: '@mdx-js/mdx', blocks: mdxBlocks },
+  marko: { compiler: '@marko/compiler', blocks: markoBlocks }
 } satisfies Readonly<Partial<Record<Language, Framework>>>
 
 export type FrameworkLanguage = keyof typeof frameworks
@@ -173,7 +351,6 @@ interface Compiler {
   readonly load?: () => unknown
 }
 
-const require = createRequire(import.meta.url)
 const compilers = new Map<FrameworkLanguage, Compiler>()
 
 /** Galactica's own compiler for `language`, resolved once. Undefined when the language needs none. */

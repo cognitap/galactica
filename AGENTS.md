@@ -8,7 +8,7 @@ Galactica analyzes a JavaScript or TypeScript repository into one `Model`, deriv
 
 Agents run Galactica on repositories they just cloned or downloaded. Treat the mapped repository as hostile.
 
-- Never run its code. Load no module from it, including its `node_modules`, and run no bundler, generator or script. Read Vue and Svelte with Galactica's own exact-pinned optional `@vue/compiler-sfc` and `svelte/compiler`; read Astro frontmatter as text.
+- Never run its code. Load no module from it, including its `node_modules`, and run no bundler, generator or script. Read Vue and Svelte with Galactica's own exact-pinned optional `@vue/compiler-sfc` and `svelte/compiler`, MDX with `@mdx-js/mdx`, and Marko with `@marko/compiler` and `marko`. Pass Marko a filesystem that refuses every read and Galactica's own translator. Read Astro frontmatter as text.
 - Read repository bytes only through `readRepositoryFile` in `src/safe-read.ts`: a regular file inside the root after following links, at most 10 MB.
 - Match repository-controlled globs only through `src/glob.ts`, which is linear in the path length.
 - Run git only through `git` in `src/repository-files.ts`, which turns off `core.fsmonitor`, optional index writes and filter drivers.
@@ -34,7 +34,7 @@ Support Node.js 24.1.0 and newer; [CONTRIBUTING.md](CONTRIBUTING.md#nodejs-versi
 ## Terms
 
 - **Package:** a workspace package. A single-package repository has one.
-- **Module:** one source file, including `.vue`, `.svelte` and `.astro` files.
+- **Module:** one source file, including `.vue`, `.svelte`, `.astro`, `.mdx` and `.marko` files.
 - **Kind:** source, test, story or config, from the path or the config's `kinds`. Tests and stories never shape layers.
 - **Area:** a group of modules within one package, usually a folder. The config's `areas` can override it.
 - **Symbol:** an exported function, class, component, type, interface, enum or constant.

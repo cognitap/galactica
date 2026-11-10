@@ -47,7 +47,9 @@ export const languages = [
   'cjs',
   'vue',
   'svelte',
-  'astro'
+  'astro',
+  'mdx',
+  'marko'
 ] as const
 export type Language = (typeof languages)[number]
 

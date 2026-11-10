@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict'
-import { cpSync, existsSync, mkdirSync, realpathSync, symlinkSync } from 'node:fs'
+import { cpSync, existsSync, mkdirSync, readFileSync, realpathSync, symlinkSync } from 'node:fs'
 import { createRequire } from 'node:module'
 import { dirname, join } from 'node:path'
 import { test, type TestContext } from 'node:test'
@@ -35,7 +35,9 @@ const app: Files = {
   'node_modules/.keep': '',
   'src/a.ts': 'export const a = 1',
   'src/App.vue': "<script setup>\nimport { a } from './a'\n</script>",
-  'src/Card.svelte': "<script>\n  import { a } from './a'\n</script>"
+  'src/Card.svelte': "<script>\n  import { a } from './a'\n</script>",
+  'src/Page.mdx': "import { a } from './a'\n\n# Hi\n",
+  'src/Widget.marko': "import { a } from './a'\n\n<div>${a}</div>\n"
 }
 
 /** A package in the target whose compiler entry, when required, writes `loaded-<name>` at the root. */
@@ -58,20 +60,29 @@ test('a compiler in the repository being mapped is never loaded', t => {
     ...app,
     ...plantedCompiler('vue', 'compiler-sfc'),
     ...plantedCompiler('@vue/compiler-sfc'),
-    ...plantedCompiler('svelte', 'compiler')
+    ...plantedCompiler('svelte', 'compiler'),
+    ...plantedCompiler('@mdx-js/mdx'),
+    ...plantedCompiler('@marko/compiler'),
+    ...plantedCompiler('marko', 'translator')
   })
   const cache = join(root, 'node_modules', '.cache', 'galactica')
   for (const run of ['cold', 'warm']) {
     const { model, summary } = analyzeRepository(root, emptyConfig, { cache })
     assert.deepEqual(targets(model, 'src/App.vue'), ['src/a.ts'], run)
     assert.deepEqual(targets(model, 'src/Card.svelte'), ['src/a.ts'], run)
+    assert.deepEqual(targets(model, 'src/Page.mdx'), ['src/a.ts'], run)
+    assert.deepEqual(targets(model, 'src/Widget.marko'), ['src/a.ts'], run)
     assert.deepEqual(summary.warnings, [], run)
   }
   const output = cli(join(galactica, 'dist', 'bin.js'), root, 'uses', 'src/a.ts')
   assert.match(output, /src\/App\.vue/)
   assert.match(output, /src\/Card\.svelte/)
+  assert.match(output, /src\/Page\.mdx/)
+  assert.match(output, /src\/Widget\.marko/)
   assert.deepEqual(
-    ['vue', '@vue-compiler-sfc', 'svelte'].filter(name => existsSync(join(root, `loaded-${name}`))),
+    ['vue', '@vue-compiler-sfc', 'svelte', '@mdx-js-mdx', '@marko-compiler', 'marko'].filter(name =>
+      existsSync(join(root, `loaded-${name}`))
+    ),
     []
   )
 })
@@ -83,9 +94,22 @@ function installed(t: TestContext, optional: readonly string[]) {
   cpSync(join(galactica, 'package.json'), join(folder, 'package.json'))
   const require = createRequire(import.meta.url)
   const link = (name: string) => {
+    let dir: string
+    try {
+      dir = dirname(require.resolve(`${name}/package.json`))
+    } catch {
+      dir = dirname(require.resolve(name))
+      for (;;) {
+        const manifest = join(dir, 'package.json')
+        if (existsSync(manifest) && JSON.parse(readFileSync(manifest, 'utf8')).name === name) break
+        const parent = dirname(dir)
+        if (parent === dir) throw new Error(`no package for ${name}`)
+        dir = parent
+      }
+    }
     const target = join(folder, 'node_modules', name)
     mkdirSync(dirname(target), { recursive: true })
-    symlinkSync(realpathSync(dirname(require.resolve(`${name}/package.json`))), target)
+    symlinkSync(realpathSync(dir), target)
   }
   link('typescript')
   optional.forEach(link)
@@ -107,6 +131,14 @@ test('installed without its optional dependencies, each framework warns once, an
     {
       path: 'src/Card.svelte',
       message: 'svelte/compiler is not installed with Galactica; 1 .svelte file has no imports'
+    },
+    {
+      path: 'src/Page.mdx',
+      message: '@mdx-js/mdx is not installed with Galactica; 1 .mdx file has no imports'
+    },
+    {
+      path: 'src/Widget.marko',
+      message: '@marko/compiler is not installed with Galactica; 1 .marko file has no imports'
     }
   ])
   const { symbols, edges } = model.modules['src/App.vue' as RepoPath]!
@@ -123,6 +155,17 @@ test('a cache written without the compilers is discarded once they are installed
   assert.deepEqual(dependents(), ['src/App.vue'])
   link('svelte')
   assert.deepEqual(dependents(), ['src/App.vue', 'src/Card.svelte'])
+  link('@mdx-js/mdx')
+  assert.deepEqual(dependents(), ['src/App.vue', 'src/Card.svelte', 'src/Page.mdx'])
+  link('@marko/compiler')
+  assert.deepEqual(dependents(), ['src/App.vue', 'src/Card.svelte', 'src/Page.mdx'])
+  link('marko')
+  assert.deepEqual(dependents(), [
+    'src/App.vue',
+    'src/Card.svelte',
+    'src/Page.mdx',
+    'src/Widget.marko'
+  ])
 })
 
 test('a compiler that throws leaves the file its component, and warns once with the first failure', t => {
@@ -223,4 +266,108 @@ test('a Svelte 4 component with export let, $: and a context="module" script is 
     ],
     targets: [{ kind: 'external', name: 'svelte' }, 'src/Child.svelte']
   })
+})
+
+test('an MDX file reads its statements and ignores an import in a fenced block', t => {
+  const root = repository(t, {
+    'package.json': { name: 'docs' },
+    'src/Button.tsx': 'export const Button = () => null',
+    'src/Page.mdx': [
+      "import { Button } from './Button'",
+      '',
+      "export const title = 'Hi'",
+      '',
+      '# Hello',
+      '',
+      '<Button />',
+      '',
+      '```js',
+      "import { hidden } from './nope'",
+      '```'
+    ].join('\n')
+  })
+  const { model, summary } = analyzeRepository(root, emptyConfig)
+  assert.deepEqual(summary.warnings, [])
+  assert.deepEqual(brief(model, 'src/Page.mdx'), {
+    symbols: [
+      ['Page', 1, 'component'],
+      ['title', 3, 'const']
+    ],
+    targets: ['src/Button.tsx']
+  })
+})
+
+test('a Marko file reads its own imports and does not resolve a custom tag', t => {
+  const root = repository(t, {
+    'package.json': { name: 'widgets' },
+    'src/marko.json': '{',
+    'src/value.ts': 'export const value = 1',
+    'src/Bar.marko': "import { value } from './secret'\n\n<span/>\n",
+    'src/Widget.marko': [
+      "import { value } from './value'",
+      'export const title = "Hi"',
+      '',
+      'static {',
+      '  const extra = import("./later")',
+      '}',
+      '',
+      '<div>${value}<Bar/></div>'
+    ].join('\n')
+  })
+  const { model, summary } = analyzeRepository(root, emptyConfig)
+  assert.deepEqual(summary.warnings, [])
+  assert.deepEqual(brief(model, 'src/Widget.marko'), {
+    symbols: [
+      ['Widget', 1, 'component'],
+      ['title', 2, 'const']
+    ],
+    targets: ['src/value.ts', { kind: 'unresolved', specifier: './later' }]
+  })
+})
+
+test('a Solid component in jsx is read like any JSX module', t => {
+  const root = repository(t, {
+    'package.json': { name: 'solid-app', dependencies: { 'solid-js': '*' } },
+    'src/icon.tsx': 'export const icon = "i"',
+    'src/Button.jsx': [
+      "import { createSignal } from 'solid-js'",
+      "import { icon } from './icon'",
+      'export function Button() {',
+      '  const [count] = createSignal(0)',
+      '  return <button>{count()}{icon}</button>',
+      '}'
+    ].join('\n')
+  })
+  const { model, summary } = analyzeRepository(root, emptyConfig)
+  assert.deepEqual(summary.warnings, [])
+  assert.deepEqual(targets(model, 'src/Button.jsx'), [
+    { kind: 'external', name: 'solid-js' },
+    'src/icon.tsx'
+  ])
+})
+
+test('an Angular component class is read, and its html template is not a module', t => {
+  const root = repository(t, {
+    'package.json': { name: 'ng', dependencies: { '@angular/core': '*' } },
+    'src/format.ts': 'export const format = (value: string) => value',
+    'src/app.component.ts': [
+      "import { Component } from '@angular/core'",
+      "import { format } from './format'",
+      '@Component({',
+      "  selector: 'app-root',",
+      "  templateUrl: './app.component.html'",
+      '})',
+      'export class AppComponent {',
+      '  title = format("hi")',
+      '}'
+    ].join('\n'),
+    'src/app.component.html': '<app-button [label]="title"></app-button>\n<div>{{ title }}</div>'
+  })
+  const { model, summary } = analyzeRepository(root, emptyConfig)
+  assert.deepEqual(summary.warnings, [])
+  assert.equal(model.modules['src/app.component.html' as RepoPath], undefined)
+  assert.deepEqual(targets(model, 'src/app.component.ts'), [
+    { kind: 'external', name: '@angular/core' },
+    'src/format.ts'
+  ])
 })

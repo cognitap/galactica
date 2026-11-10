@@ -1,0 +1,1 @@
+Reading `src/Widget.marko` needs `@marko/compiler` and `marko`. Galactica reads it with its own copies, and never with a compiler or translator the mapped repository installs, so the fixture installs nothing. `src/marko.json` is not valid JSON. A compiler that read the repository would fail on it. `<Bar>` is not an import.

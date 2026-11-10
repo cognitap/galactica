@@ -21,7 +21,7 @@ A copy of Galactica installed outside the repository is as safe as `--prefix /`.
 
 ## What it never runs
 
-- Galactica loads no module from the repository, including its `node_modules`. It reads Vue and Svelte with its own compilers.
+- Galactica loads no module from the repository, including its `node_modules`. It reads Vue, Svelte, MDX and Marko with its own compilers, and Astro frontmatter as text. The Marko compiler is not given the repository's files or translator.
 - It runs no bundler, framework generator or package script.
 - It runs git with `core.fsmonitor`, optional index writes and the repository's own filter drivers turned off, so a `.git` folder that came with a download cannot make git run a program.
 

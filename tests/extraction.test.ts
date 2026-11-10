@@ -8,6 +8,8 @@ import type { RepoPath } from '../src/model.ts'
 const require = createRequire(import.meta.url)
 const vue = () => require('@vue/compiler-sfc')
 const svelte = () => require('svelte/compiler')
+const mdx = () => require('@mdx-js/mdx')
+const marko = () => require('@marko/compiler')
 
 const component = (name: string) => ({
   name,
@@ -184,13 +186,100 @@ test('an Astro frontmatter may follow a byte order mark and blank lines', () => 
   assert.deepEqual(brief(extraction).imports, [['./a', 4, ['default']]])
 })
 
-test('without its compiler, a Vue or Svelte file has its component and no imports', () => {
+test('without its compiler, a framework file has its component and no imports', () => {
   const lines = ['<script>', "import a from './a'", '</script>']
   assert.deepEqual(read('src/A.vue', 'vue', lines), { symbols: [component('A')], imports: [] })
   assert.deepEqual(read('src/B.svelte', 'svelte', lines), {
     symbols: [component('B')],
     imports: []
   })
+  assert.deepEqual(read('src/Page.mdx', 'mdx', ["import a from './a'", '', '# Hi']), {
+    symbols: [component('Page')],
+    imports: []
+  })
+  assert.deepEqual(read('src/Widget.marko', 'marko', ["import a from './a'", '', '<div/>']), {
+    symbols: [component('Widget')],
+    imports: []
+  })
+})
+
+test('an MDX file gives its statements at their lines and skips a fenced import', () => {
+  const extraction = read(
+    'src/Page.mdx',
+    'mdx',
+    [
+      "import { Button } from './Button'",
+      '',
+      'export const title = "Hi"',
+      '',
+      '# Hello',
+      '',
+      '```js',
+      "import { hidden } from './nope'",
+      '```'
+    ],
+    mdx
+  )
+  assert.deepEqual(brief(extraction), {
+    symbols: [
+      ['Page', 1, 'component'],
+      ['title', 3, 'const']
+    ],
+    imports: [['./Button', 1, ['Button']]]
+  })
+})
+
+test('an MDX file with a TypeScript import is not read', () => {
+  const extraction = read(
+    'src/Page.mdx',
+    'mdx',
+    ["import type { Kind } from './kind'", "import { a } from './a'"],
+    mdx
+  )
+  assert.deepEqual(extraction.symbols, [component('Page')])
+  assert.deepEqual(extraction.imports, [])
+  assert.equal(extraction.failure, 'Could not parse import/exports with acorn')
+})
+
+test('a Marko file gives its imports, exports and import calls, and not a custom tag', () => {
+  const extraction = read(
+    'src/Widget.marko',
+    'marko',
+    [
+      "import { value } from './value'",
+      'export const title = "Hi"',
+      '',
+      'static {',
+      '  const extra = import("./later")',
+      '}',
+      '',
+      '<script>',
+      "import { hidden } from './hidden'",
+      '</script>',
+      '',
+      '<div>${value}<Bar/></div>'
+    ],
+    marko
+  )
+  assert.deepEqual(brief(extraction), {
+    symbols: [
+      ['Widget', 1, 'component'],
+      ['title', 2, 'const']
+    ],
+    imports: [
+      ['./value', 1, ['value']],
+      ['./later', 5, []],
+      ['./hidden', 9, ['hidden']]
+    ]
+  })
+  assert.equal(extraction.imports[1]?.dynamic, true)
+})
+
+test('a Marko syntax error keeps the component and reports the compiler label', () => {
+  const broken = read('src/Widget.marko', 'marko', ['<div>'], marko)
+  assert.deepEqual(broken.symbols, [component('Widget')])
+  assert.deepEqual(broken.imports, [])
+  assert.equal(broken.failure, 'Missing ending "div" tag')
 })
 
 test('when the compiler throws, the file has its component, no imports, and the first line of the error', () => {

@@ -45,11 +45,13 @@ const cases = [
   'internal-imports',
   'vue',
   'svelte',
-  'astro'
+  'astro',
+  'mdx',
+  'marko'
 ]
 
 const mapped = new Set<string>(languages)
-const frameworks = new Set(['vue', 'svelte', 'astro'])
+const frameworks = new Set(['vue', 'svelte', 'astro', 'mdx', 'marko'])
 const importLine = /\bfrom\s*['"]|\bimport\s*['"]|\bimport\s*\(|\brequire\s*\(/
 /** `export { name }` or `export default name` of an imported binding passes it on from its own line. */
 const localExportLine = /^export\s*(\{|default\b)/
