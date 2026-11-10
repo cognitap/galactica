@@ -14,7 +14,12 @@ for (const file of ['deno.json', 'deno.jsonc']) {
     })
     const message = `${file}: Deno repositories are not supported; workspace and import-map resolution would give an incomplete map`
     for (const command of commands) {
-      const argument = ['where', 'outline', 'uses', 'deps'].includes(command) ? ['src/main.ts'] : []
+      const argument =
+        command === 'path'
+          ? ['src/main.ts', 'src/main.ts']
+          : ['where', 'outline', 'uses', 'deps'].includes(command)
+            ? ['src/main.ts']
+            : []
       const text = await run([command, ...argument], root)
       assert.equal(text.code, 1, `${command} should refuse a Deno repository`)
       assert.equal(text.stdout, '')

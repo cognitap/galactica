@@ -29,15 +29,16 @@ Run `npx @cognitap/galactica init` in your own repository (or `galactica init` a
 
 ## CLI
 
-| Command          | What it shows                                             |
-| ---------------- | --------------------------------------------------------- |
-| `overview`       | Packages, areas and dependency layers                     |
-| `where <name>`   | Definitions of a named symbol                             |
-| `outline <file>` | A file’s exports and signatures                           |
-| `uses <file>`    | Importers and tests that reach the file                   |
-| `deps <file>`    | The file’s dependencies                                   |
-| `cycles`         | Import cycles and where to break them                     |
-| `health`         | Cycles, oversized areas and cross-package private imports |
+| Command            | What it shows                                             |
+| ------------------ | --------------------------------------------------------- |
+| `overview`         | Packages, areas and dependency layers                     |
+| `where <name>`     | Definitions of a named symbol                             |
+| `outline <file>`   | A file’s exports and signatures                           |
+| `uses <file>`      | Importers and tests that reach the file                   |
+| `deps <file>`      | The file’s dependencies                                   |
+| `path <from> <to>` | The shortest import chain from one file to another        |
+| `cycles`           | Import cycles and where to break them                     |
+| `health`           | Cycles, oversized areas and cross-package private imports |
 
 Add `--json` for structured output. Test reach follows imports, so tests that load code at runtime may need a separate search. [Command reference](https://github.com/cognitap/galactica/blob/main/docs/commands.md) · [Configuration](https://github.com/cognitap/galactica/blob/main/docs/configuration.md)
 

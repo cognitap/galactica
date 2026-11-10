@@ -15,6 +15,7 @@ export const commands = [
   'outline',
   'uses',
   'deps',
+  'path',
   'cycles',
   'health'
 ] as const
@@ -257,6 +258,40 @@ export interface Deps extends Envelope<'deps'> {
   readonly cycles: readonly Cycle[]
 }
 
+/** One hop of an import chain. `via` lists the barrels it passes through, importer side first. */
+export interface PathStep {
+  readonly from: string
+  readonly to: string
+  /** The line of this import in `from`. */
+  readonly line: number
+  /** As `to` exports them, sorted. "*" for a namespace import, empty for a side-effect import. */
+  readonly names: readonly string[]
+  /** Barrels this import passes through, importer side first. */
+  readonly via: readonly string[]
+}
+
+/** A simple chain of imports. `modules` starts at `from` and ends at `to`. */
+export interface ImportChain {
+  readonly modules: readonly string[]
+  /** The import between each successive pair of `modules`. Empty when both arguments name the same module. */
+  readonly steps: readonly PathStep[]
+}
+
+export interface Path extends Envelope<'path'> {
+  readonly from: ModuleRef
+  readonly to: ModuleRef
+  /** Whether `--all` was given. */
+  readonly all: boolean
+  /**
+   * The shortest chain when `all` is false. Otherwise every distinct simple
+   * chain, shortest first, then by module path, up to 20. Empty when `from`
+   * never imports its way to `to`.
+   */
+  readonly chains: readonly ImportChain[]
+  /** True when more chains exist than `chains` lists, or the search stopped early. */
+  readonly truncated: boolean
+}
+
 export interface Cycles extends Envelope<'cycles'> {
   /** Those with an import used at load time first, then by their first module in path order. */
   readonly cycles: readonly Cycle[]
@@ -302,4 +337,4 @@ export interface Health extends Envelope<'health'> {
   readonly internalImports: readonly InternalImport[]
 }
 
-export type Output = Overview | Where | Outline | Uses | Deps | Cycles | Health
+export type Output = Overview | Where | Outline | Uses | Deps | Path | Cycles | Health

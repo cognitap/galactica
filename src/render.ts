@@ -15,6 +15,8 @@ import type {
   Outline,
   Output,
   Overview,
+  Path,
+  PathStep,
   Reached,
   ReachedTest,
   Subject,
@@ -282,6 +284,34 @@ function importLine({ from, line, to, names, via, use, break: cut }: CycleImport
 const importRank = ({ break: cut, use }: CycleImport) =>
   (cut ? 0 : 2) + (use === 'load-time' ? 0 : 1)
 
+function stepLine({ from, line, to, names, via }: PathStep): string {
+  return [
+    `${from}:${line} -> ${to}`,
+    ...(via.length === 0 ? [] : [`via ${via.join(', ')}`]),
+    listOr(names, 'side effect only')
+  ].join('  ')
+}
+
+function renderPath({ from, to, all, chains, truncated }: Path): readonly string[] {
+  if (from.path === to.path) return [`${from.path} is the same module`]
+  const chain = chains[0]
+  if (chain === undefined) return [`no import chain from ${from.path} to ${to.path}`]
+  if (!all) {
+    return [
+      `${from.path} reaches ${to.path} in ${plural(chain.steps.length, 'import')}:`,
+      ...chain.steps.map(stepLine)
+    ]
+  }
+  return [
+    `${from.path} reaches ${to.path} by ${plural(chains.length, 'import chain')}:`,
+    ...chains.flatMap((entry, index) => [
+      `${index + 1}. ${plural(entry.steps.length, 'import')}:`,
+      ...entry.steps.map(step => `   ${stepLine(step)}`)
+    ]),
+    ...(truncated ? ['more chains exist than this list shows'] : [])
+  ]
+}
+
 function renderCycles({ cycles }: Cycles): readonly string[] {
   if (cycles.length === 0) return ['no import cycles']
   const loading = cycles.filter(cycle => cycle.loadTime).length
@@ -387,6 +417,7 @@ const renderers: Renderers = {
   outline: renderOutline,
   uses: renderUses,
   deps: renderDeps,
+  path: renderPath,
   cycles: renderCycles,
   health: renderHealth
 }

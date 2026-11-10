@@ -27,6 +27,7 @@ const repository = { graph, config: emptyConfig, warnings: [] }
 
 const input = (argument: string, fields: Partial<Input> = {}): Input => ({
   argument,
+  second: '',
   depth: 1,
   all: false,
   cwd: '.' as RepoPath,

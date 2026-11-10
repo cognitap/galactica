@@ -89,6 +89,41 @@ test('a command prints text by default and its JSON object with --json', () => {
   )
 })
 
+test('path shows the import chain from one module to another', () => {
+  const barrels = fixtureRepo('barrels')
+  const found = galactica(
+    barrels,
+    'path',
+    'src/main.ts',
+    'src/components/forms/Input.tsx',
+    '--json'
+  )
+  assert.equal(found.status, 0, found.stderr)
+  const output = JSON.parse(found.stdout)
+  assert.equal(output.command, 'path')
+  assert.deepEqual(output.chains[0].modules, ['src/main.ts', 'src/components/forms/Input.tsx'])
+  assert.deepEqual(output.chains[0].steps[0].via, [
+    'src/components/index.ts',
+    'src/components/forms/index.ts'
+  ])
+  assert.ok(output.chains[0].steps[0].names.includes('Input'))
+
+  const text = galactica(barrels, 'path', 'src/main.ts', 'src/components/forms/Input.tsx')
+  assert.match(
+    text.stdout,
+    /^src\/main\.ts reaches src\/components\/forms\/Input\.tsx in 1 import:/
+  )
+  assert.match(text.stdout, /via src\/components\/index\.ts, src\/components\/forms\/index\.ts/)
+
+  const none = galactica(barrels, 'path', 'src/components/forms/Input.tsx', 'src/main.ts')
+  assert.equal(none.status, 0)
+  assert.equal(none.stdout, 'no import chain from src/components/forms/Input.tsx to src/main.ts\n')
+
+  const arity = galactica(plain, 'path', 'src/math.ts')
+  assert.equal(arity.status, 1)
+  assert.equal(arity.stderr, 'galactica: path takes <from> and <to>, got 1\n')
+})
+
 test('uses and deps follow edges in a plain repository', () => {
   assert.equal(
     galactica(plain, 'uses', 'src/math.ts').stdout,

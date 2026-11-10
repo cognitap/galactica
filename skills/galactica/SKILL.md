@@ -1,6 +1,6 @@
 ---
 name: galactica
-description: "Use before changing a JS/TS file: every importer, including package-name imports grep misses, which tests to run, and whether the edit closes an import cycle. Also use when asked what imports or depends on a file, which tests cover it, whether files form an import cycle, or where an exported symbol is defined, and run its overview when you don't know where to start. Covers Vue, Svelte and Astro files too."
+description: "Use before changing a JS/TS file: every importer, including package-name imports grep misses, which tests to run, and whether the edit closes an import cycle. Also use when asked what imports or depends on a file, why one file reaches another, which tests cover it, whether files form an import cycle, or where an exported symbol is defined, and run its overview when you don't know where to start. Covers Vue, Svelte and Astro files too."
 ---
 
 # Galactica
@@ -33,5 +33,6 @@ Leave an existing import cycle alone unless the task asks you to break it or it 
 
 - `npx --prefix / @cognitap/galactica deps <file>` lists what a file imports, inside the repository and outside it.
 - `npx --prefix / @cognitap/galactica outline <file>` lists a file's exported symbols with their lines and signatures, without reading the whole file.
+- `npx --prefix / @cognitap/galactica path <from> <to>` shows the shortest chain of imports by which one file reaches another. `--all` lists every chain, up to 20.
 - `npx --prefix / @cognitap/galactica health` lists import cycles, oversized areas, and imports that reach into another package's internals.
 - `--json` on any of these prints structured output.

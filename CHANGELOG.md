@@ -4,6 +4,8 @@
 
 ## Unreleased
 
+- `path <from> <to>` prints the shortest chain of imports from one module to another. `--all` lists every chain, up to 20.
+
 ## 0.2.3
 
 - Remove the outdated experimental label from the npm package README.

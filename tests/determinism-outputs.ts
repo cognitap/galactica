@@ -62,6 +62,13 @@ for (const subject of new Set(subjects)) {
   await record('uses', subject, '--depth', '9', '--json')
   await record('deps', subject, '--depth', '9', '--json')
 }
+const [first, second] = modules
+if (first !== undefined && second !== undefined) {
+  await both('path', first, second)
+  await both('path', second, first)
+  await both('path', first, second, '--all')
+}
+if (first !== undefined) await both('path', first, first)
 const html = await run(['html', '--out', page!, ...flags], cwd)
 outputs.html = `${html.code}\n${html.stderr}\n${html.code === 0 ? readFileSync(page!, 'utf8') : ''}`
 
