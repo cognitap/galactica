@@ -212,6 +212,48 @@ When a `paths` alias reaches no file, an npm-shaped specifier falls back to its 
 }
 ```
 
+## path
+
+`galactica path src/app.ts src/button.ts --json`
+
+`from` and `to` are the modules the two arguments named. Both arguments are module paths, read from the current directory and from the repository root, as `outline` reads its file. A package name or an area path does not match.
+
+`chains` lists import chains from `from` to `to`. Without `--all` it holds the shortest chain, or none when `from` never reaches `to` by imports. A chain does not repeat a module. The shortest chain is the one with the fewest steps; where those tie, the modules come first in path order. `--all` lists every such chain, shortest first and then by module path, up to 20. `all` is true when `--all` was given. `truncated` is true when more chains exist than `chains` lists, or the search stopped early. An empty `chains` with `truncated` false means there is no chain.
+
+`modules` starts with `from` and ends with `to`. `steps` is the import between each successive pair. When several imports in one file resolve to the same module, the step is the earliest and `names` joins what it takes, sorted. `names` is `"*"` for a namespace import and empty for a side-effect import. `via` lists the barrels that step passes through, importer side first, and is empty when the import names `to` directly. Type-only imports count, since the chain answers how one module depends on another, and so do dynamic imports. External packages and unresolved specifiers are not steps.
+
+When both arguments name the same module, `chains` holds that one module and `steps` is empty. `path` does not look for a cycle from a module back to itself.
+
+```json
+{
+  "schemaVersion": 1,
+  "command": "path",
+  "from": { "path": "src/app.ts", "package": "@acme/app", "area": "src", "kind": "source" },
+  "to": {
+    "path": "src/button.ts",
+    "package": "@acme/app",
+    "area": "src",
+    "kind": "source"
+  },
+  "all": false,
+  "chains": [
+    {
+      "modules": ["src/app.ts", "src/button.ts"],
+      "steps": [
+        {
+          "from": "src/app.ts",
+          "to": "src/button.ts",
+          "line": 4,
+          "names": ["Button"],
+          "via": ["src/index.ts"]
+        }
+      ]
+    }
+  ],
+  "truncated": false
+}
+```
+
 ## cycles
 
 `galactica cycles --json`

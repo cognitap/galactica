@@ -8,17 +8,18 @@ To pin a version for a team, install it as a dev dependency and run it through t
 
 The smaller examples use [Radiant](https://github.com/cognitap/radiant), Cognitap's React interaction components and presentation primitives.
 
-| Command          | Answers                                                             |
-| ---------------- | ------------------------------------------------------------------- |
-| `overview`       | What is in this repository, and how is it layered?                  |
-| `where <name>`   | Where is this defined?                                              |
-| `outline <file>` | What does this file contain?                                        |
-| `uses <file>`    | What depends on this, and which tests should run after I change it? |
-| `deps <file>`    | What does this depend on?                                           |
-| `cycles`         | Which modules import each other in a loop, and where do I cut it?   |
-| `health`         | Is the structure healthy, and which imports should change?          |
-| `html`           | Write the human map as one HTML file.                               |
-| `init`           | Install the agent skill into this repository.                       |
+| Command            | Answers                                                             |
+| ------------------ | ------------------------------------------------------------------- |
+| `overview`         | What is in this repository, and how is it layered?                  |
+| `where <name>`     | Where is this defined?                                              |
+| `outline <file>`   | What does this file contain?                                        |
+| `uses <file>`      | What depends on this, and which tests should run after I change it? |
+| `deps <file>`      | What does this depend on?                                           |
+| `path <from> <to>` | How does one module reach another?                                  |
+| `cycles`           | Which modules import each other in a loop, and where do I cut it?   |
+| `health`           | Is the structure healthy, and which imports should change?          |
+| `html`             | Write the human map as one HTML file.                               |
+| `init`             | Install the agent skill into this repository.                       |
 
 ## Common behavior
 
@@ -26,15 +27,15 @@ Every command prints short text by default and structured output with `--json`, 
 
 A subject is a module path, a package name, a package directory or an area path.
 
-| Option          | Effect                                                          |
-| --------------- | --------------------------------------------------------------- |
-| `--root <dir>`  | Use this repository instead of the current directory.           |
-| `--json`        | Print the JSON result or failure instead of text.               |
-| `--no-cache`    | Analyze every file, and neither read nor write the cache.       |
-| `--depth <n>`   | How many import steps `uses` and `deps` follow. 1 by default.   |
-| `--all`         | List every module of each area in `overview`, not the top five. |
-| `-h, --help`    | Print every command and option.                                 |
-| `-v, --version` | Print the version.                                              |
+| Option          | Effect                                                                         |
+| --------------- | ------------------------------------------------------------------------------ |
+| `--root <dir>`  | Use this repository instead of the current directory.                          |
+| `--json`        | Print the JSON result or failure instead of text.                              |
+| `--no-cache`    | Analyze every file, and neither read nor write the cache.                      |
+| `--depth <n>`   | How many import steps `uses` and `deps` follow. 1 by default.                  |
+| `--all`         | List every module of each area in `overview`, or every import chain in `path`. |
+| `-h, --help`    | Print every command and option.                                                |
+| `-v, --version` | Print the version.                                                             |
 
 `html` and `init` take the options described in their sections below.
 
@@ -94,6 +95,20 @@ unresolved: none
 `deps` of a module starts from that exact file, even a test or story. `deps` of a package or area starts from its source and config modules: tests, stories and fixtures classified as tests are not starting points, so imports made only by those files are omitted. The external and unresolved lists describe the starting modules only. Use `overview --json` for every unresolved import in the repository. Text shortens long specifiers; JSON keeps them complete.
 
 `uses` and `deps` follow `--depth` import steps, 1 by default, and end with a line for each cycle the subject is in.
+
+## path
+
+`path <from> <to>` answers why one module depends on another. It prints the shortest chain of imports from `<from>` to `<to>`, or says there is none. Each step names the import's line and the names it takes. A barrel the import passes through is listed on that step, because the chain follows the module that defines the name.
+
+Both arguments are module paths. Each is read from the current directory and from the repository root, like `outline`.
+
+`--all` lists every distinct chain that does not repeat a module, shortest first, up to 20. The text says when more exist. The same module is a chain of that one module: `path` does not search for a cycle back to it.
+
+```text
+$ galactica path src/main.ts src/components/forms/Input.tsx
+src/main.ts reaches src/components/forms/Input.tsx in 1 import:
+src/main.ts:4 -> src/components/forms/Input.tsx  via src/components/index.ts, src/components/forms/index.ts  Input
+```
 
 ## cycles
 

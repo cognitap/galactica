@@ -67,7 +67,8 @@ const columns = (rows: readonly Row[]) => {
 export function usage(): string {
   const commands = Object.entries(commandTable).map(([name, spec]): Row => {
     const argument = spec.argument === undefined ? '' : ` <${spec.argument}>`
-    return [`${name}${argument}${flagList(spec.options)}`, spec.summary]
+    const second = spec.second === undefined ? '' : ` <${spec.second}>`
+    return [`${name}${argument}${second}${flagList(spec.options)}`, spec.summary]
   })
   const writers: readonly Row[] = [
     [`html${flagList(htmlFlags)}`, 'Write the map for people as one self-contained HTML file'],
@@ -206,18 +207,23 @@ export function parseInput(argv: readonly string[], cwd: string): Parsed {
   const { values, positionals } = parsed
   const spec =
     command === 'html'
-      ? { options: htmlFlags, argument: undefined }
+      ? { options: htmlFlags, argument: undefined, second: undefined }
       : command === 'init'
-        ? { options: initFlags, argument: undefined }
+        ? { options: initFlags, argument: undefined, second: undefined }
         : commandTable[command]
   const foreign = flags.find(
     option => values[option] !== undefined && !(spec.options as readonly string[]).includes(option)
   )
   if (foreign !== undefined) return fail(`${command} takes no --${foreign}`)
   const operands = positionals.slice(1)
-  const wanted = spec.argument === undefined ? 0 : 1
+  const wanted = spec.second !== undefined ? 2 : spec.argument === undefined ? 0 : 1
   if (operands.length !== wanted) {
-    const shape = spec.argument === undefined ? 'no argument' : `one <${spec.argument}>`
+    const shape =
+      spec.second !== undefined
+        ? `<${spec.argument}> and <${spec.second}>`
+        : spec.argument === undefined
+          ? 'no argument'
+          : `one <${spec.argument}>`
     return fail(`${command} takes ${shape}, got ${operands.length}`)
   }
   // Analysis validates depth before the root, preserving its useful argument error.
@@ -247,6 +253,7 @@ export function parseInput(argv: readonly string[], cwd: string): Parsed {
     command,
     input: {
       argument: operands[0] ?? '',
+      second: operands[1] ?? '',
       depth: Number(depth),
       all: values.all ?? false,
       cwd: insideRoot(root, cwd)

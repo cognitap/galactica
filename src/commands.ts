@@ -9,11 +9,14 @@ import { cycles } from './cycles.ts'
 import { health } from './health.ts'
 import type { Config, Graph, RepoPath } from './model.ts'
 import { overview } from './overview.ts'
+import { importPath } from './path.ts'
 import { deps, outline, uses, where } from './queries.ts'
 
 export interface Input {
   /** The positional argument. Empty for a command that takes none. */
   readonly argument: string
+  /** The second positional. Empty for a command that takes one or none. */
+  readonly second: string
   readonly depth: number
   readonly all: boolean
   /** The current directory relative to the root, undefined when it lies outside. */
@@ -35,7 +38,11 @@ export const commandOptions = {
     value: '<n>',
     summary: 'Import steps uses and deps follow (default: 1)'
   },
-  all: { type: 'boolean', value: '', summary: 'List every module of each area in overview' }
+  all: {
+    type: 'boolean',
+    value: '',
+    summary: 'List every module of each area in overview, or every import chain in path'
+  }
 } as const
 
 type CommandOption = keyof typeof commandOptions
@@ -43,6 +50,8 @@ type CommandOption = keyof typeof commandOptions
 interface CommandSpec {
   /** The positional argument's name in the usage text. Absent when the command takes none. */
   readonly argument?: string
+  /** The second positional's name. Present only when the command takes two. */
+  readonly second?: string
   readonly options: readonly CommandOption[]
   readonly summary: string
   readonly run: (repository: Repository, input: Input) => Output | Failure
@@ -77,6 +86,14 @@ export const commandTable: { readonly [C in Command]: CommandSpec } = {
     options: ['depth'],
     summary: 'What the subject depends on, in the workspace and outside it',
     run: ({ graph }, { argument, cwd, depth }) => deps(graph, argument, cwd, depth)
+  },
+  path: {
+    argument: 'from',
+    second: 'to',
+    options: ['all'],
+    summary: 'The import chain from one module to another',
+    run: ({ graph }, { argument, second, cwd, all }) =>
+      importPath(graph, argument, second, cwd, all)
   },
   cycles: {
     options: [],

@@ -40,7 +40,13 @@ const { model: analyzed, summary } = await analyze(root, config, { cache: cacheD
 const analysisDone = performance.now()
 const built = graph.graphOf(analyzed, config)
 const graphDone = performance.now()
-const input = { argument: subject, depth: 1, all: false, cwd: model.toRepoPath(root, root) }
+const input = {
+  argument: subject,
+  second: '',
+  depth: 1,
+  all: false,
+  cwd: model.toRepoPath(root, root)
+}
 const text = rendering.render(
   commandTable[command].run({ graph: built, config, warnings: summary.warnings }, input)
 )

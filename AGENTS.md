@@ -55,7 +55,7 @@ Support Node.js 24.1.0 and newer; [CONTRIBUTING.md](CONTRIBUTING.md#nodejs-versi
 | Extract         | `analysis`, `extraction`, `syntax`, `symbols`, `imports`, `load-time`, `frameworks` |
 | Resolve         | `import-resolution`, `package-resolution`, `internal-imports`, `barrels`            |
 | Model and graph | `model`, `graph`, `areas`, `layers`, `cycles`, `strongly-connected`                 |
-| Commands        | `subjects`, `queries`, `overview`, `health`, `contract`, `render`                   |
+| Commands        | `subjects`, `queries`, `path`, `overview`, `health`, `contract`, `render`           |
 | HTML page       | `html`, `page-data`, `source-links`, `git-source`, `row-order`, `page/`             |
 | Skill           | `skill`, `skills/galactica/SKILL.md`                                                |
 | Trust boundary  | `safe-read`, `glob`, `safe-write`, `repository-files`, `paths`, `json`              |

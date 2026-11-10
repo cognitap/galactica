@@ -38,7 +38,7 @@ Extractions depend only on a module's bytes. Everything that depends on more tha
 
 ## 5. Outputs
 
-- **Commands.** Each entry in `src/commands.ts` is a pure function from the graph to a `--json` object: `src/queries.ts` for `where`, `outline`, `uses` and `deps`, `src/overview.ts` and `src/health.ts`. `src/subjects.ts` resolves the argument. `src/contract.ts` types the JSON and imports nothing.
+- **Commands.** Each entry in `src/commands.ts` is a pure function from the graph to a `--json` object: `src/queries.ts` for `where`, `outline`, `uses` and `deps`, `src/path.ts` for `path`, `src/overview.ts` and `src/health.ts`. `src/subjects.ts` resolves the argument. `src/contract.ts` types the JSON and imports nothing.
 - **Text.** `src/render.ts` builds the text of each command from its JSON object alone.
 - **HTML.** `src/page-data.ts` turns the graph into the compact data the page embeds. `scripts/build-page.ts` bundles the plain JavaScript in `src/page/` with esbuild; `src/html.ts` inlines that bundle, the stylesheet and the data into one page. The page entry delegates rendering to `map-view.js`, interaction and URL state to `navigation.js`, and search controls, health findings and selection highlighting to their own modules. `src/source-links.ts` and `src/git-source.ts` work out source links; `src/row-order.ts` orders the boxes within each layer to reduce crossing links.
 - **Skill.** `src/skill.ts` writes the files `init` installs from `skills/galactica/SKILL.md`.
