@@ -4,6 +4,8 @@
 
 ## Unreleased
 
+## 0.2.4
+
 - `path <from> <to>` prints the shortest chain of imports from one module to another. `--all` lists every chain, up to 20.
 - `.mdx` and `.marko` files are modules. Their imports are read with Galactica's own `@mdx-js/mdx`, `@marko/compiler` and `marko`. A Marko custom tag is not an import unless the file imports it. `.html` templates, including Angular templates, are not modules. Solid components in `.jsx` are read as JavaScript.
 
