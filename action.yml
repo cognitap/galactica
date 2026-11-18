@@ -28,7 +28,9 @@ runs:
           *) echo "galactica: command must be html or check" >&2; exit 1 ;;
         esac
         version=$(node -e "process.stdout.write(JSON.parse(require('node:fs').readFileSync(require('node:path').join(process.env.ACTION_PATH,'package.json'),'utf8')).version)")
-        npm exec --yes --package "@cognitap/galactica@${version}" -- galactica "$COMMAND"
+        prefix=$(mktemp -d)
+        npm install --prefix "$prefix" --ignore-scripts --no-fund --no-audit "@cognitap/galactica@${version}"
+        "$prefix/node_modules/.bin/galactica" "$COMMAND"
 
     - name: Upload the HTML map
       if: inputs.command == 'html'
