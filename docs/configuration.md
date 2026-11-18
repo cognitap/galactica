@@ -24,6 +24,7 @@ Galactica needs no config. To override a default, add `galactica.config.json` to
 - `areas` maps a glob to an area path. A module that matches the glob is in that area instead of its folder's area. When a module matches several globs, the first in the file decides. The area path must be inside the module's package. Layers, cycles and the page treat these areas like any other.
 - `sourceUrl` is the link template that [`html --source-url`](commands.md#source-links) takes, `none` included. `--source-url` wins over it.
 - `health.areaModules` is a whole number. With it, `health` and the page call an area oversized when it holds more source modules than this number, in place of the rule relative to its package.
+- Accepted findings are not a config key. [`accept`](commands.md#accept) writes them to `galactica-health.json`. `health` leaves a recorded finding out until that finding changes.
 - `$schema` points an editor at `schema/galactica.config.schema.json`, which ships in the package, for completion and checks. Galactica ignores it.
 
 `include` and `exclude` only narrow the files Galactica already reads. They never add a file that git ignores or a file in `node_modules`, `dist` or another build folder. An import of source that the config leaves out is counted as unresolved.

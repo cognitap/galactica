@@ -2,6 +2,7 @@
 
 import { statSync } from 'node:fs'
 import { join } from 'node:path'
+import { readAccepted } from './accepted-health.ts'
 import { cacheDirectory, galacticaVersion } from './cache.ts'
 import { parseInput, usage } from './cli-input.ts'
 import { committedMapNote, readCommittedMap } from './committed-map.ts'
@@ -38,7 +39,8 @@ async function analyzed(
       config,
       graph: graphOf(model, config),
       warnings: summary.warnings,
-      committed: readCommittedMap(root)
+      committed: readCommittedMap(root),
+      baseline: readAccepted(root)
     }
   } catch (error) {
     if (error instanceof ConfigError) return { problem: error.message }
@@ -80,8 +82,9 @@ export async function run(argv: readonly string[], cwd: string): Promise<Result>
       ? failure(parsed.error)
       : resultOf(usageFailure(parsed.command, parsed.error), parsed.json)
   const { command, root, json, noCache } = parsed
-  if (command === 'init' || command === 'html' || command === 'snapshot') {
-    const { installAgents, writeHtml, writeSnapshot } = await import('./cli-writers.ts')
+  if (command === 'init' || command === 'html' || command === 'snapshot' || command === 'accept') {
+    const { installAgents, writeAccept, writeHtml, writeSnapshot } =
+      await import('./cli-writers.ts')
     let written
     if (command === 'init') written = installAgents(parsed, cwd, galacticaVersion())
     else {
@@ -90,7 +93,9 @@ export async function run(argv: readonly string[], cwd: string): Promise<Result>
       written =
         command === 'html'
           ? writeHtml(parsed, repository, cwd)
-          : writeSnapshot(parsed, repository, cwd)
+          : command === 'snapshot'
+            ? writeSnapshot(parsed, repository, cwd)
+            : writeAccept(parsed, repository, cwd)
       if (command === 'html' && !('problem' in written)) {
         const note = committedMapNote(repository.graph, repository.committed)
         if (note !== undefined) {

@@ -21,7 +21,7 @@ export const commands = [
   'check'
 ] as const
 export type Command = (typeof commands)[number]
-export type WriterCommand = 'html' | 'init' | 'snapshot'
+export type WriterCommand = 'html' | 'init' | 'snapshot' | 'accept'
 
 export const moduleKinds = ['source', 'test', 'story', 'config'] as const
 export type ModuleKind = (typeof moduleKinds)[number]
@@ -140,6 +140,12 @@ interface SnapshotWritten extends Envelope<'snapshot'> {
   readonly bytes: number
 }
 
+/** A completed accepted-findings write. The path is absolute; bytes is the exact UTF-8 size. */
+interface AcceptWritten extends Envelope<'accept'> {
+  readonly path: string
+  readonly bytes: number
+}
+
 /**
  * Installed skill files, in installation order. Paths are relative to the selected root.
  * When every file is kept, this object is still returned and the exit code is 1.
@@ -151,7 +157,7 @@ interface SkillInstalled extends Envelope<'init'> {
   }[]
 }
 
-export type WriterOutput = HtmlWritten | SkillInstalled | SnapshotWritten
+export type WriterOutput = HtmlWritten | SkillInstalled | SnapshotWritten | AcceptWritten
 
 /** One unresolved import from any mapped module, including tests and stories. */
 export interface UnresolvedImport {
@@ -352,6 +358,11 @@ export interface Health extends Envelope<'health'> {
   readonly oversizedAreas: readonly OversizedArea[]
   /** Sorted by `from`, line, then specifier. */
   readonly internalImports: readonly InternalImport[]
+  /**
+   * Findings left out because `galactica-health.json` records them.
+   * Omitted when that file is absent.
+   */
+  readonly accepted?: number
 }
 
 export interface Check extends Envelope<'check'> {

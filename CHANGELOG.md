@@ -4,6 +4,8 @@
 
 ## Unreleased
 
+- `accept` writes `galactica-health.json`, the health findings a repository already accepts. `health` and the page leave a recorded finding out until it changes, and say how many they left out.
+
 ## 0.2.6
 
 - The `cognitap/galactica` GitHub Action writes the HTML map and uploads it. `command: check` fails the job when the committed map is missing or stale. Recipes publish that file as an artifact or to GitHub Pages.

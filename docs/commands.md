@@ -18,6 +18,7 @@ The smaller examples use [Radiant](https://github.com/cognitap/radiant), Cognita
 | `path <from> <to>` | How does one module reach another?                                  |
 | `cycles`           | Which modules import each other in a loop, and where do I cut it?   |
 | `health`           | Is the structure healthy, and which imports should change?          |
+| `accept`           | Write the health findings the repository already accepts.           |
 | `check`            | Does the committed map still match, and which areas changed?        |
 | `snapshot`         | Write a map of packages and areas that the repository can commit.   |
 | `html`             | Write the human map as one HTML file.                               |
@@ -25,7 +26,7 @@ The smaller examples use [Radiant](https://github.com/cognitap/radiant), Cognita
 
 ## Common behavior
 
-Every command prints short text by default and structured output with `--json`, including `html`, `snapshot` and `init` results and failures. The [JSON output reference](json-output.md) documents the fields. In text mode, a command that cannot answer prints one line to stderr and exits with code 1. Unknown commands point to `--help`, and a close option typo suggests the known option.
+Every command prints short text by default and structured output with `--json`, including `html`, `snapshot`, `accept` and `init` results and failures. The [JSON output reference](json-output.md) documents the fields. In text mode, a command that cannot answer prints one line to stderr and exits with code 1. Unknown commands point to `--help`, and a close option typo suggests the known option.
 
 When the repository contains `galactica-map.json`, every analysis command and `html` reads it. If it differs from the repository, the last line says the committed map is stale. If the file cannot be read, that line says why. `check` reports the difference itself, and `snapshot` writes a fresh file, so neither adds the line.
 
@@ -157,6 +158,29 @@ cross-package private imports:
 …
 ```
 
+## accept
+
+`accept` writes `galactica-health.json` at the repository root: the import cycles, oversized areas and cross-package private imports `health` lists now. The file is opt-in. Nothing writes it until you run `accept`, and it is meant to be committed. `health` and the page then leave a recorded finding out, and both say how many they left out. `health` still exits with code 0.
+
+A finding stays out until it changes:
+
+- a cycle, until its set of modules changes. A cycle that gains a module is listed again. Moving an import to another line is not a change;
+- an oversized area, until its path or its count of source modules changes. The package median is not part of the record;
+- a cross-package private import, until its file, specifier or names change. Its line is not part of the record.
+
+An entry that no longer matches a finding is ignored. Run `accept` again to record the current findings, including ones the file already lists. A missing file changes nothing. A file that cannot be read makes `health` and `html` exit with code 1; other commands do not report it. `accept` refuses to write through a symbolic link.
+
+The file is not part of the command contract. Its format can change in a minor version. It is JSON, sorted so the same findings are the same bytes:
+
+```json
+{
+  "version": 1,
+  "cycles": [["src/a.ts", "src/b.ts"]],
+  "areas": [{ "path": "src/ui", "modules": 24 }],
+  "imports": [{ "from": "src/main.ts", "specifier": "../ui/src/private", "names": ["Button"] }]
+}
+```
+
 ## snapshot and check
 
 `snapshot` writes `galactica-map.json` at the repository root and prints the path and size. The file is opt-in: nothing writes it until you run `snapshot`, and it is meant to be committed so agents can read the map without running Galactica and so a pull request shows the structural change. It refuses to write through a symbolic link. With `--json`, it reports the absolute path and exact byte count.
@@ -202,7 +226,7 @@ The page is one file that loads nothing from the network, so it opens from disk 
 - The Module kinds checkboxes filter the map. Each card lists its visible modules by kind using the same text colors as the filters. Source and config modules show at first; tests and stories stay hidden until you show them. A module's kind comes from its name and folder, or from [`kinds`](configuration.md#kinds) in the config. To leave generated files out entirely, list them in `exclude`.
 - Search finds areas, modules and exported symbols, including what the filter hides. Press `/` to focus it, the arrow keys to move, Enter to go and Escape to close or clear. Exact matches come first, then prefixes, then substrings.
 - Select a box, or a filename in the detail panel, to highlight its dependencies and dependents. Hover over a connector to see which area depends on the other. Narrow screens show the related areas by color. The detail panel gives the same counts as `deps` and `uses` at depth 1. Use the close button beside the panel title or press Escape to clear the selection. The selection is kept in the address, as `#module=src%2Fcn.ts` or `#area=src%2Fcomponents`, so a link opens the same view.
-- Repository health lists module cycles, oversized areas and cross-package private imports. Area cycles are grouped separately there and expand to show the imports between folders. Choosing a finding selects its module or area, and its line links to the import.
+- Repository health lists module cycles, oversized areas and cross-package private imports. Area cycles are grouped separately there and expand to show the imports between folders. Choosing a finding selects its module or area, and its line links to the import. When `galactica-health.json` records a finding, the section leaves it out and the heading says how many.
 
 ### Source links
 

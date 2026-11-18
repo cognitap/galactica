@@ -66,7 +66,7 @@
       "pattern": "^(?:none|[Hh][Tt][Tt][Pp][Ss]?://[\\s\\S]*\\{path\\}[\\s\\S]*)$"
     },
     "health": {
-      "description": "Settings of the health command and the page's Health section.",
+      "description": "Settings of the health command and the page's Health section. Known findings are recorded in galactica-health.json by the accept command, not in this file.",
       "type": "object",
       "additionalProperties": false,
       "properties": {

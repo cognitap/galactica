@@ -374,7 +374,8 @@ function renderHealth({
   cycles,
   areaModules,
   oversizedAreas,
-  internalImports
+  internalImports,
+  accepted
 }: Health): readonly string[] {
   const rule =
     areaModules === undefined
@@ -404,7 +405,8 @@ function renderHealth({
         ]),
     ...(cycles.length === 0
       ? []
-      : ['the cycles command lists every import of each cycle and how to cut one'])
+      : ['the cycles command lists every import of each cycle and how to cut one']),
+    ...(accepted === undefined ? [] : [`${plural(accepted, 'finding')} accepted`])
   ]
 }
 

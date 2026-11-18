@@ -4,6 +4,7 @@
  * embedded JSON small. The shape is private to the page and is no contract.
  */
 
+import { acceptFindings, type AcceptedFile } from './accepted-health.ts'
 import { symbolKinds, type InternalImport, type ModuleKind, type SymbolKind } from './contract.ts'
 import { health } from './health.ts'
 import {
@@ -103,6 +104,8 @@ export interface PageHealth {
     readonly to: number | null
     readonly instead: string | null
   })[]
+  /** Findings `galactica-health.json` left out. Omitted when that file is absent. */
+  readonly accepted?: number
 }
 
 export interface PageData {
@@ -337,9 +340,11 @@ function healthOf(
   graph: Graph,
   areaModules: number | undefined,
   areaIndex: ReadonlyMap<string, number>,
-  moduleIndex: ReadonlyMap<string, number>
+  moduleIndex: ReadonlyMap<string, number>,
+  baseline: AcceptedFile | undefined
 ): PageHealth {
-  const found = health(graph, areaModules)
+  const listed = health(graph, areaModules)
+  const found = baseline === undefined ? listed : acceptFindings(listed, baseline)
   const at = (path: string) => moduleIndex.get(path)!
   return {
     cycles: found.cycles.map(({ modules, loadTime, imports }) => ({
@@ -360,14 +365,16 @@ function healthOf(
       from: at(from),
       to: to === undefined ? null : at(to),
       instead: instead ?? null
-    }))
+    })),
+    ...(found.accepted === undefined ? {} : { accepted: found.accepted })
   }
 }
 
 export function pageData(
   graph: Graph,
   source: PageSource | null = null,
-  areaModules?: number
+  areaModules?: number,
+  baseline?: AcceptedFile
 ): PageData {
   const packageNames = [...graph.packages]
     .sort(([a, { layer: layerA }], [b, { layer: layerB }]) => layerB - layerA || compare(a, b))
@@ -439,6 +446,6 @@ export function pageData(
     areas,
     modules,
     source,
-    health: healthOf(graph, areaModules, areaIndex, moduleIndex)
+    health: healthOf(graph, areaModules, areaIndex, moduleIndex, baseline)
   }
 }

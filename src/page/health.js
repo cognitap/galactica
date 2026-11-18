@@ -182,7 +182,8 @@ export function healthSection(data, go) {
     health.cycles.length && plural(health.cycles.length, 'module cycle'),
     areaCycles.length && plural(areaCycles.length, 'area cycle'),
     health.oversized.length && plural(health.oversized.length, 'oversized area'),
-    health.internal.length && plural(health.internal.length, 'cross-package private import')
+    health.internal.length && plural(health.internal.length, 'cross-package private import'),
+    health.accepted !== undefined && `${plural(health.accepted, 'finding')} accepted`
   ].filter(Boolean)
   toggle.append(element('span', 'section-counts', counts.join(' · ') || 'No findings'))
   toggle.addEventListener('click', () => {

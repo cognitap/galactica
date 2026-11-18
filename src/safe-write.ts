@@ -1,5 +1,5 @@
 /**
- * How `init`, `html` and `snapshot` write files. A repository can commit a symbolic link
+ * How `init`, `html`, `snapshot` and `accept` write files. A repository can commit a symbolic link
  * where Galactica writes, so no path component below the folder the caller
  * trusts may be a link, and each file goes to a temporary file beside it that
  * is renamed into place.
