@@ -4,6 +4,8 @@
 
 ## Unreleased
 
+## 0.2.5
+
 - `snapshot` writes `galactica-map.json`, a map of packages and areas a repository can commit. `check` exits with code 1 when that file differs and names the areas that changed. Other commands warn when the committed map is stale or cannot be read. The file's format can change in a minor version.
 
 ## 0.2.4
