@@ -39,6 +39,7 @@ Run `npx @cognitap/galactica init` in your own repository (or `galactica init` a
 | `path <from> <to>` | The shortest import chain from one file to another        |
 | `cycles`           | Import cycles and where to break them                     |
 | `health`           | Cycles, oversized areas and cross-package private imports |
+| `accept`           | Record those findings so later runs leave them out        |
 | `snapshot`         | Write a committed map of packages and areas               |
 | `check`            | Whether that map matches, and which areas changed         |
 

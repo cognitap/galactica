@@ -12,7 +12,7 @@ For agent and tool authors. Every command prints one JSON object with `--json`, 
 - `uses` and `deps` accept a module path, a package name, a package directory or an area path. Galactica tries them in that order and takes the first kind that matches, so a package directory that is also an area names the package. `outline` accepts only a module path.
 - A path reads from the current directory and from the repository root. When the two readings name different subjects of the same kind, the command reports `ambiguous`.
 - An area or a package stands for its source and config modules, for both `uses` and `deps`. Its tests and stories use it like any other test or story, so what they import is not a dependency of the subject. Its tests are listed in `uses` `tests`, and its stories in `uses` `modules`.
-- A command that cannot answer prints a failure object and exits with code 1. A successful command exits with code 0. An unknown command or no command prints one line pointing to `--help`, without JSON. `init` also exits 1 when every file was kept; it returns its normal files object in that case. `check` exits 1 when `galactica-map.json` is missing, unreadable or different; a difference returns the check object, not a failure.
+- A command that cannot answer prints a failure object and exits with code 1. A successful command exits with code 0. An unknown command or no command prints one line pointing to `--help`, without JSON. `init` also exits 1 when every file was kept; it returns its normal files object in that case. `check` exits 1 when `galactica-map.json` is missing, unreadable or different; a difference returns the check object, not a failure. `health` and `html` exit 1 when `galactica-health.json` is present and cannot be read.
 - When `galactica-map.json` is present and differs from the run, or cannot be read, every analysis command except `check`, and `html`, add `committedMap`, the warning line the text prints last. It is omitted when there is no committed map or it matches. `snapshot` does not add it. A failure object can carry the same string.
 
 ```json
@@ -23,7 +23,7 @@ For agent and tool authors. Every command prints one JSON object with `--json`, 
 }
 ```
 
-`error.code` is `not-found`, `ambiguous` or `usage`. `not-found` means no module, package or area matches, and its message names up to three paths that end with the given text. `usage` means an option the command does not take, a missing or extra argument, a `--depth` below 1, a `--root` that is no directory, or an invalid `galactica.config.json`, whose message starts with `galactica.config.json:` and names the key. For `html`, `snapshot` and `init`, `usage` also covers a refused or failed write; `command` is the writer’s name. For `check`, `usage` also covers a missing or unreadable committed map. JSON failures go to stdout with empty stderr. Close option typos suggest the known option in the message.
+`error.code` is `not-found`, `ambiguous` or `usage`. `not-found` means no module, package or area matches, and its message names up to three paths that end with the given text. `usage` means an option the command does not take, a missing or extra argument, a `--depth` below 1, a `--root` that is no directory, or an invalid `galactica.config.json`, whose message starts with `galactica.config.json:` and names the key. For `html`, `snapshot`, `accept` and `init`, `usage` also covers a refused or failed write; `command` is the writer’s name. For `check`, `usage` also covers a missing or unreadable committed map. For `health` and `html`, `usage` also covers an unreadable `galactica-health.json`. JSON failures go to stdout with empty stderr. Close option typos suggest the known option in the message.
 
 ## overview
 
@@ -312,6 +312,8 @@ When both arguments name the same module, `chains` holds that one module and `st
 
 `internalImports` lists each import, in a source or config module, that reaches into another workspace package's internals, sorted by `from`, `line`, then `specifier`. Tests and stories are left out, since a test of internals imports them on purpose. `reach` is `relative` for a relative specifier that resolves to a module of another package, when that package's directory does not hold the importer, so an import up into files at the root of the repository is no finding. It is `unlisted` for a bare specifier that names a subpath of another workspace package that its `exports` does not list, or maps to `null`, whether a `paths` alias resolves it or it resolves to nothing. A package without `exports` lists every subpath. `package` is the package reached into. `to` is the module the specifier resolves to, before any barrel, and is omitted when it resolves to none. `names` lists what the import takes, as the defining modules export them: `"*"` for a namespace import and none for a side-effect import. `instead` is a public specifier of the package that gives the same import: an entry the package lists, its name or a subpath of `exports` without a `*`, that reaches the same module, else such an entry that exports each name from the same definition, else a `*` subpath of `exports`, or the module's own path for a package without `exports`, that resolves to the same module. A namespace or side-effect import only takes the same module. `instead` is omitted when no public specifier gives the import.
 
+`accepted` is how many findings were left out because `galactica-health.json` records them. It is omitted when that file is absent, and `0` when the file is present and records none of the current findings. A cycle is recorded by its set of modules, an oversized area by its path and source-module count, and a private import by its file, specifier and names. A recorded finding stays out until that identity changes. The arrays above list only the findings that remain.
+
 ```json
 {
   "schemaVersion": 1,
@@ -372,6 +374,16 @@ A missing file returns the failure object with `error.code` `usage` and the mess
 ```
 
 `path` is absolute and `bytes` is the exact UTF-8 size. The text form prints the path relative to the current directory. The file's own format is documented with the command and is not this object. A refused write uses the failure shape with `command: "snapshot"`.
+
+## accept
+
+`galactica accept --json` writes `galactica-health.json` at the repository root, then returns:
+
+```json
+{ "schemaVersion": 1, "command": "accept", "path": "/repo/galactica-health.json", "bytes": 1234 }
+```
+
+`path` is absolute and `bytes` is the exact UTF-8 size. The text form prints the path relative to the current directory. The file's own format is documented with the command and is not this object. A refused write uses the failure shape with `command: "accept"`.
 
 ## init
 

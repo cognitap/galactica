@@ -4,10 +4,10 @@
  * against this table, so adding a command is one entry here and one renderer.
  */
 
+import { healthReport, type AcceptedRead } from './accepted-health.ts'
 import { check as checkMap, type CommittedRead } from './committed-map.ts'
 import type { Command, Failure, Output, Warning } from './contract.ts'
 import { cycles } from './cycles.ts'
-import { health } from './health.ts'
 import type { Config, Graph, RepoPath } from './model.ts'
 import { overview } from './overview.ts'
 import { importPath } from './path.ts'
@@ -32,6 +32,8 @@ export interface Repository {
   readonly warnings: readonly Warning[]
   /** The committed map, when the caller read one. Absent in tests that do not. */
   readonly committed?: CommittedRead
+  /** Accepted health findings, when the caller read the file. Absent in tests that do not. */
+  readonly baseline?: AcceptedRead
 }
 
 /** The options only some commands take. */
@@ -106,7 +108,7 @@ export const commandTable: { readonly [C in Command]: CommandSpec } = {
   health: {
     options: [],
     summary: 'Import cycles, oversized areas and imports that reach into another package',
-    run: ({ graph, config }) => health(graph, config.health?.areaModules)
+    run: ({ graph, config, baseline }) => healthReport(graph, config.health?.areaModules, baseline)
   },
   check: {
     options: [],

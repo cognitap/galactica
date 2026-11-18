@@ -1,12 +1,14 @@
-/** HTML writing, the committed map and agent installation, after command-line validation. */
+/** HTML writing, the committed map, accepted health findings and agent installation, after command-line validation. */
 
 import { spawn } from 'node:child_process'
 import { dirname, isAbsolute, join, relative, resolve } from 'node:path'
-import type { HtmlInput, InitInput, SnapshotInput } from './cli-input.ts'
+import type { AcceptInput, HtmlInput, InitInput, SnapshotInput } from './cli-input.ts'
+import { fileOf, formatAccepted, HEALTH_FILE } from './accepted-health.ts'
 import { formatMap, MAP_FILE, mapOf } from './committed-map.ts'
 import type { Repository } from './commands.ts'
 import { SCHEMA_VERSION, type WriterOutput } from './contract.ts'
 import { pageSourceOf } from './git-source.ts'
+import { health } from './health.ts'
 import { htmlOf } from './html.ts'
 import { isBelow } from './paths.ts'
 import { SymlinkRefused, writeBelow } from './safe-write.ts'
@@ -38,10 +40,17 @@ function openInBrowser(path: string): void {
 /** Writes the HTML page and records its machine-readable result. */
 export function writeHtml(input: HtmlInput, repository: Repository, cwd: string): Written {
   const { root, sourceUrl: flag } = input
+  const read = repository.baseline
+  if (read?.status === 'unreadable') return { problem: read.message }
   const template = flag ?? repository.config.sourceUrl
   const out = resolve(cwd, input.out ?? 'galactica.html')
   const source = template === 'none' ? null : (pageSourceOf(root, template) ?? null)
-  const page = htmlOf(repository.graph, source, repository.config.health?.areaModules)
+  const page = htmlOf(
+    repository.graph,
+    source,
+    repository.config.health?.areaModules,
+    read?.status === 'ready' ? read.file : undefined
+  )
   try {
     writeBelow(isBelow(root, out) ? root : dirname(out), [{ path: out, text: page }])
   } catch (error) {
@@ -84,6 +93,31 @@ export function writeSnapshot(input: SnapshotInput, repository: Repository, cwd:
     output: {
       schemaVersion: SCHEMA_VERSION,
       command: 'snapshot',
+      path: out,
+      bytes: Buffer.byteLength(text)
+    }
+  }
+}
+
+/** Writes `galactica-health.json` at the repository root. */
+export function writeAccept(input: AcceptInput, repository: Repository, cwd: string): Written {
+  const out = join(input.root, HEALTH_FILE)
+  const text = formatAccepted(
+    fileOf(health(repository.graph, repository.config.health?.areaModules))
+  )
+  try {
+    writeBelow(input.root, [{ path: out, text }])
+  } catch (error) {
+    if (error instanceof SymlinkRefused) return refusal(error, cwd)
+    return { problem: `could not write ${relative(cwd, out)}: ${(error as Error).message}` }
+  }
+  const size = Math.round(Buffer.byteLength(text) / 1024)
+  return {
+    code: 0,
+    message: `wrote ${relative(cwd, out)} (${size.toLocaleString('en')} KB)`,
+    output: {
+      schemaVersion: SCHEMA_VERSION,
+      command: 'accept',
       path: out,
       bytes: Buffer.byteLength(text)
     }

@@ -34,6 +34,6 @@ Leave an existing import cycle alone unless the task asks you to break it or it 
 - `npx --prefix / @cognitap/galactica deps <file>` lists what a file imports, inside the repository and outside it.
 - `npx --prefix / @cognitap/galactica outline <file>` lists a file's exported symbols with their lines and signatures, without reading the whole file.
 - `npx --prefix / @cognitap/galactica path <from> <to>` shows the shortest chain of imports by which one file reaches another. `--all` lists every chain, up to 20.
-- `npx --prefix / @cognitap/galactica health` lists import cycles, oversized areas, and imports that reach into another package's internals.
+- `npx --prefix / @cognitap/galactica health` lists import cycles, oversized areas, and imports that reach into another package's internals. When the repository has `galactica-health.json`, findings recorded there are left out and the count of them is printed. Run `npx --prefix / @cognitap/galactica accept` only when asked to update that file.
 - When the repository has `galactica-map.json`, it is a committed map of packages and areas. If a command says it is stale, run `npx --prefix / @cognitap/galactica check` to see which areas changed. Run `npx --prefix / @cognitap/galactica snapshot` only when asked to update the file.
 - `--json` on any of these prints structured output.

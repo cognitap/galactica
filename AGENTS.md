@@ -55,12 +55,12 @@ Support Node.js 24.1.0 and newer; [CONTRIBUTING.md](CONTRIBUTING.md#nodejs-versi
 | Extract         | `analysis`, `extraction`, `syntax`, `symbols`, `imports`, `load-time`, `frameworks` |
 | Resolve         | `import-resolution`, `package-resolution`, `internal-imports`, `barrels`            |
 | Model and graph | `model`, `graph`, `areas`, `layers`, `cycles`, `strongly-connected`                 |
-| Commands        | `subjects`, `queries`, `path`, `overview`, `health`, `committed-map`, `contract`, `render` |
+| Commands        | `subjects`, `queries`, `path`, `overview`, `health`, `accepted-health`, `committed-map`, `contract`, `render` |
 | HTML page       | `html`, `page-data`, `source-links`, `git-source`, `row-order`, `page/`             |
 | Skill           | `skill`, `skills/galactica/SKILL.md`                                                |
 | Trust boundary  | `safe-read`, `glob`, `safe-write`, `repository-files`, `paths`, `json`              |
 
-All modules are under `src/`. A new analysis command is one entry in `commandTable` in `commands.ts`, one renderer in `render.ts` and its types in `contract.ts`; `cli-input.ts` derives parsing and help from the table. `html` and `init` write files through `cli-writers.ts`. A new framework is one entry in the `frameworks` table in `frameworks.ts`, plus its language in `languages` in `contract.ts`, which imports nothing by design.
+All modules are under `src/`. A new analysis command is one entry in `commandTable` in `commands.ts`, one renderer in `render.ts` and its types in `contract.ts`; `cli-input.ts` derives parsing and help from the table. `html`, `init`, `snapshot` and `accept` write files through `cli-writers.ts`. A new framework is one entry in the `frameworks` table in `frameworks.ts`, plus its language in `languages` in `contract.ts`, which imports nothing by design.
 
 ## Commands
 

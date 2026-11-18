@@ -4,6 +4,7 @@
  */
 
 import { readFileSync } from 'node:fs'
+import type { AcceptedFile } from './accepted-health.ts'
 import type { Graph } from './model.ts'
 import { pageData, wireDataOf, type PageWireData } from './page-data.ts'
 import type { PageSource } from './source-links.ts'
@@ -26,13 +27,14 @@ const embedded = (data: PageWireData) => JSON.stringify(data).replaceAll('<', '\
 export function htmlOf(
   graph: Graph,
   source: PageSource | null = null,
-  areaModules?: number
+  areaModules?: number,
+  baseline?: AcceptedFile
 ): string {
   const slots: Readonly<Record<string, string>> = {
     title: escapeHtml(`${graph.repository.name} · Galactica`),
     style: pageFile('page.css'),
     script: pageFile('page.js'),
-    data: embedded(wireDataOf(pageData(graph, source, areaModules)))
+    data: embedded(wireDataOf(pageData(graph, source, areaModules, baseline)))
   }
   return pageFile('page.html').replaceAll(/\{\{(\w+)\}\}/g, (_, slot: string) => slots[slot]!)
 }

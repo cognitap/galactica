@@ -1,6 +1,8 @@
 import assert from 'node:assert/strict'
 import { test, type TestContext } from 'node:test'
+import { fileOf } from '../src/accepted-health.ts'
 import { graphOf } from '../src/graph.ts'
+import { health } from '../src/health.ts'
 import { htmlOf } from '../src/html.ts'
 import { emptyConfig, type PackageName } from '../src/model.ts'
 import { chrome, openPage } from './browser.ts'
@@ -358,45 +360,50 @@ test(
   }
 )
 
-const healthHtml = htmlOf(
-  graphOf(
-    modelOf(
-      {
-        'packages/app/src/main.ts': {
-          edges: [
-            edge('packages/ui/src/cn.ts', {
-              line: 3,
-              names: ['cn'],
-              internal: {
-                specifier: '../../ui/src/cn',
-                reach: 'relative',
-                package: 'ui' as PackageName,
-                instead: 'ui'
-              }
-            })
-          ]
-        },
-        'packages/ui/src/cn.ts': {
-          symbols: [defines('cn')],
-          edges: [edge('packages/ui/themes/theme.ts', { names: ['theme'], line: 2 })]
-        },
-        'packages/ui/themes/theme.ts': {
-          symbols: [defines('theme')],
-          edges: [edge('packages/ui/src/cn.ts', { names: ['cn'], line: 4 })]
-        }
+const healthGraph = graphOf(
+  modelOf(
+    {
+      'packages/app/src/main.ts': {
+        edges: [
+          edge('packages/ui/src/cn.ts', {
+            line: 3,
+            names: ['cn'],
+            internal: {
+              specifier: '../../ui/src/cn',
+              reach: 'relative',
+              package: 'ui' as PackageName,
+              instead: 'ui'
+            }
+          })
+        ]
       },
-      { app: 'packages/app', ui: 'packages/ui' }
-    ),
-    emptyConfig
+      'packages/ui/src/cn.ts': {
+        symbols: [defines('cn')],
+        edges: [edge('packages/ui/themes/theme.ts', { names: ['theme'], line: 2 })]
+      },
+      'packages/ui/themes/theme.ts': {
+        symbols: [defines('theme')],
+        edges: [edge('packages/ui/src/cn.ts', { names: ['cn'], line: 4 })]
+      }
+    },
+    { app: 'packages/app', ui: 'packages/ui' }
   ),
-  {
-    template: 'https://github.com/acme/app/blob/abc1234/{path}#L{line}',
-    prefix: '',
-    shortCommit: 'abc1234',
-    uncommitted: false,
-    unpushed: 0,
-    remote: 'origin'
-  }
+  emptyConfig
+)
+const healthSource = {
+  template: 'https://github.com/acme/app/blob/abc1234/{path}#L{line}',
+  prefix: '',
+  shortCommit: 'abc1234',
+  uncommitted: false,
+  unpushed: 0,
+  remote: 'origin'
+} as const
+const healthHtml = htmlOf(healthGraph, healthSource)
+const acceptedHtml = htmlOf(
+  healthGraph,
+  healthSource,
+  undefined,
+  fileOf(health(healthGraph, undefined))
 )
 
 test(
@@ -467,6 +474,28 @@ test(
     )
   }
 )
+
+test('the Health section counts findings the repository accepted', { skip }, async t => {
+  const tab = await openPage(t, chrome!)
+  await tab.load(acceptedHtml)
+  const run = <T>(body: string) => tab.run<T>(helpers + body)
+  assert.equal(
+    await run(
+      `return document.getElementById('health-toggle').textContent.replace(/\\s+/g, ' ').trim()`
+    ),
+    'Repository health 1 area cycle · 2 findings accepted'
+  )
+  assert.deepEqual(
+    await run(`document.getElementById('health-toggle').click(); await frame()
+      return [...document.querySelectorAll('.health-group h3')].map(node => node.textContent)`),
+    [
+      'Module import cycles 0',
+      'Area cycles 1',
+      'Oversized areas 0',
+      'Cross-package private imports 0'
+    ]
+  )
+})
 
 const serverDir = 'packages/features/calendar/scheduling/availability/server'
 const longArea = `${serverDir}/src/calendar/scheduling/availability/slots`
