@@ -218,7 +218,7 @@ The template must start with `http://` or `https://` and contain `{path}`. A lin
 
 ## GitHub Action
 
-`cognitap/galactica` runs one command for the whole repository, including a monorepo, and writes one page. Pin it to a release tag. Check out the repository first. The action selects the Node.js version in its `.nvmrc` for the rest of the job.
+`cognitap/galactica` runs one command for the whole repository, including a monorepo, and writes one page. Pin it to a release tag. Check out the repository first. The action selects Node.js 26.11.1, the version in its `.nvmrc`, for the rest of the job.
 
 `html`, the default, writes `galactica.html` and uploads it as the `galactica` artifact. `check` fails the job when `galactica-map.json` is missing, unreadable or different from the repository.
 
