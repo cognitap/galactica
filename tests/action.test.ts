@@ -13,6 +13,7 @@ test('the action runs the published release and uploads the HTML map', () => {
   assert.match(action, new RegExp(`node-version: '${nvmrc}'`))
   assert.match(action, /html\|check/)
   assert.match(action, /@cognitap\/galactica@\$\{version\}/)
+  assert.match(action, /No matching version found/)
   assert.match(action, /node_modules\/\.bin\/galactica/)
   assert.match(action, /galactica\.html/)
   const uses = [...action.matchAll(/^\s*(?:- )?uses:\s*(.+)$/gm)].map(([, value]) => value)

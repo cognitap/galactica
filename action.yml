@@ -28,8 +28,19 @@ runs:
           *) echo "galactica: command must be html or check" >&2; exit 1 ;;
         esac
         version=$(node -e "process.stdout.write(JSON.parse(require('node:fs').readFileSync(require('node:path').join(process.env.ACTION_PATH,'package.json'),'utf8')).version)")
+        log=$(mktemp)
         prefix=$(mktemp -d)
-        npm install --prefix "$prefix" --ignore-scripts --no-fund --no-audit "@cognitap/galactica@${version}"
+        if npm install --prefix "$prefix" --ignore-scripts --no-fund --no-audit "@cognitap/galactica@${version}" >"$log" 2>&1; then
+          cat "$log"
+        elif grep -q 'No matching version found' "$log"; then
+          echo "galactica: ${version} is not published yet; using the current release" >&2
+          version=$(npm view @cognitap/galactica version)
+          prefix=$(mktemp -d)
+          npm install --prefix "$prefix" --ignore-scripts --no-fund --no-audit "@cognitap/galactica@${version}"
+        else
+          cat "$log" >&2
+          exit 1
+        fi
         "$prefix/node_modules/.bin/galactica" "$COMMAND"
 
     - name: Upload the HTML map
