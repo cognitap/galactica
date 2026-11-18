@@ -72,6 +72,7 @@ export function usage(): string {
   })
   const writers: readonly Row[] = [
     [`html${flagList(htmlFlags)}`, 'Write the map for people as one self-contained HTML file'],
+    ['snapshot', 'Write galactica-map.json, a map of packages and areas to commit'],
     [`init${flagList(initFlags)}`, 'Install the agent skill for Codex, Cursor and Claude Code']
   ]
   const optionRows: readonly Row[] = [
@@ -125,6 +126,10 @@ export interface InitInput extends CommonInput {
   readonly force: boolean
 }
 
+export interface SnapshotInput extends CommonInput {
+  readonly command: 'snapshot'
+}
+
 interface InputFailure {
   readonly error: string
   readonly command?: Command | WriterCommand
@@ -135,6 +140,7 @@ type Parsed =
   | AnalysisInput
   | HtmlInput
   | InitInput
+  | SnapshotInput
   | InputFailure
   | { readonly info: 'help' | 'version' }
 
@@ -193,7 +199,7 @@ export function parseInput(argv: readonly string[], cwd: string): Parsed {
   if (loose.values.help) return { info: 'help' }
   if (loose.values.version) return { info: 'version' }
   const [command] = loose.positionals
-  if (!isCommand(command) && command !== 'html' && command !== 'init') {
+  if (!isCommand(command) && command !== 'html' && command !== 'init' && command !== 'snapshot') {
     const problem = command === undefined ? 'no command given' : `unknown command ${command}`
     return { error: `${problem}; run --help for commands`, json: false }
   }
@@ -210,7 +216,9 @@ export function parseInput(argv: readonly string[], cwd: string): Parsed {
       ? { options: htmlFlags, argument: undefined, second: undefined }
       : command === 'init'
         ? { options: initFlags, argument: undefined, second: undefined }
-        : commandTable[command]
+        : command === 'snapshot'
+          ? { options: [], argument: undefined, second: undefined }
+          : commandTable[command]
   const foreign = flags.find(
     option => values[option] !== undefined && !(spec.options as readonly string[]).includes(option)
   )
@@ -248,6 +256,7 @@ export function parseInput(argv: readonly string[], cwd: string): Parsed {
     if (skillCommand.trim() === '') return fail('--command must not be empty')
     return { ...common, command, skillCommand, force: values.force ?? false }
   }
+  if (command === 'snapshot') return { ...common, command }
   return {
     ...common,
     command,

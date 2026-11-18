@@ -38,6 +38,7 @@ const overview: Overview = JSON.parse(await both('overview', '--all'))
 await both('overview')
 await both('cycles')
 await both('health')
+await both('check')
 const packages = overview.packages
 const areas = packages.flatMap(({ areas }) => areas)
 const modules = areas

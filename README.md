@@ -39,6 +39,8 @@ Run `npx @cognitap/galactica init` in your own repository (or `galactica init` a
 | `path <from> <to>` | The shortest import chain from one file to another        |
 | `cycles`           | Import cycles and where to break them                     |
 | `health`           | Cycles, oversized areas and cross-package private imports |
+| `snapshot`         | Write a committed map of packages and areas               |
+| `check`            | Whether that map matches, and which areas changed         |
 
 Add `--json` for structured output. Test reach follows imports, so tests that load code at runtime may need a separate search. [Command reference](https://github.com/cognitap/galactica/blob/main/docs/commands.md) · [Configuration](https://github.com/cognitap/galactica/blob/main/docs/configuration.md)
 

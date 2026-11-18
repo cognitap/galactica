@@ -7,6 +7,7 @@ import type {
   Command,
   Cycle,
   CycleImport,
+  Check,
   Cycles,
   Deps,
   Failure,
@@ -407,6 +408,14 @@ function renderHealth({
   ]
 }
 
+function renderCheck({ path, stale, areas }: Check): readonly string[] {
+  if (!stale) return [`${path} matches the repository`]
+  return [
+    `${path} differs from the repository`,
+    ...capped(areas.map(area => `${area.path} (${area.package}): ${area.change}`))
+  ]
+}
+
 type Renderers = {
   readonly [C in Command]: (output: Extract<Output, { readonly command: C }>) => readonly string[]
 }
@@ -419,11 +428,16 @@ const renderers: Renderers = {
   deps: renderDeps,
   path: renderPath,
   cycles: renderCycles,
-  health: renderHealth
+  health: renderHealth,
+  check: renderCheck
+}
+
+function finish(lines: readonly string[], note: string | undefined): string {
+  return [...lines, ...(note === undefined ? [] : [note])].join('\n')
 }
 
 export function render(result: Output | Failure): string {
-  if ('error' in result) return `galactica: ${result.error.message}`
+  if ('error' in result) return finish([`galactica: ${result.error.message}`], result.committedMap)
   const renderer = renderers[result.command] as (output: Output) => readonly string[]
-  return renderer(result).join('\n')
+  return finish(renderer(result), result.committedMap)
 }

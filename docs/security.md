@@ -29,22 +29,24 @@ A tool that acts on a file in the repository before Galactica starts, such as a 
 
 ## What it reads
 
-Before reading repository content, including source modules, compiler configs, workspace manifests, `galactica.config.json` and installed skill files, Galactica requires a regular file inside the root after following links, of at most 10 MB.
+Before reading repository content, including source modules, compiler configs, workspace manifests, `galactica.config.json`, a committed `galactica-map.json` and installed skill files, Galactica requires a regular file inside the root after following links, of at most 10 MB.
 
 - A module that fails this check is skipped with a warning.
 - An unsafe optional config, such as a `tsconfig.json`, is skipped with a warning. A tsconfig `extends` target outside the root is refused too.
 - An unsafe `galactica.config.json`, or an existing skill file that `init` must read, fails the command with one line.
+- An unsafe `galactica-map.json` does not fail the other commands. They warn, and `check` exits with code 1.
 
 Globs from the config and workspace manifests are matched in linear time with bounded size, so a hostile pattern cannot stall a run. See [Globs](configuration.md#globs).
 
 ## What it writes
 
-Galactica writes to the repository only when you run `html` or `init`:
+Galactica writes to the repository only when you run `html`, `snapshot` or `init`:
 
 - `html` writes one file, `galactica.html` or the `--out` path.
+- `snapshot` writes `galactica-map.json` at the repository root.
 - `init` writes the three skill files and nothing else. It writes all three or none.
 
-Both refuse, with one line and exit code 1, to write through a symbolic link: neither the file nor a folder above it inside the repository may be one, such as a `.claude` linked to `~/.claude`.
+Each refuses, with one line and exit code 1, to write through a symbolic link: neither the file nor a folder above it inside the repository may be one, such as a `.claude` linked to `~/.claude`.
 
 ## The cache
 

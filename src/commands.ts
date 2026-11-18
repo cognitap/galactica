@@ -4,6 +4,7 @@
  * against this table, so adding a command is one entry here and one renderer.
  */
 
+import { check as checkMap, type CommittedRead } from './committed-map.ts'
 import type { Command, Failure, Output, Warning } from './contract.ts'
 import { cycles } from './cycles.ts'
 import { health } from './health.ts'
@@ -29,6 +30,8 @@ export interface Repository {
   readonly config: Config
   /** Sorted by path, then message. */
   readonly warnings: readonly Warning[]
+  /** The committed map, when the caller read one. Absent in tests that do not. */
+  readonly committed?: CommittedRead
 }
 
 /** The options only some commands take. */
@@ -104,5 +107,10 @@ export const commandTable: { readonly [C in Command]: CommandSpec } = {
     options: [],
     summary: 'Import cycles, oversized areas and imports that reach into another package',
     run: ({ graph, config }) => health(graph, config.health?.areaModules)
+  },
+  check: {
+    options: [],
+    summary: 'Whether the committed map matches, and which areas changed',
+    run: ({ graph, committed }) => checkMap(graph, committed)
   }
 }
