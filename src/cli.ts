@@ -4,6 +4,7 @@ import { statSync } from 'node:fs'
 import { join } from 'node:path'
 import { cacheDirectory, galacticaVersion } from './cache.ts'
 import { parseInput, usage } from './cli-input.ts'
+import { committedMapNote, readCommittedMap } from './committed-map.ts'
 import { commandTable, type Repository } from './commands.ts'
 import { ConfigError, loadConfig } from './config.ts'
 import { SCHEMA_VERSION, type Failure, type Output } from './contract.ts'
@@ -33,7 +34,12 @@ async function analyzed(
     const config = loadConfig(root)
     const options = noCache ? {} : { cache: cacheDirectory(root) }
     const { model, summary } = await analyze(root, config, options)
-    return { config, graph: graphOf(model, config), warnings: summary.warnings }
+    return {
+      config,
+      graph: graphOf(model, config),
+      warnings: summary.warnings,
+      committed: readCommittedMap(root)
+    }
   } catch (error) {
     if (error instanceof ConfigError) return { problem: error.message }
     throw error
@@ -52,12 +58,17 @@ const failure = (message: string): Result => ({
   stderr: `galactica: ${message}`
 })
 
+function withNote<T extends Output | Failure>(output: T, note: string | undefined): T {
+  return note === undefined ? output : { ...output, committedMap: note }
+}
+
 function resultOf(output: Output | Failure, json: boolean): Result {
   const failed = 'error' in output
-  if (json) return { code: failed ? 1 : 0, stdout: JSON.stringify(output, null, 2), stderr: '' }
+  const code = failed || ('stale' in output && output.stale) ? 1 : 0
+  if (json) return { code, stdout: JSON.stringify(output, null, 2), stderr: '' }
   return failed
     ? { code: 1, stdout: '', stderr: render(output) }
-    : { code: 0, stdout: render(output), stderr: '' }
+    : { code, stdout: render(output), stderr: '' }
 }
 
 export async function run(argv: readonly string[], cwd: string): Promise<Result> {
@@ -69,14 +80,27 @@ export async function run(argv: readonly string[], cwd: string): Promise<Result>
       ? failure(parsed.error)
       : resultOf(usageFailure(parsed.command, parsed.error), parsed.json)
   const { command, root, json, noCache } = parsed
-  if (command === 'init' || command === 'html') {
-    const { installAgents, writeHtml } = await import('./cli-writers.ts')
+  if (command === 'init' || command === 'html' || command === 'snapshot') {
+    const { installAgents, writeHtml, writeSnapshot } = await import('./cli-writers.ts')
     let written
     if (command === 'init') written = installAgents(parsed, cwd, galacticaVersion())
     else {
       const repository = await analyzed(root, noCache)
       if ('problem' in repository) return resultOf(usageFailure(command, repository.problem), json)
-      written = writeHtml(parsed, repository, cwd)
+      written =
+        command === 'html'
+          ? writeHtml(parsed, repository, cwd)
+          : writeSnapshot(parsed, repository, cwd)
+      if (command === 'html' && !('problem' in written)) {
+        const note = committedMapNote(repository.graph, repository.committed)
+        if (note !== undefined) {
+          written = {
+            ...written,
+            message: `${written.message}\n${note}`,
+            output: { ...written.output, committedMap: note }
+          }
+        }
+      }
     }
     if ('problem' in written) return resultOf(usageFailure(command, written.problem), json)
     return {
@@ -89,7 +113,10 @@ export async function run(argv: readonly string[], cwd: string): Promise<Result>
   const output =
     'problem' in repository
       ? usageFailure(command, repository.problem)
-      : commandTable[command].run(repository, parsed.input)
+      : withNote(
+          commandTable[command].run(repository, parsed.input),
+          command === 'check' ? undefined : committedMapNote(repository.graph, repository.committed)
+        )
   return resultOf(output, json)
 }
 

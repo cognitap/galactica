@@ -63,7 +63,7 @@ test('prints usage with --help, listing every command', () => {
   const { status, stdout } = galactica(plain, '--help')
   assert.equal(status, 0)
   assert.match(stdout, /^Usage: galactica/)
-  for (const command of [...commands, 'html', 'init']) {
+  for (const command of [...commands, 'html', 'snapshot', 'init']) {
     assert.match(stdout, new RegExp(`^  ${command}\\b`, 'm'))
   }
 })

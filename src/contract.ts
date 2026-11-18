@@ -17,10 +17,11 @@ export const commands = [
   'deps',
   'path',
   'cycles',
-  'health'
+  'health',
+  'check'
 ] as const
 export type Command = (typeof commands)[number]
-export type WriterCommand = 'html' | 'init'
+export type WriterCommand = 'html' | 'init' | 'snapshot'
 
 export const moduleKinds = ['source', 'test', 'story', 'config'] as const
 export type ModuleKind = (typeof moduleKinds)[number]
@@ -56,6 +57,12 @@ export type Language = (typeof languages)[number]
 interface Envelope<C extends Command | WriterCommand> {
   readonly schemaVersion: typeof SCHEMA_VERSION
   readonly command: C
+  /**
+   * The warning line when galactica-map.json is present and differs from this
+   * run, or could not be read. Omitted when there is no committed map or it
+   * matches. `check` and `snapshot` do not set it.
+   */
+  readonly committedMap?: string
 }
 
 export interface ModuleRef {
@@ -117,10 +124,18 @@ export interface Failure {
     readonly code: 'not-found' | 'ambiguous' | 'usage'
     readonly message: string
   }
+  /** The warning line when a committed map is stale or unreadable and this command is not `check`. */
+  readonly committedMap?: string
 }
 
 /** A completed HTML write. The path is absolute; bytes is the exact UTF-8 size. */
 interface HtmlWritten extends Envelope<'html'> {
+  readonly path: string
+  readonly bytes: number
+}
+
+/** A completed committed-map write. The path is absolute; bytes is the exact UTF-8 size. */
+interface SnapshotWritten extends Envelope<'snapshot'> {
   readonly path: string
   readonly bytes: number
 }
@@ -136,7 +151,7 @@ interface SkillInstalled extends Envelope<'init'> {
   }[]
 }
 
-export type WriterOutput = HtmlWritten | SkillInstalled
+export type WriterOutput = HtmlWritten | SkillInstalled | SnapshotWritten
 
 /** One unresolved import from any mapped module, including tests and stories. */
 export interface UnresolvedImport {
@@ -339,4 +354,17 @@ export interface Health extends Envelope<'health'> {
   readonly internalImports: readonly InternalImport[]
 }
 
-export type Output = Overview | Where | Outline | Uses | Deps | Path | Cycles | Health
+export interface Check extends Envelope<'check'> {
+  /** `galactica-map.json`, relative to the repository root. */
+  readonly path: string
+  /** True when the file's map differs from this run. */
+  readonly stale: boolean
+  /** Sorted by path. */
+  readonly areas: readonly {
+    readonly path: string
+    readonly package: string
+    readonly change: 'added' | 'removed' | 'changed'
+  }[]
+}
+
+export type Output = Overview | Where | Outline | Uses | Deps | Path | Cycles | Health | Check

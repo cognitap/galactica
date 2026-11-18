@@ -18,12 +18,16 @@ The smaller examples use [Radiant](https://github.com/cognitap/radiant), Cognita
 | `path <from> <to>` | How does one module reach another?                                  |
 | `cycles`           | Which modules import each other in a loop, and where do I cut it?   |
 | `health`           | Is the structure healthy, and which imports should change?          |
+| `check`            | Does the committed map still match, and which areas changed?        |
+| `snapshot`         | Write a map of packages and areas that the repository can commit.   |
 | `html`             | Write the human map as one HTML file.                               |
 | `init`             | Install the agent skill into this repository.                       |
 
 ## Common behavior
 
-Every command prints short text by default and structured output with `--json`, including `html` and `init` results and failures. The [JSON output reference](json-output.md) documents the fields. In text mode, a command that cannot answer prints one line to stderr and exits with code 1. Unknown commands point to `--help`, and a close option typo suggests the known option.
+Every command prints short text by default and structured output with `--json`, including `html`, `snapshot` and `init` results and failures. The [JSON output reference](json-output.md) documents the fields. In text mode, a command that cannot answer prints one line to stderr and exits with code 1. Unknown commands point to `--help`, and a close option typo suggests the known option.
+
+When the repository contains `galactica-map.json`, every analysis command and `html` reads it. If it differs from the repository, the last line says the committed map is stale. If the file cannot be read, that line says why. `check` reports the difference itself, and `snapshot` writes a fresh file, so neither adds the line.
 
 A subject is a module path, a package name, a package directory or an area path.
 
@@ -152,6 +156,37 @@ cross-package private imports:
   packages/browser/src/client/tester/runner.ts:31  ../../../../vitest/src/utils/tasks  getTestName  relative path into vitest  no public entry gives it
 …
 ```
+
+## snapshot and check
+
+`snapshot` writes `galactica-map.json` at the repository root and prints the path and size. The file is opt-in: nothing writes it until you run `snapshot`, and it is meant to be committed so agents can read the map without running Galactica and so a pull request shows the structural change. It refuses to write through a symbolic link. With `--json`, it reports the absolute path and exact byte count.
+
+`check` compares that file with a fresh map. It exits with code 0 when they match. It exits with code 1 when they differ, and names each area that was added, removed or changed. A missing or unreadable file is also exit code 1. Updating the file is `snapshot` again.
+
+The file is not part of the command contract. Its format can change in a minor version. It is JSON, sorted so the same repository is the same bytes:
+
+```json
+{
+  "version": 1,
+  "packages": [
+    {
+      "name": "app",
+      "dir": ".",
+      "layer": 0,
+      "areas": [
+        {
+          "path": "src",
+          "layer": 0,
+          "modules": ["src/a.ts"],
+          "dependsOn": ["src/theme"]
+        }
+      ]
+    }
+  ]
+}
+```
+
+Packages are sorted by name, areas and modules by path. `dependsOn` lists the other areas an area imports, including through a barrel. `layer` is the dependency layer. Whitespace and key order do not matter. A key the format does not list makes the file unreadable, and `check` says so.
 
 ## html
 

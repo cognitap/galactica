@@ -1,8 +1,9 @@
-/** HTML writing and agent installation, after command-line validation. */
+/** HTML writing, the committed map and agent installation, after command-line validation. */
 
 import { spawn } from 'node:child_process'
 import { dirname, isAbsolute, join, relative, resolve } from 'node:path'
-import type { HtmlInput, InitInput } from './cli-input.ts'
+import type { HtmlInput, InitInput, SnapshotInput } from './cli-input.ts'
+import { formatMap, MAP_FILE, mapOf } from './committed-map.ts'
 import type { Repository } from './commands.ts'
 import { SCHEMA_VERSION, type WriterOutput } from './contract.ts'
 import { pageSourceOf } from './git-source.ts'
@@ -62,6 +63,29 @@ export function writeHtml(input: HtmlInput, repository: Repository, cwd: string)
       command: 'html',
       path: out,
       bytes: Buffer.byteLength(page)
+    }
+  }
+}
+
+/** Writes `galactica-map.json` at the repository root. */
+export function writeSnapshot(input: SnapshotInput, repository: Repository, cwd: string): Written {
+  const out = join(input.root, MAP_FILE)
+  const text = formatMap(mapOf(repository.graph))
+  try {
+    writeBelow(input.root, [{ path: out, text }])
+  } catch (error) {
+    if (error instanceof SymlinkRefused) return refusal(error, cwd)
+    return { problem: `could not write ${relative(cwd, out)}: ${(error as Error).message}` }
+  }
+  const size = Math.round(Buffer.byteLength(text) / 1024)
+  return {
+    code: 0,
+    message: `wrote ${relative(cwd, out)} (${size.toLocaleString('en')} KB)`,
+    output: {
+      schemaVersion: SCHEMA_VERSION,
+      command: 'snapshot',
+      path: out,
+      bytes: Buffer.byteLength(text)
     }
   }
 }

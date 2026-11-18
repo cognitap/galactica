@@ -12,7 +12,8 @@ For agent and tool authors. Every command prints one JSON object with `--json`, 
 - `uses` and `deps` accept a module path, a package name, a package directory or an area path. Galactica tries them in that order and takes the first kind that matches, so a package directory that is also an area names the package. `outline` accepts only a module path.
 - A path reads from the current directory and from the repository root. When the two readings name different subjects of the same kind, the command reports `ambiguous`.
 - An area or a package stands for its source and config modules, for both `uses` and `deps`. Its tests and stories use it like any other test or story, so what they import is not a dependency of the subject. Its tests are listed in `uses` `tests`, and its stories in `uses` `modules`.
-- A command that cannot answer prints a failure object and exits with code 1. A successful command exits with code 0. An unknown command or no command prints one line pointing to `--help`, without JSON. `init` also exits 1 when every file was kept; it returns its normal files object in that case.
+- A command that cannot answer prints a failure object and exits with code 1. A successful command exits with code 0. An unknown command or no command prints one line pointing to `--help`, without JSON. `init` also exits 1 when every file was kept; it returns its normal files object in that case. `check` exits 1 when `galactica-map.json` is missing, unreadable or different; a difference returns the check object, not a failure.
+- When `galactica-map.json` is present and differs from the run, or cannot be read, every analysis command except `check`, and `html`, add `committedMap`, the warning line the text prints last. It is omitted when there is no committed map or it matches. `snapshot` does not add it. A failure object can carry the same string.
 
 ```json
 {
@@ -22,7 +23,7 @@ For agent and tool authors. Every command prints one JSON object with `--json`, 
 }
 ```
 
-`error.code` is `not-found`, `ambiguous` or `usage`. `not-found` means no module, package or area matches, and its message names up to three paths that end with the given text. `usage` means an option the command does not take, a missing or extra argument, a `--depth` below 1, a `--root` that is no directory, or an invalid `galactica.config.json`, whose message starts with `galactica.config.json:` and names the key. For `html` and `init`, `usage` also covers a refused or failed write; `command` is the writer’s name. JSON failures go to stdout with empty stderr. Close option typos suggest the known option in the message.
+`error.code` is `not-found`, `ambiguous` or `usage`. `not-found` means no module, package or area matches, and its message names up to three paths that end with the given text. `usage` means an option the command does not take, a missing or extra argument, a `--depth` below 1, a `--root` that is no directory, or an invalid `galactica.config.json`, whose message starts with `galactica.config.json:` and names the key. For `html`, `snapshot` and `init`, `usage` also covers a refused or failed write; `command` is the writer’s name. For `check`, `usage` also covers a missing or unreadable committed map. JSON failures go to stdout with empty stderr. Close option typos suggest the known option in the message.
 
 ## overview
 
@@ -336,6 +337,22 @@ When both arguments name the same module, `chains` holds that one module and `st
 
 A root containing `deno.json` or `deno.jsonc` is unsupported. Analysis commands return the existing failure envelope with `error.code: "usage"`, a message naming the Deno config and explaining the unsupported workspace and import-map resolution, and exit code 1. No fields or schema version change.
 
+## check
+
+`check` reports the committed map. `path` is `galactica-map.json`. `stale` is false when the file matches this run, and `areas` is then empty. When `stale` is true the exit code is 1 and the same object is returned. `areas` is sorted by path. `change` is `added`, `removed` or `changed`.
+
+```json
+{
+  "schemaVersion": 1,
+  "command": "check",
+  "path": "galactica-map.json",
+  "stale": true,
+  "areas": [{ "path": "src/ui", "package": "app", "change": "changed" }]
+}
+```
+
+A missing file returns the failure object with `error.code` `usage` and the message `no committed map at galactica-map.json; run snapshot`. An unreadable file uses the same shape, and `message` says why.
+
 ## html
 
 `galactica html --out /tmp/map.html --json` writes the page, then returns:
@@ -345,6 +362,16 @@ A root containing `deno.json` or `deno.jsonc` is unsupported. Analysis commands 
 ```
 
 `path` is the absolute path written and `bytes` is the exact UTF-8 size. Relative `--out` and the default `galactica.html` resolve from the current directory. The text form prints an explicitly absolute output path as absolute and, for the default output, suggests `--out` or `.gitignore`. No page is embedded in JSON.
+
+## snapshot
+
+`galactica snapshot --json` writes `galactica-map.json` at the repository root, then returns:
+
+```json
+{ "schemaVersion": 1, "command": "snapshot", "path": "/repo/galactica-map.json", "bytes": 1234 }
+```
+
+`path` is absolute and `bytes` is the exact UTF-8 size. The text form prints the path relative to the current directory. The file's own format is documented with the command and is not this object. A refused write uses the failure shape with `command: "snapshot"`.
 
 ## init
 
