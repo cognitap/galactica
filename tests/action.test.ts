@@ -9,6 +9,7 @@ const pin = /^[\w/-]+@[a-f0-9]{40}\s+# v\d+\.\d+\.\d+$/
 test('the action runs the published release and uploads the HTML map', () => {
   const action = read('action.yml')
   assert.match(action, /default: html/)
+  assert.match(action, /node-version-file: \$\{\{ github\.action_path \}\}\/\.nvmrc/)
   assert.match(action, /html\|check/)
   assert.match(action, /@cognitap\/galactica@\$\{version\}/)
   assert.match(action, /galactica\.html/)
