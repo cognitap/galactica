@@ -266,13 +266,13 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-      - uses: cognitap/galactica@v0.2.6
+      - uses: cognitap/galactica@v0.3.0
 ```
 
 Fail the job when the committed map is stale:
 
 ```yaml
-- uses: cognitap/galactica@v0.2.6
+- uses: cognitap/galactica@v0.3.0
   with:
     command: check
 ```
@@ -303,7 +303,7 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-      - uses: cognitap/galactica@v0.2.6
+      - uses: cognitap/galactica@v0.3.0
       - name: Place the map at the site root
         run: mkdir _site && mv galactica.html _site/index.html
       - uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9 # v5.0.0
