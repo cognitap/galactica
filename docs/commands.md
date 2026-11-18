@@ -216,6 +216,90 @@ galactica html --source-url 'https://gitlab.example.com/group/repo/-/blob/{commi
 
 The template must start with `http://` or `https://` and contain `{path}`. A link to a module has no line, so the template loses its `#...{line}` fragment. `--source-url none` turns links off. The config's [`sourceUrl`](configuration.md#options) sets the same template, and the option wins over it.
 
+## GitHub Action
+
+`cognitap/galactica` runs one command for the whole repository, including a monorepo, and writes one page. Pin it to a release tag. Check out the repository first. The action selects Node.js 24 for the rest of the job.
+
+`html`, the default, writes `galactica.html` and uploads it as the `galactica` artifact. `check` fails the job when `galactica-map.json` is missing, unreadable or different from the repository.
+
+On every push, upload the map:
+
+```yaml
+name: Map
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+  actions: write
+
+jobs:
+  map:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: cognitap/galactica@v0.2.5
+```
+
+Fail the job when the committed map is stale:
+
+```yaml
+- uses: cognitap/galactica@v0.2.5
+  with:
+    command: check
+```
+
+Publish that same file to GitHub Pages, so `main` has the map at the site root. Enable Pages with GitHub Actions as the source. The page loads nothing from the network, so any static host can serve the file the same way.
+
+```yaml
+name: Map
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  map:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      actions: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: cognitap/galactica@v0.2.5
+      - name: Place the map at the site root
+        run: mkdir _site && mv galactica.html _site/index.html
+      - uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9 # v5.0.0
+        with:
+          path: _site
+
+  deploy:
+    needs: map
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@368f82528645a54fb793d4d04e342629a3f51346 # v5.0.1
+```
+
 ## init
 
 `init` installs the agent skill for Codex, Claude Code and Cursor. It writes three files and nothing else:
