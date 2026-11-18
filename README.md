@@ -12,7 +12,7 @@ Requires Node.js 24.1.0 or newer. From a project you trust, open a dependency ma
 npx @cognitap/galactica html --open
 ```
 
-Galactica writes `galactica.html` in the current directory and opens it in your browser. Select a folder to see its modules, or select a file to trace what it imports and what depends on it. The map is a single HTML file you can share or open offline.
+Galactica writes `galactica.html` in the current directory and opens it in your browser. Select a folder to see its modules, or select a file to trace what it imports and what depends on it. The map is a single HTML file you can share or open offline. On GitHub, the [action](docs/commands.md#github-action) writes that file on each push and can publish it.
 
 For regular use, install the CLI globally and run the same commands as `galactica`.
 

@@ -2,12 +2,13 @@ import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
 import { test } from 'node:test'
 
-for (const workflow of ['ci.yml', 'release.yml']) {
+for (const workflow of ['ci.yml', 'release.yml', 'map.yml']) {
   test(`${workflow} pins every action to a full SHA and records its version`, () => {
     const text = readFileSync(new URL(`../.github/workflows/${workflow}`, import.meta.url), 'utf8')
     const actions = [...text.matchAll(/^\s*(?:- )?uses:\s*(.+)$/gm)]
     assert.ok(actions.length > 0)
     for (const [, action] of actions) {
+      if (workflow === 'map.yml' && action === './') continue
       assert.match(action ?? '', /^[\w/-]+@[a-f0-9]{40}\s+# v\d+\.\d+\.\d+$/)
     }
   })

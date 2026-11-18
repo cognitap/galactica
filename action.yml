@@ -1,0 +1,41 @@
+name: Galactica
+description: Write the HTML map of a repository, or fail when its committed map is stale.
+inputs:
+  command:
+    description: html writes galactica.html and uploads it. check fails when galactica-map.json is missing or stale.
+    required: false
+    default: html
+  artifact:
+    description: Name of the uploaded HTML artifact. Used when command is html.
+    required: false
+    default: galactica
+runs:
+  using: composite
+  steps:
+    - name: Set up Node.js
+      uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+      with:
+        node-version: '26.11.1'
+
+    - name: Run Galactica
+      shell: bash
+      env:
+        COMMAND: ${{ inputs.command }}
+        ACTION_PATH: ${{ github.action_path }}
+      run: |
+        case "$COMMAND" in
+          html|check) ;;
+          *) echo "galactica: command must be html or check" >&2; exit 1 ;;
+        esac
+        version=$(node -e "process.stdout.write(JSON.parse(require('node:fs').readFileSync(require('node:path').join(process.env.ACTION_PATH,'package.json'),'utf8')).version)")
+        prefix=$(mktemp -d)
+        npm install --prefix "$prefix" --ignore-scripts --no-fund --no-audit "@cognitap/galactica@${version}"
+        "$prefix/node_modules/.bin/galactica" "$COMMAND"
+
+    - name: Upload the HTML map
+      if: inputs.command == 'html'
+      uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+      with:
+        name: ${{ inputs.artifact }}
+        path: galactica.html
+        if-no-files-found: error
