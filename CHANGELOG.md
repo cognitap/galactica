@@ -4,6 +4,8 @@
 
 ## Unreleased
 
+## 0.3.0
+
 - `accept` writes `galactica-health.json`, the health findings a repository already accepts. `health` and the page leave a recorded finding out until it changes, and say how many they left out.
 
 ## 0.2.6
