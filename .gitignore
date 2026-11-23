@@ -10,3 +10,4 @@ output/
 .env.*
 !.env.example
 .DS_Store
+.pnpm-store/
