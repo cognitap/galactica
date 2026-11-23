@@ -11,7 +11,11 @@
  */
 
 import assert from 'node:assert/strict'
-import { execFileSync } from 'node:child_process'
+import { execFile, execFileSync } from 'node:child_process'
+import { createHash } from 'node:crypto'
+import { createServer } from 'node:http'
+import type { AddressInfo } from 'node:net'
+import { promisify } from 'node:util'
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { dirname, join, posix, resolve } from 'node:path'
@@ -43,6 +47,42 @@ const run = (command: string, args: readonly string[], cwd = repository, environ
 const galactica = (...args: string[]) =>
   run(join(repository, 'node_modules', '.bin', 'galactica'), args, repository, cliEnv).trimEnd()
 const json = (...args: string[]) => JSON.parse(galactica(...args, '--json')) as Output
+
+async function serveRegistry(tarball: string) {
+  const bytes = readFileSync(tarball)
+  const manifest = JSON.parse(run('tar', ['-xOf', tarball, 'package/package.json'], root))
+  const server = createServer((request, response) => {
+    if (request.url === '/package.tgz') {
+      response.writeHead(200, { 'content-type': 'application/octet-stream' })
+      response.end(bytes)
+    } else if (request.url && decodeURIComponent(request.url) === `/${name}`) {
+      const { port } = server.address() as AddressInfo
+      response.writeHead(200, { 'content-type': 'application/json' })
+      response.end(
+        JSON.stringify({
+          name,
+          'dist-tags': { latest: version },
+          versions: {
+            [version]: {
+              ...manifest,
+              _hasShrinkwrap: true,
+              dist: {
+                tarball: `http://127.0.0.1:${port}/package.tgz`,
+                integrity: `sha512-${createHash('sha512').update(bytes).digest('base64')}`
+              }
+            }
+          }
+        })
+      )
+    } else {
+      response.writeHead(404)
+      response.end()
+    }
+  })
+  await new Promise<void>(listening => server.listen(0, '127.0.0.1', listening))
+  const { port } = server.address() as AddressInfo
+  return { server, url: `http://127.0.0.1:${port}/` }
+}
 
 const files: Record<string, string> = {
   'package.json': JSON.stringify({ name: 'consumer', private: true, type: 'module' }),
@@ -96,25 +136,33 @@ try {
   assert.ok(existsSync(join(installed, 'schema/galactica.config.schema.json')), 'ships the schema')
 
   // npm/npx honors a published shrinkwrap; pnpm uses the consumer's own lockfile.
+  // npm ignores the shrinkwrap of a tarball path, so serve the archive from a
+  // local registry for the package's scope.
   const npmRepository = join(work, 'npm-repository')
   mkdirSync(npmRepository)
   writeFileSync(
     join(npmRepository, 'package.json'),
     JSON.stringify({ name: 'npm-consumer', private: true })
   )
-  run(
-    'npm',
-    [
-      'install',
-      '--ignore-scripts',
-      '--omit=dev',
-      '--no-audit',
-      '--no-fund',
-      '--install-strategy=nested',
-      archive
-    ],
-    npmRepository
-  )
+  const registry = await serveRegistry(archive)
+  try {
+    await promisify(execFile)(
+      'npm',
+      [
+        'install',
+        '--ignore-scripts',
+        '--omit=dev',
+        '--no-audit',
+        '--no-fund',
+        '--install-strategy=nested',
+        `--${name.split('/')[0]}:registry=${registry.url}`,
+        `${name}@${version}`
+      ],
+      { cwd: npmRepository, env, timeout: 180_000 }
+    )
+  } finally {
+    registry.server.close()
+  }
   const npmInstalled = join(npmRepository, 'node_modules', name)
   assert.equal(readFileSync(join(npmInstalled, 'npm-shrinkwrap.json'), 'utf8'), shrinkwrapText)
   // npm may nest or hoist the locked packages. Walk the actual dependency graph,
